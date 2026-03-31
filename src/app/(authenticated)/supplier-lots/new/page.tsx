@@ -7,6 +7,7 @@ export default function NewSupplierLotPage() {
       <PageHeader
         title="New Lot Intake"
         description="Record incoming coconut husk delivery from supplier"
+        backHref="/supplier-lots"
       />
       <LotForm />
     </div>

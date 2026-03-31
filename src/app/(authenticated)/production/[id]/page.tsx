@@ -41,6 +41,7 @@ export default async function ProductionBatchDetailPage({
       <PageHeader
         title={`Batch ${batch.batchNumber}`}
         description={`Product: ${batch.product.name}`}
+        backHref="/production"
         action={
           <div className="flex gap-2">
             {batch.status !== "IN_PROGRESS" && (
