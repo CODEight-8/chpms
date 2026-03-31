@@ -40,6 +40,7 @@ export default async function SupplierLotDetailPage({
       <PageHeader
         title={`Lot ${lot.lotNumber}`}
         description={`Invoice: ${lot.invoiceNumber}`}
+        backHref="/supplier-lots"
         action={
           <div className="flex gap-2">
             <Link href={`/supplier-lots/${lot.id}/invoice`}>

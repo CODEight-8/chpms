@@ -7,6 +7,7 @@ export default function NewSupplierPage() {
       <PageHeader
         title="Add Supplier"
         description="Register a new coconut husk supplier"
+        backHref="/suppliers"
       />
       <SupplierForm />
     </div>

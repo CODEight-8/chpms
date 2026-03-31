@@ -12,6 +12,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { CheckCircle, Truck } from "lucide-react";
 import { toast } from "sonner";
 
@@ -82,7 +83,10 @@ export function BatchActions({
     return (
       <Dialog open={completeOpen} onOpenChange={setCompleteOpen}>
         <DialogTrigger asChild>
-          <Button className="bg-emerald-700 hover:bg-emerald-800 gap-2">
+          <Button
+            className="bg-emerald-700 hover:bg-emerald-800 gap-2"
+            aria-label="Mark batch as complete"
+          >
             <CheckCircle className="h-4 w-4" />
             Mark Complete
           </Button>
@@ -111,6 +115,7 @@ export function BatchActions({
                 value={outputUnit}
                 onChange={(e) => setOutputUnit(e.target.value)}
                 placeholder="e.g. kg"
+                maxLength={50}
               />
             </div>
             <Button
@@ -128,15 +133,23 @@ export function BatchActions({
 
   if (currentStatus === "COMPLETED") {
     return (
-      <Button
-        onClick={handleDispatch}
+      <ConfirmDialog
+        title="Mark as Dispatched?"
+        description="This will mark the batch as dispatched. This action cannot be undone."
+        confirmLabel="Mark Dispatched"
+        onConfirm={handleDispatch}
         disabled={loading}
-        variant="outline"
-        className="gap-2"
       >
-        <Truck className="h-4 w-4" />
-        {loading ? "Dispatching..." : "Mark Dispatched"}
-      </Button>
+        <Button
+          variant="outline"
+          className="gap-2"
+          disabled={loading}
+          aria-label="Mark batch as dispatched"
+        >
+          <Truck className="h-4 w-4" />
+          {loading ? "Dispatching..." : "Mark Dispatched"}
+        </Button>
+      </ConfirmDialog>
     );
   }
 

@@ -37,6 +37,7 @@ export default async function OrderDetailPage({
       <PageHeader
         title={`Order ${order.orderNumber}`}
         description={`Client: ${order.client.name}`}
+        backHref="/orders"
         action={
           <OrderActions
             orderId={order.id}

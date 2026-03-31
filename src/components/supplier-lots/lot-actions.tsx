@@ -10,6 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { CheckCircle, XCircle } from "lucide-react";
 import { toast } from "sonner";
 
@@ -56,7 +57,8 @@ export function LotActions({
         body: JSON.stringify({ status }),
       });
       if (!res.ok) throw new Error((await res.json()).error);
-      toast.success(`Status updated to ${status.replace("_", " ")}`);
+      const label = status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+      toast.success(`Status updated to ${label}`);
       router.refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to update status");
@@ -77,7 +79,7 @@ export function LotActions({
             onValueChange={updateGrade}
             disabled={loading}
           >
-            <SelectTrigger className="w-40">
+            <SelectTrigger className="w-40" aria-label="Select quality grade">
               <SelectValue placeholder="Set grade" />
             </SelectTrigger>
             <SelectContent>
@@ -89,24 +91,41 @@ export function LotActions({
           </Select>
         </div>
 
-        <Button
-          onClick={() => transitionStatus("GOOD_TO_GO")}
+        <ConfirmDialog
+          title="Mark as Good to Go?"
+          description="This lot will become available for production batches. Make sure the quality grade and aging are acceptable before proceeding."
+          confirmLabel="Mark Good to Go"
+          onConfirm={() => transitionStatus("GOOD_TO_GO")}
           disabled={loading || !currentGrade || currentGrade === "REJECT"}
-          className="bg-emerald-700 hover:bg-emerald-800 gap-2"
         >
-          <CheckCircle className="h-4 w-4" />
-          Mark Good to Go
-        </Button>
+          <Button
+            className="bg-emerald-700 hover:bg-emerald-800 gap-2"
+            disabled={loading || !currentGrade || currentGrade === "REJECT"}
+            aria-label="Mark lot as good to go for production"
+          >
+            <CheckCircle className="h-4 w-4" />
+            Mark Good to Go
+          </Button>
+        </ConfirmDialog>
 
-        <Button
-          onClick={() => transitionStatus("REJECTED")}
+        <ConfirmDialog
+          title="Reject this lot?"
+          description="This action cannot be undone. The lot will be permanently marked as rejected and cannot be used in production."
+          confirmLabel="Reject Lot"
+          variant="destructive"
+          onConfirm={() => transitionStatus("REJECTED")}
           disabled={loading}
-          variant="outline"
-          className="text-red-600 border-red-200 hover:bg-red-50 gap-2"
         >
-          <XCircle className="h-4 w-4" />
-          Reject
-        </Button>
+          <Button
+            variant="outline"
+            className="text-red-600 border-red-200 hover:bg-red-50 gap-2"
+            disabled={loading}
+            aria-label="Reject this lot"
+          >
+            <XCircle className="h-4 w-4" />
+            Reject
+          </Button>
+        </ConfirmDialog>
       </div>
     );
   }

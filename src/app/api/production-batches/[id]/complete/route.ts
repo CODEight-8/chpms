@@ -2,13 +2,14 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { completeBatchSchema } from "@/lib/validators";
 import { requireAuth, errorResponse, jsonResponse } from "@/lib/api-helpers";
+import { logAuditEvent } from "@/lib/audit-log";
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const { error } = await requireAuth("production", "edit");
-  if (error) return error;
+  const { user, error } = await requireAuth("production", "edit");
+  if (error || !user) return error!;
 
   const batch = await prisma.productionBatch.findUnique({
     where: { id: params.id },
@@ -37,6 +38,14 @@ export async function PATCH(
     include: {
       product: { select: { id: true, name: true, unit: true } },
     },
+  });
+
+  logAuditEvent({
+    user,
+    action: "COMPLETE",
+    entityType: "ProductionBatch",
+    entityId: params.id,
+    details: { batchNumber: batch.batchNumber, outputQuantity: parsed.data.outputQuantity, outputUnit: parsed.data.outputUnit },
   });
 
   return jsonResponse(updated);
