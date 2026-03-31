@@ -2,13 +2,14 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { fulfillmentSchema } from "@/lib/validators";
 import { requireAuth, errorResponse, jsonResponse } from "@/lib/api-helpers";
+import { logAuditEvent } from "@/lib/audit-log";
 
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const { error } = await requireAuth("orders", "edit");
-  if (error) return error;
+  const { user, error } = await requireAuth("orders", "edit");
+  if (error || !user) return error!;
 
   const order = await prisma.order.findUnique({
     where: { id: params.id },
@@ -88,6 +89,14 @@ export async function POST(
         data: { status: "FULFILLED" },
       });
     }
+  });
+
+  logAuditEvent({
+    user,
+    action: "FULFILL",
+    entityType: "Order",
+    entityId: params.id,
+    details: { orderNumber: order.orderNumber, fulfillments: parsed.data.fulfillments },
   });
 
   return jsonResponse({ success: true });

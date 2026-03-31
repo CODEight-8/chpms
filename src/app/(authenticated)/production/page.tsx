@@ -13,6 +13,7 @@ import { SummaryCard } from "@/components/shared/summary-card";
 import { EmptyState } from "@/components/shared/empty-state";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { BatchStatusTabs } from "@/components/production/batch-status-tabs";
+import { SearchInput } from "@/components/shared/search-input";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -57,7 +58,7 @@ export default async function ProductionPage({
       />
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <SummaryCard
           title="In Progress"
           value={counts.IN_PROGRESS}
@@ -75,8 +76,12 @@ export default async function ProductionPage({
         />
       </div>
 
-      {/* Status Tabs */}
-      <div className="mb-4">
+      {/* Search + Status Tabs */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
+        <SearchInput
+          placeholder="Search by batch # or product..."
+          paramName="search"
+        />
         <BatchStatusTabs counts={counts} />
       </div>
 

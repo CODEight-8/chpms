@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { clientSchema } from "@/lib/validators";
 import { requireAuth, errorResponse, jsonResponse } from "@/lib/api-helpers";
 import { getClientWithStats } from "@/lib/queries/clients";
+import { logAuditEvent } from "@/lib/audit-log";
 
 export async function GET(
   _request: NextRequest,
@@ -21,8 +22,8 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const { error } = await requireAuth("clients", "edit");
-  if (error) return error;
+  const { user, error } = await requireAuth("clients", "edit");
+  if (error || !user) return error!;
 
   const body = await request.json();
   const parsed = clientSchema.safeParse(body);
@@ -31,9 +32,20 @@ export async function PUT(
     return errorResponse(parsed.error.issues[0].message);
   }
 
+  const existing = await prisma.client.findUnique({ where: { id: params.id } });
+  if (!existing) return errorResponse("Client not found", 404);
+
   const client = await prisma.client.update({
     where: { id: params.id },
     data: parsed.data,
+  });
+
+  logAuditEvent({
+    user,
+    action: "UPDATE",
+    entityType: "Client",
+    entityId: params.id,
+    details: { before: existing, after: client },
   });
 
   return jsonResponse(client);
@@ -43,12 +55,20 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const { error } = await requireAuth("clients", "delete");
-  if (error) return error;
+  const { user, error } = await requireAuth("clients", "delete");
+  if (error || !user) return error!;
 
   const client = await prisma.client.update({
     where: { id: params.id },
     data: { isActive: false },
+  });
+
+  logAuditEvent({
+    user,
+    action: "DELETE",
+    entityType: "Client",
+    entityId: params.id,
+    details: { name: client.name },
   });
 
   return jsonResponse(client);

@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
+import { Plus, Trash2 } from "lucide-react";
 
 interface Client {
   id: string;
@@ -29,14 +30,19 @@ interface Product {
   defaultPrice: string | null;
 }
 
+interface LineItem {
+  productId: string;
+  quantity: number;
+  unitPrice: number;
+}
+
 export function OrderForm() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [clients, setClients] = useState<Client[]>([]);
-  const [product, setProduct] = useState<Product | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
   const [clientId, setClientId] = useState("");
-  const [quantity, setQuantity] = useState<number>(0);
-  const [unitPrice, setUnitPrice] = useState<number>(0);
+  const [items, setItems] = useState<LineItem[]>([]);
 
   useEffect(() => {
     Promise.all([
@@ -45,25 +51,69 @@ export function OrderForm() {
     ])
       .then(([c, prods]) => {
         setClients(c);
-        // Auto-select the single product (Coconut Husk Chips)
+        setProducts(prods);
+        // Auto-add first product as initial line item
         if (prods.length > 0) {
-          setProduct(prods[0]);
-          if (prods[0].defaultPrice) {
-            setUnitPrice(Number(prods[0].defaultPrice));
-          }
+          setItems([
+            {
+              productId: prods[0].id,
+              quantity: 0,
+              unitPrice: Number(prods[0].defaultPrice) || 0,
+            },
+          ]);
         }
       })
       .catch(() => toast.error("Failed to load data"));
   }, []);
 
   const totalValue = useMemo(
-    () => quantity * unitPrice,
-    [quantity, unitPrice]
+    () => items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0),
+    [items]
   );
+
+  function updateItem(index: number, field: keyof LineItem, value: string | number) {
+    setItems((prev) => {
+      const updated = [...prev];
+      if (field === "productId") {
+        const product = products.find((p) => p.id === value);
+        updated[index] = {
+          ...updated[index],
+          productId: value as string,
+          unitPrice: product?.defaultPrice ? Number(product.defaultPrice) : updated[index].unitPrice,
+        };
+      } else {
+        updated[index] = { ...updated[index], [field]: value };
+      }
+      return updated;
+    });
+  }
+
+  function addItem() {
+    const usedProductIds = items.map((i) => i.productId);
+    const nextProduct = products.find((p) => !usedProductIds.includes(p.id)) || products[0];
+    if (!nextProduct) return;
+    setItems((prev) => [
+      ...prev,
+      {
+        productId: nextProduct.id,
+        quantity: 0,
+        unitPrice: Number(nextProduct.defaultPrice) || 0,
+      },
+    ]);
+  }
+
+  function removeItem(index: number) {
+    setItems((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function getProduct(productId: string) {
+    return products.find((p) => p.id === productId);
+  }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!clientId || !product || quantity <= 0) return;
+    const validItems = items.filter((i) => i.productId && i.quantity > 0);
+    if (!clientId || validItems.length === 0) return;
 
     setLoading(true);
     const form = new FormData(e.currentTarget);
@@ -72,13 +122,11 @@ export function OrderForm() {
       clientId,
       orderDate: form.get("orderDate") as string,
       expectedDelivery: (form.get("expectedDelivery") as string) || undefined,
-      items: [
-        {
-          productId: product.id,
-          quantityOrdered: quantity,
-          unitPrice,
-        },
-      ],
+      items: validItems.map((i) => ({
+        productId: i.productId,
+        quantityOrdered: i.quantity,
+        unitPrice: i.unitPrice,
+      })),
       notes: (form.get("notes") as string) || undefined,
     };
 
@@ -106,6 +154,7 @@ export function OrderForm() {
   }
 
   const today = new Date().toISOString().split("T")[0];
+  const hasValidItems = items.some((i) => i.quantity > 0);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 max-w-lg">
@@ -153,52 +202,123 @@ export function OrderForm() {
         </CardContent>
       </Card>
 
-      {/* Order Item — Single Product */}
+      {/* Order Line Items */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Order Details</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg">Order Items</CardTitle>
+            {products.length > 1 && items.length < products.length && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={addItem}
+                className="gap-1.5"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Add Item
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center gap-3 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
-            <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
-              <span className="text-lg">🥥</span>
-            </div>
-            <div>
-              <p className="text-sm font-bold text-emerald-900">
-                {product?.name || "Loading..."}
-              </p>
-              <p className="text-xs text-emerald-600">
-                Measured in {product?.unit || "kg"}
-              </p>
-            </div>
-          </div>
+          {items.map((item, index) => {
+            const product = getProduct(item.productId);
+            return (
+              <div
+                key={index}
+                className="p-4 border rounded-lg space-y-3 relative"
+              >
+                {items.length > 1 && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeItem(index)}
+                    className="absolute top-2 right-2 h-8 w-8 p-0 text-gray-400 hover:text-red-600"
+                    aria-label="Remove item"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="quantity">Quantity ({product?.unit || "kg"}) *</Label>
-              <Input
-                id="quantity"
-                type="number"
-                min={0.01}
-                step={0.01}
-                value={quantity || ""}
-                onChange={(e) => setQuantity(parseFloat(e.target.value) || 0)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="unitPrice">Unit Price (LKR) *</Label>
-              <Input
-                id="unitPrice"
-                type="number"
-                min={0.01}
-                step={0.01}
-                value={unitPrice || ""}
-                onChange={(e) => setUnitPrice(parseFloat(e.target.value) || 0)}
-                required
-              />
-            </div>
-          </div>
+                {products.length > 1 ? (
+                  <div className="space-y-2">
+                    <Label>Product *</Label>
+                    <Select
+                      value={item.productId}
+                      onValueChange={(v) => updateItem(index, "productId", v)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {products.map((p) => (
+                          <SelectItem key={p.id} value={p.id}>
+                            {p.name} ({p.unit})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
+                    <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
+                      <span className="text-lg">🥥</span>
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-emerald-900">
+                        {product?.name || "Loading..."}
+                      </p>
+                      <p className="text-xs text-emerald-600">
+                        Measured in {product?.unit || "kg"}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>
+                      Quantity ({product?.unit || "kg"}) *
+                    </Label>
+                    <Input
+                      type="number"
+                      min={0.01}
+                      step={0.01}
+                      value={item.quantity || ""}
+                      onChange={(e) =>
+                        updateItem(index, "quantity", parseFloat(e.target.value) || 0)
+                      }
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Unit Price (LKR) *</Label>
+                    <Input
+                      type="number"
+                      min={0.01}
+                      step={0.01}
+                      value={item.unitPrice || ""}
+                      onChange={(e) =>
+                        updateItem(index, "unitPrice", parseFloat(e.target.value) || 0)
+                      }
+                      required
+                    />
+                  </div>
+                </div>
+
+                {item.quantity > 0 && item.unitPrice > 0 && (
+                  <div className="text-right text-sm text-gray-600">
+                    Subtotal: LKR{" "}
+                    {(item.quantity * item.unitPrice).toLocaleString("en-LK", {
+                      minimumFractionDigits: 2,
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
 
           {totalValue > 0 && (
             <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-4 text-right">
@@ -219,7 +339,7 @@ export function OrderForm() {
         <CardContent className="pt-6">
           <div className="space-y-2">
             <Label htmlFor="notes">Notes</Label>
-            <Textarea id="notes" name="notes" rows={3} />
+            <Textarea id="notes" name="notes" rows={3} maxLength={2000} />
           </div>
         </CardContent>
       </Card>
@@ -228,7 +348,7 @@ export function OrderForm() {
         <Button
           type="submit"
           className="bg-emerald-700 hover:bg-emerald-800"
-          disabled={loading || !clientId || quantity <= 0}
+          disabled={loading || !clientId || !hasValidItems}
         >
           {loading ? "Creating..." : "Create Order"}
         </Button>

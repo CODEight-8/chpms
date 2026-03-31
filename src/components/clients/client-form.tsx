@@ -76,6 +76,7 @@ export function ClientForm({ defaultValues }: ClientFormProps) {
                 id="name"
                 name="name"
                 defaultValue={defaultValues?.name || ""}
+                maxLength={200}
                 required
               />
             </div>
@@ -85,6 +86,7 @@ export function ClientForm({ defaultValues }: ClientFormProps) {
                 id="companyName"
                 name="companyName"
                 defaultValue={defaultValues?.companyName || ""}
+                maxLength={200}
               />
             </div>
           </div>
@@ -96,6 +98,7 @@ export function ClientForm({ defaultValues }: ClientFormProps) {
                 id="phone"
                 name="phone"
                 defaultValue={defaultValues?.phone || ""}
+                maxLength={50}
               />
             </div>
             <div className="space-y-2">
@@ -105,6 +108,7 @@ export function ClientForm({ defaultValues }: ClientFormProps) {
                 name="email"
                 type="email"
                 defaultValue={defaultValues?.email || ""}
+                maxLength={200}
               />
             </div>
           </div>
@@ -116,6 +120,7 @@ export function ClientForm({ defaultValues }: ClientFormProps) {
               name="address"
               defaultValue={defaultValues?.address || ""}
               rows={2}
+              maxLength={500}
             />
           </div>
 
@@ -126,6 +131,7 @@ export function ClientForm({ defaultValues }: ClientFormProps) {
               name="paymentTerms"
               defaultValue={defaultValues?.paymentTerms || ""}
               placeholder="e.g. Net 30, COD"
+              maxLength={500}
             />
           </div>
 

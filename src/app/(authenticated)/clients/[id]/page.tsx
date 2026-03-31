@@ -20,6 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ClientActions } from "@/components/clients/client-actions";
 import { ShoppingCart, Wallet, TrendingDown } from "lucide-react";
 
 export default async function ClientDetailPage({
@@ -30,6 +31,7 @@ export default async function ClientDetailPage({
   const session = await getServerSession(authOptions);
   const role = session!.user.role as UserRole;
   const canEdit = hasPermission(role, "clients", "edit");
+  const canDelete = hasPermission(role, "clients", "delete");
 
   const client = await getClientWithStats(params.id);
   if (!client) notFound();
@@ -39,6 +41,15 @@ export default async function ClientDetailPage({
       <PageHeader
         title={client.name}
         description={client.companyName || "Client"}
+        backHref="/clients"
+        action={
+          <ClientActions
+            clientId={client.id}
+            clientName={client.name}
+            isActive={client.isActive}
+            canEdit={canDelete}
+          />
+        }
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">

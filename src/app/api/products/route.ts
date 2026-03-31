@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAuth, jsonResponse } from "@/lib/api-helpers";
 
 export async function GET() {
-  const { error } = await requireAuth();
+  const { error } = await requireAuth("production", "view");
   if (error) return error;
 
   const products = await prisma.product.findMany({
