@@ -25,6 +25,7 @@ export function LotForm() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [loadingSuppliers, setLoadingSuppliers] = useState(true);
   const [supplierId, setSupplierId] = useState("");
   const [huskCount, setHuskCount] = useState<number>(0);
   const [perHuskRate, setPerHuskRate] = useState<number>(0);
@@ -39,7 +40,8 @@ export function LotForm() {
     fetch("/api/suppliers?active=true")
       .then((r) => r.json())
       .then(setSuppliers)
-      .catch(() => toast.error("Failed to load suppliers"));
+      .catch(() => toast.error("Failed to load suppliers"))
+      .finally(() => setLoadingSuppliers(false));
   }, []);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -88,9 +90,9 @@ export function LotForm() {
         <form onSubmit={handleSubmit} className="space-y-5 max-w-lg">
           <div className="space-y-2">
             <Label>Supplier *</Label>
-            <Select value={supplierId} onValueChange={setSupplierId} required>
-              <SelectTrigger>
-                <SelectValue placeholder="Select a supplier" />
+            <Select value={supplierId} onValueChange={setSupplierId} required disabled={loadingSuppliers}>
+              <SelectTrigger aria-label="Select supplier">
+                <SelectValue placeholder={loadingSuppliers ? "Loading suppliers..." : "Select a supplier"} />
               </SelectTrigger>
               <SelectContent>
                 {suppliers.map((s) => (
@@ -199,7 +201,7 @@ export function LotForm() {
 
           <div className="space-y-2">
             <Label htmlFor="notes">Notes</Label>
-            <Textarea id="notes" name="notes" rows={3} />
+            <Textarea id="notes" name="notes" rows={3} maxLength={2000} />
           </div>
 
           <div className="flex gap-3 pt-2">

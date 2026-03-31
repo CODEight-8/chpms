@@ -13,23 +13,25 @@ import {
 } from "@/components/ui/dialog";
 
 interface ConfirmDialogProps {
-  trigger: React.ReactNode;
   title: string;
   description: string;
   confirmLabel?: string;
   cancelLabel?: string;
   variant?: "destructive" | "default";
   onConfirm: () => void | Promise<void>;
+  children: React.ReactNode;
+  disabled?: boolean;
 }
 
 export function ConfirmDialog({
-  trigger,
   title,
   description,
   confirmLabel = "Confirm",
   cancelLabel = "Cancel",
   variant = "default",
   onConfirm,
+  children,
+  disabled,
 }: ConfirmDialogProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -46,13 +48,15 @@ export function ConfirmDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>{trigger}</DialogTrigger>
+      <DialogTrigger asChild disabled={disabled}>
+        {children}
+      </DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
-        <DialogFooter className="gap-2 sm:gap-0">
+        <DialogFooter>
           <Button
             variant="outline"
             onClick={() => setOpen(false)}
@@ -65,7 +69,7 @@ export function ConfirmDialog({
             className={
               variant === "default"
                 ? "bg-emerald-700 hover:bg-emerald-800"
-                : ""
+                : undefined
             }
             onClick={handleConfirm}
             disabled={loading}

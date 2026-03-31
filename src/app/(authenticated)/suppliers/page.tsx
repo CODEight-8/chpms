@@ -7,6 +7,7 @@ import { UserRole } from "@prisma/client";
 import { formatLKR } from "@/lib/currency";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
+import { SearchInput } from "@/components/shared/search-input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -19,12 +20,19 @@ import {
 } from "@/components/ui/table";
 import { Plus, Truck } from "lucide-react";
 
-export default async function SuppliersPage() {
+export default async function SuppliersPage({
+  searchParams,
+}: {
+  searchParams: { search?: string };
+}) {
   const session = await getServerSession(authOptions);
   const role = session!.user.role as UserRole;
   const canCreate = hasPermission(role, "suppliers", "create");
 
-  const suppliers = await getSuppliersWithStats({ active: true });
+  const suppliers = await getSuppliersWithStats({
+    active: true,
+    search: searchParams.search,
+  });
 
   return (
     <div>
@@ -43,13 +51,24 @@ export default async function SuppliersPage() {
         }
       />
 
+      <div className="mb-4">
+        <SearchInput
+          placeholder="Search by name, phone, or location..."
+          paramName="search"
+        />
+      </div>
+
       {suppliers.length === 0 ? (
         <EmptyState
           icon={Truck}
-          title="No suppliers yet"
-          description="Add your first supplier to start receiving materials"
+          title={searchParams.search ? "No suppliers found" : "No suppliers yet"}
+          description={
+            searchParams.search
+              ? `No suppliers matching "${searchParams.search}"`
+              : "Add your first supplier to start receiving materials"
+          }
           action={
-            canCreate ? (
+            canCreate && !searchParams.search ? (
               <Link href="/suppliers/new">
                 <Button className="bg-emerald-700 hover:bg-emerald-800">
                   Add Supplier
@@ -107,7 +126,7 @@ export default async function SuppliersPage() {
                         {formatLKR(supplier.outstandingBalance)}
                       </span>
                     ) : (
-                      <span className="text-gray-400">—</span>
+                      <span className="text-gray-500">—</span>
                     )}
                   </TableCell>
                   <TableCell>

@@ -5,6 +5,7 @@ import { requireAuth, errorResponse, jsonResponse } from "@/lib/api-helpers";
 import { generateLotNumber, generateInvoiceNumber } from "@/lib/id-generators";
 import { getLotsWithAging, getLotStatusCounts } from "@/lib/queries/supplier-lots";
 import { LotStatus } from "@prisma/client";
+import { logAuditEvent } from "@/lib/audit-log";
 
 export async function GET(request: NextRequest) {
   const { error } = await requireAuth("supplier-lots", "view");
@@ -31,8 +32,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const { error } = await requireAuth("supplier-lots", "create");
-  if (error) return error;
+  const { user, error } = await requireAuth("supplier-lots", "create");
+  if (error || !user) return error!;
 
   const body = await request.json();
   const parsed = supplierLotSchema.safeParse(body);
@@ -75,6 +76,14 @@ export async function POST(request: NextRequest) {
     include: {
       supplier: { select: { id: true, name: true } },
     },
+  });
+
+  logAuditEvent({
+    user,
+    action: "CREATE",
+    entityType: "SupplierLot",
+    entityId: lot.id,
+    details: { lotNumber: lot.lotNumber, supplierId, huskCount },
   });
 
   return jsonResponse(lot, 201);

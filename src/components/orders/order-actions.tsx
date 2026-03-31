@@ -37,39 +37,72 @@ export function OrderActions({
       {currentStatus === "PENDING" && (
         <>
           <ConfirmDialog
-            trigger={
-              <Button className="bg-blue-600 hover:bg-blue-700 gap-2">
-                <ClipboardCheck className="h-4 w-4" />
-                Confirm Order
-              </Button>
-            }
             title="Confirm this order?"
             description="This will move the order to Confirmed status. The order can then be fulfilled with production batches."
             confirmLabel="Confirm Order"
             onConfirm={() => transitionStatus("CONFIRMED")}
-          />
+          >
+            <Button className="bg-blue-600 hover:bg-blue-700 gap-2">
+              <ClipboardCheck className="h-4 w-4" />
+              Confirm Order
+            </Button>
+          </ConfirmDialog>
           <ConfirmDialog
-            trigger={
-              <Button
-                variant="outline"
-                className="text-red-600 border-red-200 hover:bg-red-50 gap-2"
-              >
-                <XCircle className="h-4 w-4" />
-                Cancel
-              </Button>
-            }
             title="Cancel this order?"
             description="This action cannot be undone. The order will be permanently marked as cancelled."
             confirmLabel="Cancel Order"
             variant="destructive"
             onConfirm={() => transitionStatus("CANCELLED")}
-          />
+          >
+            <Button
+              variant="outline"
+              className="text-red-600 border-red-200 hover:bg-red-50 gap-2"
+            >
+              <XCircle className="h-4 w-4" />
+              Cancel
+            </Button>
+          </ConfirmDialog>
         </>
       )}
 
       {currentStatus === "CONFIRMED" && (
         <ConfirmDialog
-          trigger={
+          title="Cancel this confirmed order?"
+          description="This action cannot be undone. Any existing fulfillments will remain recorded but the order will be marked as cancelled."
+          confirmLabel="Cancel Order"
+          variant="destructive"
+          onConfirm={() => transitionStatus("CANCELLED")}
+        >
+          <Button
+            variant="outline"
+            className="text-red-600 border-red-200 hover:bg-red-50 gap-2"
+          >
+            <XCircle className="h-4 w-4" />
+            Cancel Order
+          </Button>
+        </ConfirmDialog>
+      )}
+
+      {currentStatus === "FULFILLED" && (
+        <>
+          <ConfirmDialog
+            title="Mark as dispatched?"
+            description="This confirms the order has been shipped to the client. This action cannot be undone."
+            confirmLabel="Mark Dispatched"
+            onConfirm={() => transitionStatus("DISPATCHED")}
+          >
+            <Button variant="outline" className="gap-2">
+              <Truck className="h-4 w-4" />
+              Mark Dispatched
+            </Button>
+          </ConfirmDialog>
+          <ConfirmDialog
+            title="Cancel this fulfilled order?"
+            description="This action cannot be undone. The order will be marked as cancelled even though it has been fulfilled."
+            confirmLabel="Cancel Order"
+            variant="destructive"
+            onConfirm={() => transitionStatus("CANCELLED")}
+          >
             <Button
               variant="outline"
               className="text-red-600 border-red-200 hover:bg-red-50 gap-2"
@@ -77,45 +110,7 @@ export function OrderActions({
               <XCircle className="h-4 w-4" />
               Cancel Order
             </Button>
-          }
-          title="Cancel this confirmed order?"
-          description="This action cannot be undone. Any existing fulfillments will remain recorded but the order will be marked as cancelled."
-          confirmLabel="Cancel Order"
-          variant="destructive"
-          onConfirm={() => transitionStatus("CANCELLED")}
-        />
-      )}
-
-      {currentStatus === "FULFILLED" && (
-        <>
-          <ConfirmDialog
-            trigger={
-              <Button variant="outline" className="gap-2">
-                <Truck className="h-4 w-4" />
-                Mark Dispatched
-              </Button>
-            }
-            title="Mark as dispatched?"
-            description="This confirms the order has been shipped to the client. This action cannot be undone."
-            confirmLabel="Mark Dispatched"
-            onConfirm={() => transitionStatus("DISPATCHED")}
-          />
-          <ConfirmDialog
-            trigger={
-              <Button
-                variant="outline"
-                className="text-red-600 border-red-200 hover:bg-red-50 gap-2"
-              >
-                <XCircle className="h-4 w-4" />
-                Cancel Order
-              </Button>
-            }
-            title="Cancel this fulfilled order?"
-            description="This action cannot be undone. The order will be marked as cancelled even though it has been fulfilled."
-            confirmLabel="Cancel Order"
-            variant="destructive"
-            onConfirm={() => transitionStatus("CANCELLED")}
-          />
+          </ConfirmDialog>
         </>
       )}
     </div>

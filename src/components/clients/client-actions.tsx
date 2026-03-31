@@ -36,20 +36,19 @@ export function ClientActions({
 
   return (
     <ConfirmDialog
-      trigger={
-        <Button
-          variant="outline"
-          className="text-red-600 border-red-200 hover:bg-red-50 gap-2"
-        >
-          <UserX className="h-4 w-4" />
-          Deactivate Client
-        </Button>
-      }
       title={`Deactivate ${clientName}?`}
       description="This client will be hidden from active lists and can no longer receive new orders. Existing orders and payment history will be preserved."
       confirmLabel="Deactivate"
       variant="destructive"
       onConfirm={handleDeactivate}
-    />
+    >
+      <Button
+        variant="outline"
+        className="text-red-600 border-red-200 hover:bg-red-50 gap-2"
+      >
+        <UserX className="h-4 w-4" />
+        Deactivate Client
+      </Button>
+    </ConfirmDialog>
   );
 }

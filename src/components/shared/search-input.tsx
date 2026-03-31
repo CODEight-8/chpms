@@ -1,41 +1,49 @@
 "use client";
 
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { useDeferredValue, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useRef, useTransition } from "react";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 
 interface SearchInputProps {
   placeholder?: string;
+  paramName?: string;
 }
 
 export function SearchInput({
   placeholder = "Search...",
+  paramName = "search",
 }: SearchInputProps) {
   const router = useRouter();
-  const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [value, setValue] = useState(searchParams.get("search") || "");
-  const deferred = useDeferredValue(value);
+  const [isPending, startTransition] = useTransition();
+  const timeoutRef = useRef<ReturnType<typeof setTimeout>>();
 
-  useEffect(() => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (deferred) {
-      params.set("search", deferred);
-    } else {
-      params.delete("search");
-    }
-    router.replace(`${pathname}?${params.toString()}`);
-  }, [deferred, pathname, router, searchParams]);
+  function handleChange(value: string) {
+    clearTimeout(timeoutRef.current);
+    timeoutRef.current = setTimeout(() => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (value.trim()) {
+        params.set(paramName, value.trim());
+      } else {
+        params.delete(paramName);
+      }
+      startTransition(() => {
+        router.push(`?${params.toString()}`);
+      });
+    }, 300);
+  }
 
   return (
     <div className="relative max-w-sm">
       <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
       <Input
+        type="search"
         placeholder={placeholder}
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        className="pl-9"
+        defaultValue={searchParams.get(paramName) || ""}
+        onChange={(e) => handleChange(e.target.value)}
+        className={`pl-9 ${isPending ? "opacity-70" : ""}`}
+        aria-label={placeholder}
       />
     </div>
   );

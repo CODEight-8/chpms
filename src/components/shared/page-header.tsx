@@ -8,19 +8,14 @@ interface PageHeaderProps {
   backHref?: string;
 }
 
-export function PageHeader({
-  title,
-  description,
-  action,
-  backHref,
-}: PageHeaderProps) {
+export function PageHeader({ title, description, action, backHref }: PageHeaderProps) {
   return (
     <div className="flex items-center justify-between mb-6">
       <div className="flex items-center gap-3">
         {backHref && (
           <Link
             href={backHref}
-            className="p-1.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-gray-700"
+            className="rounded-md p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
             aria-label="Go back"
           >
             <ArrowLeft className="h-5 w-5" />
