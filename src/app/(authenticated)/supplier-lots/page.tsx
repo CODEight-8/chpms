@@ -12,6 +12,7 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { GradeBadge } from "@/components/shared/grade-badge";
 import { AgingIndicator } from "@/components/supplier-lots/aging-indicator";
 import { LotStatusTabs } from "@/components/supplier-lots/lot-status-tabs";
+import { SearchInput } from "@/components/shared/search-input";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -56,7 +57,7 @@ export default async function SupplierLotsPage({
       />
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <SummaryCard
           title="In Audit"
           value={counts.AUDIT}
@@ -79,8 +80,12 @@ export default async function SupplierLotsPage({
         />
       </div>
 
-      {/* Status Tabs */}
-      <div className="mb-4">
+      {/* Search + Status Tabs */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
+        <SearchInput
+          placeholder="Search by lot #, invoice #, or supplier..."
+          paramName="search"
+        />
         <LotStatusTabs counts={counts} />
       </div>
 

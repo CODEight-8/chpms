@@ -5,6 +5,7 @@ import { requireAuth, errorResponse, jsonResponse } from "@/lib/api-helpers";
 import { generateBatchNumber } from "@/lib/id-generators";
 import { getBatchesWithDetails, getBatchStatusCounts } from "@/lib/queries/production-batches";
 import { BatchStatus } from "@prisma/client";
+import { logAuditEvent } from "@/lib/audit-log";
 
 export async function GET(request: NextRequest) {
   const { error } = await requireAuth("production", "view");
@@ -29,8 +30,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const { error } = await requireAuth("production", "create");
-  if (error) return error;
+  const { user, error } = await requireAuth("production", "create");
+  if (error || !user) return error!;
 
   const body = await request.json();
   const parsed = productionBatchSchema.safeParse(body);
@@ -138,6 +139,14 @@ export async function POST(request: NextRequest) {
     }
 
     return newBatch;
+  });
+
+  logAuditEvent({
+    user,
+    action: "CREATE",
+    entityType: "ProductionBatch",
+    entityId: batch.id,
+    details: { batchNumber, productId, lots, totalRawCost },
   });
 
   return jsonResponse(batch, 201);

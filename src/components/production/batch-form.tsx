@@ -198,7 +198,7 @@ export function BatchForm() {
           {unselectedLots.length > 0 && (
             <div className="flex items-center gap-2">
               <Select onValueChange={addLot}>
-                <SelectTrigger className="flex-1">
+                <SelectTrigger className="flex-1" aria-label="Select a supplier lot to add">
                   <SelectValue placeholder="Add a supplier lot..." />
                 </SelectTrigger>
                 <SelectContent>
@@ -245,6 +245,7 @@ export function BatchForm() {
                       onClick={() =>
                         updateQuantity(lot.lotId, lot.quantityUsed - 10)
                       }
+                      aria-label="Decrease quantity by 10"
                     >
                       <Minus className="h-3 w-3" />
                     </Button>
@@ -266,6 +267,7 @@ export function BatchForm() {
                       onClick={() =>
                         updateQuantity(lot.lotId, lot.quantityUsed + 10)
                       }
+                      aria-label="Increase quantity by 10"
                     >
                       <Plus className="h-3 w-3" />
                     </Button>
@@ -278,6 +280,7 @@ export function BatchForm() {
                     size="icon"
                     className="h-8 w-8 text-red-500 hover:text-red-700"
                     onClick={() => removeLot(lot.lotId)}
+                    aria-label={`Remove lot ${lot.lotNumber}`}
                   >
                     <X className="h-4 w-4" />
                   </Button>
@@ -313,7 +316,7 @@ export function BatchForm() {
         <CardContent className="pt-6">
           <div className="space-y-2 max-w-lg">
             <Label htmlFor="notes">Notes</Label>
-            <Textarea id="notes" name="notes" rows={3} />
+            <Textarea id="notes" name="notes" rows={3} maxLength={2000} />
           </div>
         </CardContent>
       </Card>

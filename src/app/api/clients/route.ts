@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { clientSchema } from "@/lib/validators";
 import { requireAuth, errorResponse, jsonResponse } from "@/lib/api-helpers";
 import { getClientsWithStats } from "@/lib/queries/clients";
+import { logAuditEvent } from "@/lib/audit-log";
 
 export async function GET(request: NextRequest) {
   const { error } = await requireAuth("clients", "view");
@@ -19,8 +20,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const { error } = await requireAuth("clients", "create");
-  if (error) return error;
+  const { user, error } = await requireAuth("clients", "create");
+  if (error || !user) return error!;
 
   const body = await request.json();
   const parsed = clientSchema.safeParse(body);
@@ -31,6 +32,14 @@ export async function POST(request: NextRequest) {
 
   const client = await prisma.client.create({
     data: parsed.data,
+  });
+
+  logAuditEvent({
+    user,
+    action: "CREATE",
+    entityType: "Client",
+    entityId: client.id,
+    details: { name: client.name },
   });
 
   return jsonResponse(client, 201);

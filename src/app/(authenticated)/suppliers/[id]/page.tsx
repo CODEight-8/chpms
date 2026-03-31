@@ -40,7 +40,7 @@ export default async function SupplierDetailPage({
 
   return (
     <div>
-      <PageHeader title={supplier.name} description={supplier.location || "Supplier"} />
+      <PageHeader title={supplier.name} description={supplier.location || "Supplier"} backHref="/suppliers" />
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">

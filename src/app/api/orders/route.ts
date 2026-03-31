@@ -5,6 +5,7 @@ import { requireAuth, errorResponse, jsonResponse } from "@/lib/api-helpers";
 import { generateOrderNumber } from "@/lib/id-generators";
 import { getOrdersWithDetails, getOrderStatusCounts } from "@/lib/queries/orders";
 import { OrderStatus } from "@prisma/client";
+import { logAuditEvent } from "@/lib/audit-log";
 
 export async function GET(request: NextRequest) {
   const { error } = await requireAuth("orders", "view");
@@ -31,8 +32,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const { error } = await requireAuth("orders", "create");
-  if (error) return error;
+  const { user, error } = await requireAuth("orders", "create");
+  if (error || !user) return error!;
 
   const body = await request.json();
   const parsed = orderSchema.safeParse(body);
@@ -74,6 +75,14 @@ export async function POST(request: NextRequest) {
         },
       },
     },
+  });
+
+  logAuditEvent({
+    user,
+    action: "CREATE",
+    entityType: "Order",
+    entityId: order.id,
+    details: { orderNumber, clientId, itemCount: items.length },
   });
 
   return jsonResponse(order, 201);

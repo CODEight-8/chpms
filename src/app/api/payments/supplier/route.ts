@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { supplierPaymentSchema } from "@/lib/validators";
 import { requireAuth, errorResponse, jsonResponse } from "@/lib/api-helpers";
 import { getSupplierPayments } from "@/lib/queries/accounts";
+import { logAuditEvent } from "@/lib/audit-log";
 
 export async function GET() {
   const { error } = await requireAuth("accounts", "view");
@@ -13,8 +14,8 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const { error } = await requireAuth("accounts", "create");
-  if (error) return error;
+  const { user, error } = await requireAuth("accounts", "create");
+  if (error || !user) return error!;
 
   const body = await request.json();
   const parsed = supplierPaymentSchema.safeParse(body);
@@ -36,6 +37,14 @@ export async function POST(request: NextRequest) {
     include: {
       supplier: { select: { name: true } },
     },
+  });
+
+  logAuditEvent({
+    user,
+    action: "PAYMENT",
+    entityType: "SupplierPayment",
+    entityId: payment.id,
+    details: { supplierId: parsed.data.supplierId, amount: parsed.data.amount, method: parsed.data.paymentMethod },
   });
 
   return jsonResponse(payment, 201);
