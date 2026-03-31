@@ -44,14 +44,12 @@ export default async function ProductionBatchDetailPage({
         backHref="/production"
         action={
           <div className="flex gap-2">
-            {batch.status !== "IN_PROGRESS" && (
-              <Link href={`/production/${batch.id}/report`}>
-                <Button variant="outline" className="gap-2">
-                  <FileText className="h-4 w-4" />
-                  Production Report
-                </Button>
-              </Link>
-            )}
+            <Link href={`/production/${batch.id}/report`}>
+              <Button variant="outline" className="gap-2">
+                <FileText className="h-4 w-4" />
+                Production Report
+              </Button>
+            </Link>
             <BatchActions
               batchId={batch.id}
               currentStatus={batch.status}
