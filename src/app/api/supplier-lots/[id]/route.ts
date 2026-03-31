@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, errorResponse, jsonResponse } from "@/lib/api-helpers";
 import { getLotDetail } from "@/lib/queries/supplier-lots";
+import { supplierLotUpdateSchema } from "@/lib/validators";
 import { logAuditEvent } from "@/lib/audit-log";
 
 export async function GET(
@@ -30,17 +31,17 @@ export async function PUT(
   if (!lot) return errorResponse("Lot not found", 404);
 
   const body = await request.json();
+  const parsed = supplierLotUpdateSchema.safeParse(body);
+  if (!parsed.success) {
+    return errorResponse(parsed.error.issues[0].message);
+  }
 
-  // Only allow editing certain fields, and only in AUDIT status for grade
   const updateData: Record<string, string> = {};
 
-  if (body.notes !== undefined) updateData.notes = body.notes;
+  if (parsed.data.notes !== undefined) updateData.notes = parsed.data.notes;
 
-  if (body.qualityGrade !== undefined && lot.status === "AUDIT") {
-    if (!["A", "B", "C", "REJECT"].includes(body.qualityGrade)) {
-      return errorResponse("Invalid quality grade");
-    }
-    updateData.qualityGrade = body.qualityGrade;
+  if (parsed.data.qualityGrade !== undefined && lot.status === "AUDIT") {
+    updateData.qualityGrade = parsed.data.qualityGrade;
   }
 
   const updated = await prisma.supplierLot.update({
