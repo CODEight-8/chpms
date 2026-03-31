@@ -5,8 +5,12 @@ const prisma = new PrismaClient();
 
 async function main() {
   // Create default Owner account
-  const ownerEmail = process.env.OWNER_EMAIL || "owner@chpms.local";
-  const ownerPassword = process.env.OWNER_PASSWORD || "chpms2026";
+  const ownerEmail = process.env.OWNER_EMAIL;
+  const ownerPassword = process.env.OWNER_PASSWORD;
+
+  if (!ownerEmail || !ownerPassword) {
+    throw new Error("OWNER_EMAIL and OWNER_PASSWORD environment variables must be set");
+  }
 
   const existingOwner = await prisma.user.findUnique({
     where: { email: ownerEmail },
@@ -36,23 +40,6 @@ async function main() {
       data: { name: "Coconut Husk Chips", unit: "kg" },
     });
     console.log("Created product: Coconut Husk Chips");
-  }
-
-  // Create demo users (Manager + Production Manager)
-  const demoUsers = [
-    { name: "Manager", email: "manager@chpms.local", role: "MANAGER" as const },
-    { name: "Production", email: "production@chpms.local", role: "PRODUCTION" as const },
-  ];
-
-  for (const u of demoUsers) {
-    const exists = await prisma.user.findUnique({ where: { email: u.email } });
-    if (!exists) {
-      const hash = await bcrypt.hash("chpms2026", 12);
-      await prisma.user.create({
-        data: { name: u.name, email: u.email, passwordHash: hash, role: u.role },
-      });
-      console.log(`Created ${u.role} account: ${u.email}`);
-    }
   }
 
   console.log("Seed completed");
