@@ -17,7 +17,8 @@ type AuditEntityType =
   | "Order"
   | "Client"
   | "SupplierPayment"
-  | "ClientPayment";
+  | "ClientPayment"
+  | "User";
 
 interface AuditUser {
   id: string;
