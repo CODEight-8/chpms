@@ -1,9 +1,18 @@
 import Link from "next/link";
 import { formatLKR } from "@/lib/currency";
 import { getDashboardData } from "@/lib/queries/dashboard";
+import {
+  getMonthlyThroughput,
+  getBatchProfitability,
+  getSupplierAnalytics,
+  getClientAnalytics,
+} from "@/lib/queries/analytics";
 import { PageHeader } from "@/components/shared/page-header";
 import { SummaryCard } from "@/components/shared/summary-card";
 import { StatusBadge } from "@/components/shared/status-badge";
+import { ThroughputChart } from "@/components/dashboard/throughput-chart";
+import { ProfitabilityChart } from "@/components/dashboard/profitability-chart";
+import { DashboardExport } from "@/components/dashboard/dashboard-export";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -25,7 +34,49 @@ import {
 } from "lucide-react";
 
 export default async function DashboardPage() {
-  const data = await getDashboardData();
+  const [data, throughput, profitability, supplierAnalytics, clientAnalytics] =
+    await Promise.all([
+      getDashboardData(),
+      getMonthlyThroughput(),
+      getBatchProfitability(),
+      getSupplierAnalytics(),
+      getClientAnalytics(),
+    ]);
+
+  // Flatten for CSV exports
+  const supplierCsvData = supplierAnalytics.map((s: Record<string, unknown>) => ({
+    name: s.name,
+    totalLots: s.totalLots,
+    totalHusks: s.totalHusks,
+    gradeA: s.gradeA,
+    gradeB: s.gradeB,
+    gradeC: s.gradeC,
+    rejected: s.rejected,
+    rejectionRate: (s.rejectionRate as number).toFixed(1),
+    avgRate: (s.avgRate as number).toFixed(2),
+    totalSpend: (s.totalSpend as number).toFixed(2),
+    outstanding: (s.outstanding as number).toFixed(2),
+  }));
+
+  const clientCsvData = clientAnalytics.map((c: Record<string, unknown>) => ({
+    name: c.name,
+    totalOrders: c.totalOrders,
+    totalRevenue: (c.totalRevenue as number).toFixed(2),
+    totalPaid: (c.totalPaid as number).toFixed(2),
+    outstanding: (c.outstanding as number).toFixed(2),
+    paymentReliability: (c.paymentReliability as number).toFixed(1),
+    orderFrequency: (c.orderFrequency as number).toFixed(2),
+  }));
+
+  const profitCsvData = profitability.map((b) => ({
+    batchNumber: b.batchNumber,
+    product: b.product,
+    output: `${b.outputQuantity} ${b.outputUnit}`,
+    rawMaterialCost: b.rawMaterialCost.toFixed(2),
+    revenue: b.revenue.toFixed(2),
+    profit: b.profit.toFixed(2),
+    margin: b.margin.toFixed(1),
+  }));
 
   return (
     <div>
@@ -85,123 +136,228 @@ export default async function DashboardPage() {
           icon={Wallet}
         />
         <SummaryCard
-          title="Net Cash Flow"
+          title="Gross Profit"
           value={formatLKR(data.financial.grossProfit)}
           icon={TrendingUp}
         />
       </div>
 
+      {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        {/* Best Suppliers */}
+        {/* Throughput Chart */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Top Suppliers</CardTitle>
+            <CardTitle className="text-lg">
+              Monthly Throughput (Last 6 Months)
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            {data.supplierRankings.length === 0 ? (
+            <ThroughputChart data={throughput} />
+          </CardContent>
+        </Card>
+
+        {/* Profitability Chart */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg">Batch Profitability</CardTitle>
+              <DashboardExport
+                data={profitCsvData}
+                filename="batch-profitability"
+                columns={[
+                  { key: "batchNumber", header: "Batch #" },
+                  { key: "product", header: "Product" },
+                  { key: "output", header: "Output" },
+                  { key: "rawMaterialCost", header: "Raw Material Cost (LKR)" },
+                  { key: "revenue", header: "Revenue (LKR)" },
+                  { key: "profit", header: "Profit (LKR)" },
+                  { key: "margin", header: "Margin (%)" },
+                ]}
+              />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <ProfitabilityChart data={profitability} />
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Enhanced Rankings */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        {/* Supplier Analytics */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg">Supplier Rankings</CardTitle>
+              <DashboardExport
+                data={supplierCsvData}
+                filename="supplier-rankings"
+                columns={[
+                  { key: "name", header: "Supplier" },
+                  { key: "totalLots", header: "Lots" },
+                  { key: "totalHusks", header: "Total Husks" },
+                  { key: "gradeA", header: "Grade A" },
+                  { key: "gradeB", header: "Grade B" },
+                  { key: "gradeC", header: "Grade C" },
+                  { key: "rejected", header: "Rejected" },
+                  { key: "rejectionRate", header: "Reject %" },
+                  { key: "avgRate", header: "Avg Rate (LKR)" },
+                  { key: "totalSpend", header: "Total Spend (LKR)" },
+                  { key: "outstanding", header: "Outstanding (LKR)" },
+                ]}
+              />
+            </div>
+          </CardHeader>
+          <CardContent>
+            {supplierAnalytics.length === 0 ? (
               <p className="text-sm text-gray-500 text-center py-4">
                 No supplier data yet
               </p>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Supplier</TableHead>
-                    <TableHead className="text-center">Lots</TableHead>
-                    <TableHead className="text-center">Husks</TableHead>
-                    <TableHead className="text-center">Reject %</TableHead>
-                    <TableHead className="text-right">Spend</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {data.supplierRankings.slice(0, 5).map((s) => (
-                    <TableRow key={s.id}>
-                      <TableCell>
-                        <Link
-                          href={`/suppliers/${s.id}`}
-                          className="font-medium text-emerald-700 hover:underline"
-                        >
-                          {s.name}
-                        </Link>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {s.totalLots}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {s.totalHusks.toLocaleString()}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <span
-                          className={
-                            s.rejectionRate > 10
-                              ? "text-red-600"
-                              : "text-green-600"
-                          }
-                        >
-                          {s.rejectionRate.toFixed(0)}%
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {formatLKR(s.totalSpend)}
-                      </TableCell>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Supplier</TableHead>
+                      <TableHead className="text-center">Husks</TableHead>
+                      <TableHead className="text-center">Quality</TableHead>
+                      <TableHead className="text-center">Reject %</TableHead>
+                      <TableHead className="text-right">Avg Rate</TableHead>
+                      <TableHead className="text-right">Spend</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {supplierAnalytics.slice(0, 10).map((s: Record<string, unknown>) => (
+                      <TableRow key={s.id as string}>
+                        <TableCell>
+                          <Link
+                            href={`/suppliers/${s.id}`}
+                            className="font-medium text-emerald-700 hover:underline"
+                          >
+                            {s.name as string}
+                          </Link>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {(s.totalHusks as number).toLocaleString()}
+                        </TableCell>
+                        <TableCell className="text-center text-xs">
+                          <span className="text-green-600">{s.gradeA as number}A</span>
+                          {" / "}
+                          <span className="text-blue-600">{s.gradeB as number}B</span>
+                          {" / "}
+                          <span className="text-yellow-600">{s.gradeC as number}C</span>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <span
+                            className={
+                              (s.rejectionRate as number) > 10
+                                ? "text-red-600 font-medium"
+                                : "text-green-600"
+                            }
+                          >
+                            {(s.rejectionRate as number).toFixed(0)}%
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right text-sm">
+                          {formatLKR(s.avgRate as number)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatLKR(s.totalSpend as number)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             )}
           </CardContent>
         </Card>
 
-        {/* Best Clients */}
+        {/* Client Analytics */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Top Clients</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg">Client Rankings</CardTitle>
+              <DashboardExport
+                data={clientCsvData}
+                filename="client-rankings"
+                columns={[
+                  { key: "name", header: "Client" },
+                  { key: "totalOrders", header: "Orders" },
+                  { key: "totalRevenue", header: "Revenue (LKR)" },
+                  { key: "totalPaid", header: "Paid (LKR)" },
+                  { key: "outstanding", header: "Outstanding (LKR)" },
+                  { key: "paymentReliability", header: "Payment %" },
+                  { key: "orderFrequency", header: "Orders/Month" },
+                ]}
+              />
+            </div>
           </CardHeader>
           <CardContent>
-            {data.clientRankings.length === 0 ? (
+            {clientAnalytics.length === 0 ? (
               <p className="text-sm text-gray-500 text-center py-4">
                 No client data yet
               </p>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Client</TableHead>
-                    <TableHead className="text-center">Orders</TableHead>
-                    <TableHead className="text-right">Revenue</TableHead>
-                    <TableHead className="text-right">Outstanding</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {data.clientRankings.slice(0, 5).map((c) => (
-                    <TableRow key={c.id}>
-                      <TableCell>
-                        <Link
-                          href={`/clients/${c.id}`}
-                          className="font-medium text-emerald-700 hover:underline"
-                        >
-                          {c.name}
-                        </Link>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {c.totalOrders}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {formatLKR(c.totalRevenue)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {c.outstanding > 0 ? (
-                          <span className="text-orange-600">
-                            {formatLKR(c.outstanding)}
-                          </span>
-                        ) : (
-                          <span className="text-green-600">Paid</span>
-                        )}
-                      </TableCell>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Client</TableHead>
+                      <TableHead className="text-center">Orders</TableHead>
+                      <TableHead className="text-right">Revenue</TableHead>
+                      <TableHead className="text-center">Payment %</TableHead>
+                      <TableHead className="text-center">Freq</TableHead>
+                      <TableHead className="text-right">Outstanding</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {clientAnalytics.slice(0, 10).map((c: Record<string, unknown>) => (
+                      <TableRow key={c.id as string}>
+                        <TableCell>
+                          <Link
+                            href={`/clients/${c.id}`}
+                            className="font-medium text-emerald-700 hover:underline"
+                          >
+                            {c.name as string}
+                          </Link>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {c.totalOrders as number}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatLKR(c.totalRevenue as number)}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <span
+                            className={
+                              (c.paymentReliability as number) >= 80
+                                ? "text-green-600"
+                                : (c.paymentReliability as number) >= 50
+                                ? "text-yellow-600"
+                                : "text-red-600"
+                            }
+                          >
+                            {(c.paymentReliability as number).toFixed(0)}%
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-center text-sm text-gray-600">
+                          {(c.orderFrequency as number).toFixed(1)}/mo
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {(c.outstanding as number) > 0 ? (
+                            <span className="text-orange-600">
+                              {formatLKR(c.outstanding as number)}
+                            </span>
+                          ) : (
+                            <span className="text-green-600">Paid</span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             )}
           </CardContent>
         </Card>
@@ -233,7 +389,7 @@ export default async function DashboardPage() {
                         {lot.lotNumber}
                       </Link>
                       <p className="text-xs text-gray-500">
-                        {lot.supplier.name} — {lot.huskCount} husks
+                        {lot.supplier.name} \u2014 {lot.huskCount} husks
                       </p>
                     </div>
                     <StatusBadge status={lot.status} />
@@ -270,7 +426,7 @@ export default async function DashboardPage() {
                       <p className="text-xs text-gray-500">
                         {batch.product.name}
                         {batch.outputQuantity
-                          ? ` — ${Number(batch.outputQuantity)} ${batch.outputUnit}`
+                          ? ` \u2014 ${Number(batch.outputQuantity)} ${batch.outputUnit}`
                           : ""}
                       </p>
                     </div>
