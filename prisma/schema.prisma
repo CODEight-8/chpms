@@ -1,0 +1,266 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ──────────────────────────────────────
+// Enums
+// ──────────────────────────────────────
+
+enum UserRole {
+  OWNER
+  MANAGER
+  PRODUCTION
+}
+
+enum LotStatus {
+  AUDIT
+  GOOD_TO_GO
+  ALLOCATED
+  CONSUMED
+  REJECTED
+}
+
+enum QualityGrade {
+  A
+  B
+  C
+  REJECT
+}
+
+enum BatchStatus {
+  IN_PROGRESS
+  COMPLETED
+  DISPATCHED
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  FULFILLED
+  DISPATCHED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CASH
+  BANK
+  CHEQUE
+}
+
+// ──────────────────────────────────────
+// Models
+// ──────────────────────────────────────
+
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         UserRole
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
+model Supplier {
+  id            String   @id @default(uuid())
+  name          String
+  phone         String?
+  location      String?
+  contactPerson String?  @map("contact_person")
+  bankDetails   String?  @map("bank_details")
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  lots     SupplierLot[]
+  payments SupplierPayment[]
+
+  @@map("suppliers")
+}
+
+model SupplierLot {
+  id             String       @id @default(uuid())
+  lotNumber      String       @unique @map("lot_number")
+  invoiceNumber  String       @unique @map("invoice_number") // Auto-generated: INV-{lotNumber}
+  supplierId     String       @map("supplier_id")
+  harvestDate    DateTime     @map("harvest_date") @db.Date
+  dateReceived   DateTime     @map("date_received") @db.Date
+  huskCount      Int          @map("husk_count")
+  availableHusks Int          @map("available_husks")
+  perHuskRate    Decimal      @map("per_husk_rate") @db.Decimal(10, 2)
+  totalCost      Decimal      @map("total_cost") @db.Decimal(12, 2)
+  qualityGrade   QualityGrade? @map("quality_grade")
+  status         LotStatus    @default(AUDIT)
+  notes          String?
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  supplier            Supplier              @relation(fields: [supplierId], references: [id])
+  productionBatchLots ProductionBatchLot[]
+  payments            SupplierPayment[]
+
+  @@index([supplierId])
+  @@index([status])
+  @@index([invoiceNumber])
+  @@map("supplier_lots")
+}
+
+model Product {
+  id           String   @id @default(uuid())
+  name         String
+  unit         String
+  defaultPrice Decimal? @map("default_price") @db.Decimal(10, 2)
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  productionBatches ProductionBatch[]
+  orderItems        OrderItem[]
+
+  @@map("products")
+}
+
+model ProductionBatch {
+  id             String      @id @default(uuid())
+  batchNumber    String      @unique @map("batch_number")
+  productId      String      @map("product_id")
+  startedAt      DateTime    @default(now()) @map("started_at")
+  completedAt    DateTime?   @map("completed_at")
+  status         BatchStatus @default(IN_PROGRESS)
+  outputQuantity Decimal?    @map("output_quantity") @db.Decimal(10, 2)
+  outputUnit     String?     @map("output_unit")
+  totalRawCost   Decimal     @default(0) @map("total_raw_cost") @db.Decimal(12, 2)
+  notes          String?
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  product      Product              @relation(fields: [productId], references: [id])
+  batchLots    ProductionBatchLot[]
+  fulfillments OrderFulfillment[]
+
+  @@index([status])
+  @@map("production_batches")
+}
+
+model ProductionBatchLot {
+  id                String @id @default(uuid())
+  productionBatchId String @map("production_batch_id")
+  supplierLotId     String @map("supplier_lot_id")
+  quantityUsed      Int    @map("quantity_used")
+
+  productionBatch ProductionBatch @relation(fields: [productionBatchId], references: [id])
+  supplierLot     SupplierLot     @relation(fields: [supplierLotId], references: [id])
+
+  @@unique([productionBatchId, supplierLotId])
+  @@map("production_batch_lots")
+}
+
+model Client {
+  id           String   @id @default(uuid())
+  name         String
+  companyName  String?  @map("company_name")
+  phone        String?
+  email        String?
+  address      String?
+  paymentTerms String?  @map("payment_terms")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  orders   Order[]
+  payments ClientPayment[]
+
+  @@map("clients")
+}
+
+model Order {
+  id               String      @id @default(uuid())
+  orderNumber      String      @unique @map("order_number")
+  clientId         String      @map("client_id")
+  orderDate        DateTime    @map("order_date") @db.Date
+  expectedDelivery DateTime?   @map("expected_delivery") @db.Date
+  status           OrderStatus @default(PENDING)
+  notes            String?
+  createdAt        DateTime    @default(now()) @map("created_at")
+  updatedAt        DateTime    @updatedAt @map("updated_at")
+
+  client   Client         @relation(fields: [clientId], references: [id])
+  items    OrderItem[]
+  payments ClientPayment[]
+
+  @@index([clientId])
+  @@index([status])
+  @@map("orders")
+}
+
+model OrderItem {
+  id                String  @id @default(uuid())
+  orderId           String  @map("order_id")
+  productId         String  @map("product_id")
+  quantityOrdered   Decimal @map("quantity_ordered") @db.Decimal(10, 2)
+  unitPrice         Decimal @map("unit_price") @db.Decimal(10, 2)
+  quantityFulfilled Decimal @default(0) @map("quantity_fulfilled") @db.Decimal(10, 2)
+
+  order        Order              @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product      Product            @relation(fields: [productId], references: [id])
+  fulfillments OrderFulfillment[]
+
+  @@map("order_items")
+}
+
+model OrderFulfillment {
+  id                String   @id @default(uuid())
+  orderItemId       String   @map("order_item_id")
+  productionBatchId String   @map("production_batch_id")
+  quantityFulfilled Decimal  @map("quantity_fulfilled") @db.Decimal(10, 2)
+  fulfilledAt       DateTime @default(now()) @map("fulfilled_at")
+
+  orderItem       OrderItem       @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  productionBatch ProductionBatch @relation(fields: [productionBatchId], references: [id])
+
+  @@map("order_fulfillments")
+}
+
+model SupplierPayment {
+  id            String        @id @default(uuid())
+  supplierId    String        @map("supplier_id")
+  supplierLotId String?       @map("supplier_lot_id")
+  amount        Decimal       @db.Decimal(12, 2)
+  paymentDate   DateTime      @map("payment_date") @db.Date
+  paymentMethod PaymentMethod @map("payment_method")
+  reference     String?
+  notes         String?
+  createdAt     DateTime      @default(now()) @map("created_at")
+
+  supplier    Supplier     @relation(fields: [supplierId], references: [id])
+  supplierLot SupplierLot? @relation(fields: [supplierLotId], references: [id])
+
+  @@index([supplierId])
+  @@map("supplier_payments")
+}
+
+model ClientPayment {
+  id            String        @id @default(uuid())
+  clientId      String        @map("client_id")
+  orderId       String?       @map("order_id")
+  amount        Decimal       @db.Decimal(12, 2)
+  paymentDate   DateTime      @map("payment_date") @db.Date
+  paymentMethod PaymentMethod @map("payment_method")
+  reference     String?
+  notes         String?
+  createdAt     DateTime      @default(now()) @map("created_at")
+
+  client Client @relation(fields: [clientId], references: [id])
+  order  Order? @relation(fields: [orderId], references: [id])
+
+  @@index([clientId])
+  @@map("client_payments")
+}
