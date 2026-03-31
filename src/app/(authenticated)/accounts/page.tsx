@@ -8,10 +8,15 @@ import {
   getSupplierPayments,
   getClientPayments,
   getAccountsSummary,
+  getOutstandingSuppliers,
+  getOutstandingClients,
 } from "@/lib/queries/accounts";
 import { PageHeader } from "@/components/shared/page-header";
 import { SummaryCard } from "@/components/shared/summary-card";
 import { PaymentForm } from "@/components/accounts/payment-form";
+import { AccountsFilters } from "@/components/accounts/accounts-filters";
+import { OutstandingAlerts } from "@/components/accounts/outstanding-alerts";
+import { CsvExport } from "@/components/accounts/csv-export";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -24,22 +29,62 @@ import {
 } from "@/components/ui/table";
 import { ArrowDownLeft, ArrowUpRight, Wallet, TrendingUp } from "lucide-react";
 
-export default async function AccountsPage() {
+export default async function AccountsPage({
+  searchParams,
+}: {
+  searchParams: {
+    search?: string;
+    method?: string;
+    dateFrom?: string;
+    dateTo?: string;
+  };
+}) {
   const session = await getServerSession(authOptions);
   const role = session!.user.role as UserRole;
   const canCreate = hasPermission(role, "accounts", "create");
 
-  const [supplierPayments, clientPayments, summary] = await Promise.all([
-    getSupplierPayments(),
-    getClientPayments(),
-    getAccountsSummary(),
-  ]);
+  const filters = {
+    search: searchParams.search,
+    method: searchParams.method,
+    dateFrom: searchParams.dateFrom,
+    dateTo: searchParams.dateTo,
+  };
+
+  const [supplierPayments, clientPayments, summary, outstandingSuppliers, outstandingClients] =
+    await Promise.all([
+      getSupplierPayments(filters),
+      getClientPayments(filters),
+      getAccountsSummary(),
+      getOutstandingSuppliers(),
+      getOutstandingClients(),
+    ]);
+
+  // Flatten for CSV export
+  const supplierCsvData = supplierPayments.map((p) => ({
+    date: new Date(p.paymentDate).toLocaleDateString("en-LK"),
+    supplier: p.supplier.name,
+    lot: p.supplierLot ? `${p.supplierLot.lotNumber} / ${p.supplierLot.invoiceNumber}` : "",
+    method: p.paymentMethod,
+    reference: p.reference || "",
+    amount: Number(p.amount).toFixed(2),
+    notes: p.notes || "",
+  }));
+
+  const clientCsvData = clientPayments.map((p) => ({
+    date: new Date(p.paymentDate).toLocaleDateString("en-LK"),
+    client: p.client.name,
+    order: p.order?.orderNumber || "",
+    method: p.paymentMethod,
+    reference: p.reference || "",
+    amount: Number(p.amount).toFixed(2),
+    notes: p.notes || "",
+  }));
 
   return (
     <div>
       <PageHeader
         title="Accounts"
-        description="Payment tracking — Money Out (suppliers) & Money In (clients)"
+        description="Payment tracking \u2014 Money Out (suppliers) & Money In (clients)"
       />
 
       {/* Summary Cards */}
@@ -68,15 +113,24 @@ export default async function AccountsPage() {
         />
       </div>
 
+      {/* Outstanding Alerts */}
+      <OutstandingAlerts
+        suppliers={outstandingSuppliers}
+        clients={outstandingClients}
+      />
+
+      {/* Filters */}
+      <AccountsFilters />
+
       {/* Payment Tabs */}
       <Tabs defaultValue="out" className="space-y-4">
         <div className="flex items-center justify-between">
           <TabsList>
             <TabsTrigger value="out">
-              Money Out (Suppliers)
+              Money Out ({supplierPayments.length})
             </TabsTrigger>
             <TabsTrigger value="in">
-              Money In (Clients)
+              Money In ({clientPayments.length})
             </TabsTrigger>
           </TabsList>
           {canCreate && (
@@ -91,14 +145,29 @@ export default async function AccountsPage() {
         <TabsContent value="out">
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">
-                Supplier Payments (Money Out)
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg">
+                  Supplier Payments (Money Out)
+                </CardTitle>
+                <CsvExport
+                  data={supplierCsvData}
+                  filename="supplier-payments"
+                  columns={[
+                    { key: "date", header: "Date" },
+                    { key: "supplier", header: "Supplier" },
+                    { key: "lot", header: "Lot / Invoice" },
+                    { key: "method", header: "Method" },
+                    { key: "reference", header: "Reference" },
+                    { key: "amount", header: "Amount (LKR)" },
+                    { key: "notes", header: "Notes" },
+                  ]}
+                />
+              </div>
             </CardHeader>
             <CardContent>
               {supplierPayments.length === 0 ? (
                 <p className="text-sm text-gray-500 text-center py-4">
-                  No supplier payments recorded
+                  No supplier payments found
                 </p>
               ) : (
                 <Table>
@@ -130,17 +199,17 @@ export default async function AccountsPage() {
                         <TableCell className="text-xs font-mono text-gray-500">
                           {p.supplierLot
                             ? `${p.supplierLot.lotNumber} / ${p.supplierLot.invoiceNumber}`
-                            : "—"}
+                            : "\u2014"}
                         </TableCell>
                         <TableCell>{p.paymentMethod}</TableCell>
                         <TableCell className="text-gray-600">
-                          {p.reference || "—"}
+                          {p.reference || "\u2014"}
                         </TableCell>
                         <TableCell className="text-right font-medium text-red-600">
                           {formatLKR(p.amount)}
                         </TableCell>
                         <TableCell className="text-gray-500 text-sm max-w-32 truncate">
-                          {p.notes || "—"}
+                          {p.notes || "\u2014"}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -155,14 +224,29 @@ export default async function AccountsPage() {
         <TabsContent value="in">
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">
-                Client Payments (Money In)
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg">
+                  Client Payments (Money In)
+                </CardTitle>
+                <CsvExport
+                  data={clientCsvData}
+                  filename="client-payments"
+                  columns={[
+                    { key: "date", header: "Date" },
+                    { key: "client", header: "Client" },
+                    { key: "order", header: "Order #" },
+                    { key: "method", header: "Method" },
+                    { key: "reference", header: "Reference" },
+                    { key: "amount", header: "Amount (LKR)" },
+                    { key: "notes", header: "Notes" },
+                  ]}
+                />
+              </div>
             </CardHeader>
             <CardContent>
               {clientPayments.length === 0 ? (
                 <p className="text-sm text-gray-500 text-center py-4">
-                  No client payments recorded
+                  No client payments found
                 </p>
               ) : (
                 <Table>
@@ -192,17 +276,17 @@ export default async function AccountsPage() {
                           </Link>
                         </TableCell>
                         <TableCell className="font-mono text-xs text-gray-500">
-                          {p.order?.orderNumber || "—"}
+                          {p.order?.orderNumber || "\u2014"}
                         </TableCell>
                         <TableCell>{p.paymentMethod}</TableCell>
                         <TableCell className="text-gray-600">
-                          {p.reference || "—"}
+                          {p.reference || "\u2014"}
                         </TableCell>
                         <TableCell className="text-right font-medium text-green-600">
                           {formatLKR(p.amount)}
                         </TableCell>
                         <TableCell className="text-gray-500 text-sm max-w-32 truncate">
-                          {p.notes || "—"}
+                          {p.notes || "\u2014"}
                         </TableCell>
                       </TableRow>
                     ))}

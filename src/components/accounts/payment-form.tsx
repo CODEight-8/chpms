@@ -30,6 +30,11 @@ interface PaymentFormProps {
 interface Entity {
   id: string;
   name: string;
+  totalOwed?: number;
+  totalPaid?: number;
+  outstandingBalance?: number;
+  totalRevenue?: number;
+  totalReceived?: number;
 }
 
 export function PaymentForm({ type }: PaymentFormProps) {
@@ -49,6 +54,12 @@ export function PaymentForm({ type }: PaymentFormProps) {
       .then(setEntities)
       .catch(() => toast.error("Failed to load"));
   }, [open, type]);
+
+  const selectedEntity = entities.find((e) => e.id === entityId);
+  const outstanding =
+    type === "supplier"
+      ? (selectedEntity?.outstandingBalance ?? 0)
+      : ((selectedEntity?.totalRevenue ?? 0) - (selectedEntity?.totalReceived ?? 0));
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -126,6 +137,31 @@ export function PaymentForm({ type }: PaymentFormProps) {
             </Select>
           </div>
 
+          {/* Auto-linked balance display */}
+          {entityId && selectedEntity && (
+            <div
+              className={`rounded-lg p-3 text-sm ${
+                outstanding > 0
+                  ? "bg-orange-50 border border-orange-200"
+                  : "bg-green-50 border border-green-200"
+              }`}
+            >
+              <div className="flex justify-between">
+                <span className="text-gray-600">Outstanding Balance</span>
+                <span
+                  className={`font-bold ${
+                    outstanding > 0 ? "text-orange-700" : "text-green-700"
+                  }`}
+                >
+                  LKR{" "}
+                  {outstanding.toLocaleString("en-LK", {
+                    minimumFractionDigits: 2,
+                  })}
+                </span>
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="amount">Amount (LKR) *</Label>
@@ -166,13 +202,13 @@ export function PaymentForm({ type }: PaymentFormProps) {
             </div>
             <div className="space-y-2">
               <Label htmlFor="reference">Reference / Invoice #</Label>
-              <Input id="reference" name="reference" />
+              <Input id="reference" name="reference" maxLength={200} />
             </div>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="notes">Notes</Label>
-            <Textarea id="notes" name="notes" rows={2} />
+            <Textarea id="notes" name="notes" rows={2} maxLength={2000} />
           </div>
 
           <Button
