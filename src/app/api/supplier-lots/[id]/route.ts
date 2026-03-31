@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, errorResponse, jsonResponse } from "@/lib/api-helpers";
 import { getLotDetail } from "@/lib/queries/supplier-lots";
+import { logAuditEvent } from "@/lib/audit-log";
 
 export async function GET(
   _request: NextRequest,
@@ -20,8 +21,8 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const { error } = await requireAuth("supplier-lots", "edit");
-  if (error) return error;
+  const { user, error } = await requireAuth("supplier-lots", "edit");
+  if (error || !user) return error!;
 
   const lot = await prisma.supplierLot.findUnique({
     where: { id: params.id },
@@ -31,7 +32,7 @@ export async function PUT(
   const body = await request.json();
 
   // Only allow editing certain fields, and only in AUDIT status for grade
-  const updateData: Record<string, unknown> = {};
+  const updateData: Record<string, string> = {};
 
   if (body.notes !== undefined) updateData.notes = body.notes;
 
@@ -48,6 +49,14 @@ export async function PUT(
     include: {
       supplier: { select: { id: true, name: true } },
     },
+  });
+
+  logAuditEvent({
+    user,
+    action: "UPDATE",
+    entityType: "SupplierLot",
+    entityId: params.id,
+    details: { before: { qualityGrade: lot.qualityGrade, notes: lot.notes }, after: updateData },
   });
 
   return jsonResponse(updated);

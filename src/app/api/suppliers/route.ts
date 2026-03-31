@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { supplierSchema } from "@/lib/validators";
 import { requireAuth, errorResponse, jsonResponse } from "@/lib/api-helpers";
 import { getSuppliersWithStats } from "@/lib/queries/suppliers";
+import { logAuditEvent } from "@/lib/audit-log";
 
 export async function GET(request: NextRequest) {
   const { error } = await requireAuth("suppliers", "view");
@@ -31,6 +32,14 @@ export async function POST(request: NextRequest) {
 
   const supplier = await prisma.supplier.create({
     data: parsed.data,
+  });
+
+  logAuditEvent({
+    user,
+    action: "CREATE",
+    entityType: "Supplier",
+    entityId: supplier.id,
+    details: { name: supplier.name },
   });
 
   return jsonResponse(supplier, 201);

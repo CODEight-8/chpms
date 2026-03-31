@@ -3,13 +3,14 @@ import { prisma } from "@/lib/prisma";
 import { requireAuth, errorResponse, jsonResponse } from "@/lib/api-helpers";
 import { canTransitionLot } from "@/lib/status-machines";
 import { LotStatus } from "@prisma/client";
+import { logAuditEvent } from "@/lib/audit-log";
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const { error } = await requireAuth("supplier-lots", "edit");
-  if (error) return error;
+  const { user, error } = await requireAuth("supplier-lots", "edit");
+  if (error || !user) return error!;
 
   const lot = await prisma.supplierLot.findUnique({
     where: { id: params.id },
@@ -44,6 +45,14 @@ export async function PATCH(
     include: {
       supplier: { select: { id: true, name: true } },
     },
+  });
+
+  logAuditEvent({
+    user,
+    action: "STATUS_CHANGE",
+    entityType: "SupplierLot",
+    entityId: params.id,
+    details: { lotNumber: lot.lotNumber, from: lot.status, to: newStatus },
   });
 
   return jsonResponse(updated);
