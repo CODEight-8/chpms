@@ -7,6 +7,7 @@ export default function NewProductionBatchPage() {
       <PageHeader
         title="New Production Batch"
         description="Select husk lots to produce coconut husk chips"
+        backHref="/production"
       />
       <BatchForm />
     </div>

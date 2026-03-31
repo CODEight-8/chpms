@@ -7,6 +7,7 @@ export default function NewOrderPage() {
       <PageHeader
         title="New Order"
         description="Create a new client order with line items"
+        backHref="/orders"
       />
       <OrderForm />
     </div>

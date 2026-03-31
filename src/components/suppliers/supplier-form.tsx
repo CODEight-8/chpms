@@ -75,6 +75,7 @@ export function SupplierForm({ defaultValues }: SupplierFormProps) {
               id="name"
               name="name"
               defaultValue={defaultValues?.name || ""}
+              maxLength={200}
               required
             />
           </div>
@@ -86,6 +87,7 @@ export function SupplierForm({ defaultValues }: SupplierFormProps) {
                 id="phone"
                 name="phone"
                 defaultValue={defaultValues?.phone || ""}
+                maxLength={50}
               />
             </div>
             <div className="space-y-2">
@@ -94,6 +96,7 @@ export function SupplierForm({ defaultValues }: SupplierFormProps) {
                 id="location"
                 name="location"
                 defaultValue={defaultValues?.location || ""}
+                maxLength={500}
               />
             </div>
           </div>
@@ -104,6 +107,7 @@ export function SupplierForm({ defaultValues }: SupplierFormProps) {
               id="contactPerson"
               name="contactPerson"
               defaultValue={defaultValues?.contactPerson || ""}
+              maxLength={200}
             />
           </div>
 
@@ -114,6 +118,7 @@ export function SupplierForm({ defaultValues }: SupplierFormProps) {
               name="bankDetails"
               defaultValue={defaultValues?.bankDetails || ""}
               rows={3}
+              maxLength={1000}
             />
           </div>
 
