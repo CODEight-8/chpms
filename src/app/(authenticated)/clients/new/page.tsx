@@ -7,6 +7,7 @@ export default function NewClientPage() {
       <PageHeader
         title="Add Client"
         description="Register a new client"
+        backHref="/clients"
       />
       <ClientForm />
     </div>

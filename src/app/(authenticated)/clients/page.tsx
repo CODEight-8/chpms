@@ -6,6 +6,7 @@ import { UserRole } from "@prisma/client";
 import { formatLKR } from "@/lib/currency";
 import { getClientsWithStats } from "@/lib/queries/clients";
 import { PageHeader } from "@/components/shared/page-header";
+import { SearchInput } from "@/components/shared/search-input";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,12 +19,19 @@ import {
 } from "@/components/ui/table";
 import { Plus, Users } from "lucide-react";
 
-export default async function ClientsPage() {
+export default async function ClientsPage({
+  searchParams,
+}: {
+  searchParams: { search?: string };
+}) {
   const session = await getServerSession(authOptions);
   const role = session!.user.role as UserRole;
   const canCreate = hasPermission(role, "clients", "create");
 
-  const clients = await getClientsWithStats({ active: true });
+  const clients = await getClientsWithStats({
+    active: true,
+    search: searchParams.search,
+  });
 
   return (
     <div>
@@ -42,13 +50,21 @@ export default async function ClientsPage() {
         }
       />
 
+      <div className="mb-4">
+        <SearchInput placeholder="Search clients by name, company, or phone..." />
+      </div>
+
       {clients.length === 0 ? (
         <EmptyState
           icon={Users}
-          title="No clients yet"
-          description="Add your first client to start managing orders"
+          title="No clients found"
+          description={
+            searchParams.search
+              ? "Try a different search term"
+              : "Add your first client to start managing orders"
+          }
           action={
-            canCreate ? (
+            canCreate && !searchParams.search ? (
               <Link href="/clients/new">
                 <Button className="bg-emerald-700 hover:bg-emerald-800">
                   Add Client
@@ -82,10 +98,10 @@ export default async function ClientsPage() {
                     </Link>
                   </TableCell>
                   <TableCell className="text-gray-600">
-                    {client.companyName || "—"}
+                    {client.companyName || "\u2014"}
                   </TableCell>
                   <TableCell className="text-gray-600">
-                    {client.phone || "—"}
+                    {client.phone || "\u2014"}
                   </TableCell>
                   <TableCell className="text-center">
                     {client.totalOrders}
@@ -93,7 +109,7 @@ export default async function ClientsPage() {
                   <TableCell className="text-right font-medium">
                     {client.totalRevenue > 0
                       ? formatLKR(client.totalRevenue)
-                      : "—"}
+                      : "\u2014"}
                   </TableCell>
                   <TableCell className="text-right font-medium">
                     {client.outstandingBalance > 0 ? (
@@ -101,7 +117,7 @@ export default async function ClientsPage() {
                         {formatLKR(client.outstandingBalance)}
                       </span>
                     ) : (
-                      <span className="text-gray-400">—</span>
+                      <span className="text-gray-500">\u2014</span>
                     )}
                   </TableCell>
                 </TableRow>

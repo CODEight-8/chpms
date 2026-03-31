@@ -18,6 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { SearchInput } from "@/components/shared/search-input";
 import { Plus, ShoppingCart, CheckCircle, Truck, Clock } from "lucide-react";
 
 export default async function OrdersPage({
@@ -65,6 +66,10 @@ export default async function OrdersPage({
           icon={ShoppingCart}
         />
         <SummaryCard title="Dispatched" value={counts.DISPATCHED} icon={Truck} />
+      </div>
+
+      <div className="mb-4">
+        <SearchInput placeholder="Search by order #, client name..." />
       </div>
 
       {orders.length === 0 ? (
