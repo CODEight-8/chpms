@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
     return errorResponse(parsed.error.issues[0].message);
   }
 
-  const { productId, lots, notes } = parsed.data;
+  const { productId, chipSize, lots, notes, remarks } = parsed.data;
 
   // Verify product exists
   const product = await prisma.product.findUnique({
@@ -98,8 +98,10 @@ export async function POST(request: NextRequest) {
       data: {
         batchNumber,
         productId,
+        chipSize,
         totalRawCost,
         notes: notes || null,
+        remarks: remarks || null,
         batchLots: {
           create: lots.map((l) => ({
             supplierLotId: l.lotId,

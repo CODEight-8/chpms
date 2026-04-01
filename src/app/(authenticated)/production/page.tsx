@@ -23,6 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { Plus, Factory, CheckCircle, Truck } from "lucide-react";
 
 export default async function ProductionPage({
@@ -111,10 +112,10 @@ export default async function ProductionPage({
             <TableHeader>
               <TableRow>
                 <TableHead>Batch #</TableHead>
-                <TableHead>Product</TableHead>
+                <TableHead>Chip Size</TableHead>
                 <TableHead className="text-center">Input Husks</TableHead>
-                <TableHead className="text-center">Lots Used</TableHead>
                 <TableHead className="text-right">Output</TableHead>
+                <TableHead>Quality</TableHead>
                 <TableHead className="text-right">Raw Cost</TableHead>
                 <TableHead>Started</TableHead>
                 <TableHead>Status</TableHead>
@@ -131,15 +132,34 @@ export default async function ProductionPage({
                       {batch.batchNumber}
                     </Link>
                   </TableCell>
-                  <TableCell>{batch.product.name}</TableCell>
+                  <TableCell className="text-gray-600">
+                    {batch.chipSize || "—"}
+                  </TableCell>
                   <TableCell className="text-center">
                     {batch.totalInputHusks.toLocaleString()}
                   </TableCell>
-                  <TableCell className="text-center">{batch.lotCount}</TableCell>
                   <TableCell className="text-right">
                     {batch.outputQuantity
                       ? `${Number(batch.outputQuantity).toLocaleString()} ${batch.outputUnit || ""}`
                       : "—"}
+                  </TableCell>
+                  <TableCell>
+                    {batch.qualityGrade ? (
+                      <Badge
+                        variant="outline"
+                        className={
+                          batch.qualityGrade === "GOOD"
+                            ? "bg-green-100 text-green-800 border-green-200"
+                            : batch.qualityGrade === "AVERAGE"
+                              ? "bg-amber-100 text-amber-800 border-amber-200"
+                              : "bg-red-100 text-red-800 border-red-200"
+                        }
+                      >
+                        {batch.qualityGrade}
+                      </Badge>
+                    ) : (
+                      "—"
+                    )}
                   </TableCell>
                   <TableCell className="text-right font-medium">
                     {formatLKR(batch.totalRawCost)}

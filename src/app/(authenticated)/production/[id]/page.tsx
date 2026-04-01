@@ -22,6 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { FileText } from "lucide-react";
 
 export default async function ProductionBatchDetailPage({
@@ -77,6 +78,10 @@ export default async function ProductionBatchDetailPage({
                 />
                 <InfoField label="Product" value={batch.product.name} />
                 <InfoField
+                  label="Target Chip Size"
+                  value={batch.chipSize || "—"}
+                />
+                <InfoField
                   label="Started"
                   value={new Date(batch.startedAt).toLocaleDateString("en-LK")}
                 />
@@ -106,14 +111,49 @@ export default async function ProductionBatchDetailPage({
                           : "—"
                       }
                     />
+                    {batch.qualityScore !== null && batch.qualityScore !== undefined && (
+                      <>
+                        <InfoField
+                          label="Quality Score"
+                          value={`${Number(batch.qualityScore)}% correct size`}
+                        />
+                        <InfoField
+                          label="Quality Grade"
+                          value={
+                            <Badge
+                              variant="outline"
+                              className={
+                                batch.qualityGrade === "GOOD"
+                                  ? "bg-green-100 text-green-800 border-green-200"
+                                  : batch.qualityGrade === "AVERAGE"
+                                    ? "bg-amber-100 text-amber-800 border-amber-200"
+                                    : "bg-red-100 text-red-800 border-red-200"
+                              }
+                            >
+                              {batch.qualityGrade}
+                            </Badge>
+                          }
+                        />
+                      </>
+                    )}
                   </>
                 )}
               </div>
 
-              {batch.notes && (
-                <div className="mt-4 pt-4 border-t">
-                  <p className="text-sm font-medium text-gray-500 mb-1">Notes</p>
-                  <p className="text-sm text-gray-700">{batch.notes}</p>
+              {(batch.notes || batch.remarks) && (
+                <div className="mt-4 pt-4 border-t space-y-3">
+                  {batch.notes && (
+                    <div>
+                      <p className="text-sm font-medium text-gray-500 mb-1">Notes</p>
+                      <p className="text-sm text-gray-700">{batch.notes}</p>
+                    </div>
+                  )}
+                  {batch.remarks && (
+                    <div>
+                      <p className="text-sm font-medium text-gray-500 mb-1">Special Remarks</p>
+                      <p className="text-sm text-gray-700">{batch.remarks}</p>
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>

@@ -26,7 +26,7 @@ const PERMISSIONS: Record<UserRole, Record<Module, Permission[]>> = {
   MANAGER: {
     suppliers: ["view", "create", "edit", "delete"],
     "supplier-lots": ["view", "create", "edit", "delete"],
-    production: ["view"],
+    production: ["view", "create", "edit"],
     clients: ["view", "create", "edit", "delete"],
     orders: ["view", "create", "edit", "delete"],
     accounts: ["view", "create", "edit", "delete"],

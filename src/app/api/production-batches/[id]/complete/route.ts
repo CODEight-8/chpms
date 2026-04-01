@@ -3,6 +3,13 @@ import { prisma } from "@/lib/prisma";
 import { completeBatchSchema } from "@/lib/validators";
 import { requireAuth, errorResponse, jsonResponse } from "@/lib/api-helpers";
 import { logAuditEvent } from "@/lib/audit-log";
+import { BatchQualityGrade } from "@prisma/client";
+
+function calculateQualityGrade(score: number): BatchQualityGrade {
+  if (score >= 75) return "GOOD";
+  if (score >= 10) return "AVERAGE";
+  return "REJECT";
+}
 
 export async function PATCH(
   request: NextRequest,
@@ -27,6 +34,8 @@ export async function PATCH(
     return errorResponse(parsed.error.issues[0].message);
   }
 
+  const qualityGrade = calculateQualityGrade(parsed.data.qualityScore);
+
   const updated = await prisma.productionBatch.update({
     where: { id: params.id },
     data: {
@@ -34,6 +43,8 @@ export async function PATCH(
       completedAt: new Date(),
       outputQuantity: parsed.data.outputQuantity,
       outputUnit: parsed.data.outputUnit,
+      qualityScore: parsed.data.qualityScore,
+      qualityGrade,
     },
     include: {
       product: { select: { id: true, name: true, unit: true } },
@@ -45,7 +56,13 @@ export async function PATCH(
     action: "COMPLETE",
     entityType: "ProductionBatch",
     entityId: params.id,
-    details: { batchNumber: batch.batchNumber, outputQuantity: parsed.data.outputQuantity, outputUnit: parsed.data.outputUnit },
+    details: {
+      batchNumber: batch.batchNumber,
+      outputQuantity: parsed.data.outputQuantity,
+      outputUnit: parsed.data.outputUnit,
+      qualityScore: parsed.data.qualityScore,
+      qualityGrade,
+    },
   });
 
   return jsonResponse(updated);

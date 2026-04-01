@@ -49,6 +49,7 @@ export function BatchForm() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [product, setProduct] = useState<Product | null>(null);
+  const [chipSize, setChipSize] = useState("");
   const [availableLots, setAvailableLots] = useState<AvailableLot[]>([]);
   const [selectedLots, setSelectedLots] = useState<SelectedLot[]>([]);
 
@@ -130,17 +131,19 @@ export function BatchForm() {
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!product || selectedLots.length === 0) return;
+    if (!product || !chipSize || selectedLots.length === 0) return;
 
     setLoading(true);
     const form = new FormData(e.currentTarget);
     const data = {
       productId: product.id,
+      chipSize,
       lots: selectedLots.map((l) => ({
         lotId: l.lotId,
         quantityUsed: l.quantityUsed,
       })),
       notes: (form.get("notes") as string) || undefined,
+      remarks: (form.get("remarks") as string) || undefined,
     };
 
     try {
@@ -168,9 +171,9 @@ export function BatchForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Product Info */}
+      {/* Product Info & Chip Size */}
       <Card>
-        <CardContent className="pt-6">
+        <CardContent className="pt-6 space-y-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
               <span className="text-lg">🥥</span>
@@ -183,6 +186,25 @@ export function BatchForm() {
                 Output measured in {product?.unit || "kg"} — Husks → Chips
               </p>
             </div>
+          </div>
+
+          <div className="space-y-2 max-w-xs">
+            <Label htmlFor="chipSize">Target Chip Size *</Label>
+            <Select value={chipSize} onValueChange={setChipSize}>
+              <SelectTrigger id="chipSize">
+                <SelectValue placeholder="Select chip size..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="5mm">5 mm</SelectItem>
+                <SelectItem value="10mm">10 mm</SelectItem>
+                <SelectItem value="15mm">15 mm</SelectItem>
+                <SelectItem value="20mm">20 mm</SelectItem>
+                <SelectItem value="25mm">25 mm</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-gray-500">
+              Chip size as required by the order
+            </p>
           </div>
         </CardContent>
       </Card>
@@ -311,12 +333,25 @@ export function BatchForm() {
         </CardContent>
       </Card>
 
-      {/* Notes */}
+      {/* Notes & Remarks */}
       <Card>
-        <CardContent className="pt-6">
+        <CardContent className="pt-6 space-y-4">
           <div className="space-y-2 max-w-lg">
             <Label htmlFor="notes">Notes</Label>
-            <Textarea id="notes" name="notes" rows={3} maxLength={2000} />
+            <Textarea id="notes" name="notes" rows={2} maxLength={2000} />
+          </div>
+          <div className="space-y-2 max-w-lg">
+            <Label htmlFor="remarks">Special Remarks</Label>
+            <Textarea
+              id="remarks"
+              name="remarks"
+              rows={2}
+              maxLength={2000}
+              placeholder="e.g. Client wants extra dry chips, rush order, special handling..."
+            />
+            <p className="text-xs text-gray-500">
+              Special production instructions or client-specific requirements
+            </p>
           </div>
         </CardContent>
       </Card>
@@ -326,7 +361,7 @@ export function BatchForm() {
         <Button
           type="submit"
           className="bg-emerald-700 hover:bg-emerald-800"
-          disabled={loading || !product || selectedLots.length === 0}
+          disabled={loading || !product || !chipSize || selectedLots.length === 0}
         >
           {loading ? "Creating..." : "Create Production Batch"}
         </Button>

@@ -28,7 +28,7 @@ export function UserForm({ defaultValues }: UserFormProps) {
   const router = useRouter();
   const isEdit = !!defaultValues?.id;
   const [loading, setLoading] = useState(false);
-  const [role, setRole] = useState(defaultValues?.role || "PRODUCTION");
+  const [role, setRole] = useState(defaultValues?.role || "MANAGER");
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -121,15 +121,14 @@ export function UserForm({ defaultValues }: UserFormProps) {
                 <SelectValue placeholder="Select role" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="PRODUCTION">Production</SelectItem>
                 <SelectItem value="MANAGER">Manager</SelectItem>
                 <SelectItem value="OWNER">Owner</SelectItem>
+                {/* PRODUCTION role hidden for now — Manager handles production duties */}
               </SelectContent>
             </Select>
             <p className="text-xs text-gray-500">
               {role === "OWNER" && "Full access to all modules including user management"}
-              {role === "MANAGER" && "Access to suppliers, clients, orders, accounts, and dashboard"}
-              {role === "PRODUCTION" && "Access to production, supplier lots (view), and dashboard"}
+              {role === "MANAGER" && "Access to all modules including production — everything except user management"}
             </p>
           </div>
 

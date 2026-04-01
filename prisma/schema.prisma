@@ -38,6 +38,12 @@ enum BatchStatus {
   DISPATCHED
 }
 
+enum BatchQualityGrade {
+  GOOD
+  AVERAGE
+  REJECT
+}
+
 enum OrderStatus {
   PENDING
   CONFIRMED
@@ -132,11 +138,15 @@ model ProductionBatch {
   id             String      @id @default(uuid())
   batchNumber    String      @unique @map("batch_number")
   productId      String      @map("product_id")
+  chipSize       String?     @map("chip_size")
+  remarks        String?
   startedAt      DateTime    @default(now()) @map("started_at")
   completedAt    DateTime?   @map("completed_at")
   status         BatchStatus @default(IN_PROGRESS)
   outputQuantity Decimal?    @map("output_quantity") @db.Decimal(10, 2)
   outputUnit     String?     @map("output_unit")
+  qualityScore   Decimal?    @map("quality_score") @db.Decimal(5, 2)
+  qualityGrade   BatchQualityGrade? @map("quality_grade")
   totalRawCost   Decimal     @default(0) @map("total_raw_cost") @db.Decimal(12, 2)
   notes          String?
   createdAt      DateTime    @default(now()) @map("created_at")

@@ -25,6 +25,7 @@ export const supplierLotUpdateSchema = z.object({
 
 export const productionBatchSchema = z.object({
   productId: z.string().uuid("Invalid product"),
+  chipSize: z.string().min(1, "Chip size is required").max(50),
   lots: z
     .array(
       z.object({
@@ -35,11 +36,13 @@ export const productionBatchSchema = z.object({
     .min(1, "At least one lot is required")
     .max(100),
   notes: z.string().max(2000).optional(),
+  remarks: z.string().max(2000).optional(),
 });
 
 export const completeBatchSchema = z.object({
   outputQuantity: z.number().positive("Output quantity must be positive").max(1000000),
   outputUnit: z.string().min(1, "Output unit is required").max(50),
+  qualityScore: z.number().min(0, "Quality score must be 0-100").max(100, "Quality score must be 0-100"),
 });
 
 export const clientSchema = z.object({
