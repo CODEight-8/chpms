@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,12 +20,13 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { PackageCheck } from "lucide-react";
+import { PackageCheck, AlertTriangle } from "lucide-react";
 
 interface FulfillFormProps {
   orderId: string;
   orderItemId: string;
   productName: string;
+  chipSize?: string | null;
   remaining: number;
   unit: string;
 }
@@ -33,6 +34,7 @@ interface FulfillFormProps {
 interface CompletedBatch {
   id: string;
   batchNumber: string;
+  chipSize: string | null;
   outputQuantity: string;
   outputUnit: string;
 }
@@ -41,6 +43,7 @@ export function FulfillForm({
   orderId,
   orderItemId,
   productName,
+  chipSize,
   remaining,
   unit,
 }: FulfillFormProps) {
@@ -53,11 +56,21 @@ export function FulfillForm({
 
   useEffect(() => {
     if (!open) return;
-    fetch("/api/production-batches?status=COMPLETED")
+    const params = new URLSearchParams({ status: "COMPLETED" });
+    if (chipSize) params.set("chipSize", chipSize);
+
+    fetch(`/api/production-batches?${params}`)
       .then((r) => r.json())
       .then((data) => setBatches(data))
       .catch(() => toast.error("Failed to load batches"));
-  }, [open]);
+  }, [open, chipSize]);
+
+  const totalAvailable = useMemo(
+    () => batches.reduce((sum, b) => sum + Number(b.outputQuantity), 0),
+    [batches]
+  );
+
+  const isShortage = totalAvailable < remaining;
 
   async function handleSubmit() {
     if (!batchId || quantity <= 0) return;
@@ -115,45 +128,74 @@ export function FulfillForm({
             <p className="text-sm font-medium">{productName}</p>
             <p className="text-xs text-gray-500">
               {remaining.toLocaleString()} {unit} remaining to fulfill
+              {chipSize && (
+                <span className="ml-1 font-medium text-gray-700">
+                  ({chipSize} chips)
+                </span>
+              )}
             </p>
           </div>
 
-          <div className="space-y-2">
-            <Label>Production Batch *</Label>
-            <Select value={batchId} onValueChange={setBatchId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select a completed batch" />
-              </SelectTrigger>
-              <SelectContent>
-                {batches.map((b) => (
-                  <SelectItem key={b.id} value={b.id}>
-                    {b.batchNumber} — {Number(b.outputQuantity).toLocaleString()}{" "}
-                    {b.outputUnit} available
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {isShortage && (
+            <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+              <div className="text-sm text-amber-800">
+                <p className="font-medium">Insufficient stock</p>
+                <p className="text-xs mt-0.5">
+                  Only {totalAvailable.toLocaleString()} {unit} available from{" "}
+                  {chipSize ? `${chipSize} ` : ""}batches ({remaining.toLocaleString()}{" "}
+                  {unit} needed). You may need to create more production batches.
+                </p>
+              </div>
+            </div>
+          )}
 
-          <div className="space-y-2">
-            <Label>Quantity ({unit}) *</Label>
-            <Input
-              type="number"
-              min={0.01}
-              max={remaining}
-              step={0.01}
-              value={quantity || ""}
-              onChange={(e) => setQuantity(parseFloat(e.target.value) || 0)}
-            />
-          </div>
+          {batches.length === 0 ? (
+            <div className="text-center py-4 text-sm text-gray-500">
+              No completed {chipSize ? `${chipSize} ` : ""}batches available
+            </div>
+          ) : (
+            <>
+              <div className="space-y-2">
+                <Label>Production Batch *</Label>
+                <Select value={batchId} onValueChange={setBatchId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a completed batch" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {batches.map((b) => (
+                      <SelectItem key={b.id} value={b.id}>
+                        {b.batchNumber}
+                        {b.chipSize ? ` — ${b.chipSize}` : ""} —{" "}
+                        {Number(b.outputQuantity).toLocaleString()} {b.outputUnit}{" "}
+                        available
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-          <Button
-            onClick={handleSubmit}
-            className="w-full bg-emerald-700 hover:bg-emerald-800"
-            disabled={loading || !batchId || quantity <= 0}
-          >
-            {loading ? "Fulfilling..." : "Confirm Fulfillment"}
-          </Button>
+              <div className="space-y-2">
+                <Label>Quantity ({unit}) *</Label>
+                <Input
+                  type="number"
+                  min={0.01}
+                  max={remaining}
+                  step={0.01}
+                  value={quantity || ""}
+                  onChange={(e) => setQuantity(parseFloat(e.target.value) || 0)}
+                />
+              </div>
+
+              <Button
+                onClick={handleSubmit}
+                className="w-full bg-emerald-700 hover:bg-emerald-800"
+                disabled={loading || !batchId || quantity <= 0}
+              >
+                {loading ? "Fulfilling..." : "Confirm Fulfillment"}
+              </Button>
+            </>
+          )}
         </div>
       </DialogContent>
     </Dialog>

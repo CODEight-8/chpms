@@ -215,6 +215,7 @@ model OrderItem {
   id                String  @id @default(uuid())
   orderId           String  @map("order_id")
   productId         String  @map("product_id")
+  chipSize          String? @map("chip_size")
   quantityOrdered   Decimal @map("quantity_ordered") @db.Decimal(10, 2)
   unitPrice         Decimal @map("unit_price") @db.Decimal(10, 2)
   quantityFulfilled Decimal @default(0) @map("quantity_fulfilled") @db.Decimal(10, 2)

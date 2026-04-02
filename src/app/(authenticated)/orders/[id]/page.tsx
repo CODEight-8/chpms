@@ -135,6 +135,11 @@ export default async function OrderDetailPage({
                           <span className="text-gray-500 ml-1 text-xs">
                             ({item.product.unit})
                           </span>
+                          {item.chipSize && (
+                            <span className="ml-1 text-xs font-medium text-blue-600">
+                              [{item.chipSize}]
+                            </span>
+                          )}
                         </TableCell>
                         <TableCell className="text-center">
                           {Number(item.quantityOrdered).toLocaleString()}
@@ -169,6 +174,7 @@ export default async function OrderDetailPage({
                                 orderId={order.id}
                                 orderItemId={item.id}
                                 productName={item.product.name}
+                                chipSize={item.chipSize}
                                 remaining={remaining}
                                 unit={item.product.unit}
                               />
