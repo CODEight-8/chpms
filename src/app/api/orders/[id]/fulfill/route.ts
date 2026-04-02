@@ -42,6 +42,13 @@ export async function POST(
       return errorResponse("Production batch must be completed for fulfillment");
     }
 
+    // Validate chip size match
+    if (item.chipSize && batch.chipSize && item.chipSize !== batch.chipSize) {
+      return errorResponse(
+        `Chip size mismatch: order requires ${item.chipSize} but batch ${batch.batchNumber} is ${batch.chipSize}`
+      );
+    }
+
     const remaining =
       Number(item.quantityOrdered) - Number(item.quantityFulfilled);
     if (f.quantityFulfilled > remaining) {

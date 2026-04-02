@@ -32,9 +32,12 @@ interface Product {
 
 interface LineItem {
   productId: string;
+  chipSize: string;
   quantity: number;
   unitPrice: number;
 }
+
+const CHIP_SIZES = ["5mm", "10mm", "15mm", "20mm", "25mm"];
 
 export function OrderForm() {
   const router = useRouter();
@@ -57,6 +60,7 @@ export function OrderForm() {
           setItems([
             {
               productId: prods[0].id,
+              chipSize: "5mm",
               quantity: 0,
               unitPrice: Number(prods[0].defaultPrice) || 0,
             },
@@ -96,6 +100,7 @@ export function OrderForm() {
       ...prev,
       {
         productId: nextProduct.id,
+        chipSize: "5mm",
         quantity: 0,
         unitPrice: Number(nextProduct.defaultPrice) || 0,
       },
@@ -124,6 +129,7 @@ export function OrderForm() {
       expectedDelivery: (form.get("expectedDelivery") as string) || undefined,
       items: validItems.map((i) => ({
         productId: i.productId,
+        chipSize: i.chipSize,
         quantityOrdered: i.quantity,
         unitPrice: i.unitPrice,
       })),
@@ -276,6 +282,25 @@ export function OrderForm() {
                     </div>
                   </div>
                 )}
+
+                <div className="space-y-2">
+                  <Label>Chip Size *</Label>
+                  <Select
+                    value={item.chipSize}
+                    onValueChange={(v) => updateItem(index, "chipSize", v)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select chip size" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CHIP_SIZES.map((size) => (
+                        <SelectItem key={size} value={size}>
+                          {size}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">

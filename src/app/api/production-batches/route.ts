@@ -14,6 +14,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const status = searchParams.get("status") as BatchStatus | null;
   const search = searchParams.get("search") || undefined;
+  const chipSize = searchParams.get("chipSize") || undefined;
   const countsOnly = searchParams.get("counts") === "true";
 
   if (countsOnly) {
@@ -24,6 +25,7 @@ export async function GET(request: NextRequest) {
   const batches = await getBatchesWithDetails({
     status: status || undefined,
     search,
+    chipSize,
   });
 
   return jsonResponse(batches);

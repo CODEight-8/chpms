@@ -4,6 +4,7 @@ import { BatchStatus, Prisma } from "@prisma/client";
 interface BatchFilters {
   status?: BatchStatus;
   search?: string;
+  chipSize?: string;
 }
 
 export async function getBatchesWithDetails(filters?: BatchFilters) {
@@ -11,6 +12,10 @@ export async function getBatchesWithDetails(filters?: BatchFilters) {
 
   if (filters?.status) {
     where.status = filters.status;
+  }
+
+  if (filters?.chipSize) {
+    where.chipSize = filters.chipSize;
   }
 
   if (filters?.search) {

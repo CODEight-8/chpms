@@ -62,6 +62,7 @@ export const orderSchema = z.object({
     .array(
       z.object({
         productId: z.string().uuid(),
+        chipSize: z.string().min(1, "Chip size is required").max(50),
         quantityOrdered: z.number().positive(),
         unitPrice: z.number().positive(),
       })
