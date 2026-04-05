@@ -13,5 +13,13 @@ else
   echo "Already seeded, skipping."
 fi
 
-echo "Starting application..."
-node server.js
+# DB integrity check
+echo "Verifying database connection..."
+node -e "
+const { PrismaClient } = require('@prisma/client');
+const p = new PrismaClient();
+p.\$queryRaw\`SELECT 1\`.then(() => { console.log('DB connection OK'); p.\$disconnect(); }).catch((e) => { console.error('DB check failed:', e.message); process.exit(1); });
+"
+
+echo "Starting application with PM2..."
+npx pm2-runtime start ecosystem.config.js
