@@ -1,11 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { canAccessModule } from "@/lib/permissions";
 import { UserRole } from "@prisma/client";
+import { SystemStatus } from "./system-status";
 import {
   LayoutDashboard,
   Truck,
@@ -16,6 +18,8 @@ import {
   Wallet,
   Settings,
   LogOut,
+  Menu,
+  X,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -39,20 +43,35 @@ const navItems = [
 
 export function Sidebar({ user }: SidebarProps) {
   const pathname = usePathname();
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const accessibleItems = navItems.filter((item) =>
     canAccessModule(user.role, item.module)
   );
 
-  return (
-    <aside className="fixed left-0 top-0 z-40 h-screen w-64 bg-emerald-900 text-white flex flex-col">
+  function handleNavClick() {
+    setMobileOpen(false);
+  }
+
+  const sidebarContent = (
+    <>
       {/* Brand */}
-      <div className="flex items-center gap-3 px-6 py-5 border-b border-emerald-800">
-        <span className="text-2xl">🥥</span>
-        <div>
-          <h1 className="text-lg font-bold leading-tight">CHPMS</h1>
-          <p className="text-xs text-emerald-300">Processing Management</p>
+      <div className="flex items-center justify-between px-6 py-5 border-b border-emerald-800">
+        <div className="flex items-center gap-3">
+          <span className="text-2xl">🥥</span>
+          <div>
+            <h1 className="text-lg font-bold leading-tight">CHPMS</h1>
+            <p className="text-xs text-emerald-300">Processing Management</p>
+          </div>
         </div>
+        {/* Close button - mobile only */}
+        <button
+          onClick={() => setMobileOpen(false)}
+          className="md:hidden p-1 rounded text-emerald-300 hover:text-white hover:bg-emerald-800"
+          aria-label="Close menu"
+        >
+          <X className="h-5 w-5" />
+        </button>
       </div>
 
       {/* Navigation */}
@@ -66,6 +85,7 @@ export function Sidebar({ user }: SidebarProps) {
               <li key={item.href}>
                 <Link
                   href={item.href}
+                  onClick={handleNavClick}
                   className={cn(
                     "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                     isActive
@@ -81,6 +101,11 @@ export function Sidebar({ user }: SidebarProps) {
           })}
         </ul>
       </nav>
+
+      {/* System Status */}
+      <div className="px-3 pb-2">
+        <SystemStatus />
+      </div>
 
       {/* User Profile */}
       <div className="border-t border-emerald-800 p-4">
@@ -101,6 +126,44 @@ export function Sidebar({ user }: SidebarProps) {
           Sign Out
         </button>
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* Mobile header bar */}
+      <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-emerald-900 text-white flex items-center gap-3 px-4 py-3 border-b border-emerald-800">
+        <button
+          onClick={() => setMobileOpen(true)}
+          className="p-1 rounded hover:bg-emerald-800"
+          aria-label="Open menu"
+        >
+          <Menu className="h-6 w-6" />
+        </button>
+        <span className="text-lg">🥥</span>
+        <span className="font-bold">CHPMS</span>
+      </div>
+
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <div
+          className="md:hidden fixed inset-0 z-50 bg-black/50"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside
+        className={cn(
+          "fixed left-0 top-0 z-50 h-screen w-64 bg-emerald-900 text-white flex flex-col transition-transform duration-200",
+          // Desktop: always visible
+          "md:translate-x-0",
+          // Mobile: hidden by default, slide in when open
+          mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+        )}
+      >
+        {sidebarContent}
+      </aside>
+    </>
   );
 }

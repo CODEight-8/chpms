@@ -25,7 +25,9 @@ services:
     environment:
       DATABASE_URL: postgresql://chpms_user:${DB_PASSWORD:?DB_PASSWORD must be set}@db:5432/chpms
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?NEXTAUTH_SECRET must be set}
-      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+      SYSTEM_MODE: ${SYSTEM_MODE:-live}
+      SNAPSHOT_TIMESTAMP: ${SNAPSHOT_TIMESTAMP:-}
       OWNER_EMAIL: ${OWNER_EMAIL:?OWNER_EMAIL must be set}
       OWNER_PASSWORD: ${OWNER_PASSWORD:?OWNER_PASSWORD must be set}
     ports:
@@ -39,6 +41,28 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  backup:
+    image: postgres:16-alpine
+    environment:
+      PGHOST: db
+      PGUSER: chpms_user
+      PGPASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set}
+      PGDATABASE: chpms
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-7}
+      BACKUP_RETENTION_WEEKS: ${BACKUP_RETENTION_WEEKS:-4}
+    volumes:
+      - backups:/backups
+      - ./backup/backup.sh:/backup.sh:ro
+    networks:
+      - internal
+    depends_on:
+      db:
+        condition: service_healthy
+    entrypoint: /bin/sh
+    command: >
+      -c "cp /backup.sh /tmp/backup.sh && chmod +x /tmp/backup.sh && echo '0 2 * * * /tmp/backup.sh >> /var/log/backup.log 2>&1' | crontab - && crond -f"
+    restart: unless-stopped
+
 networks:
   internal:
     driver: bridge
@@ -47,3 +71,4 @@ networks:
 volumes:
   pgdata:
   appdata:
+  backups:

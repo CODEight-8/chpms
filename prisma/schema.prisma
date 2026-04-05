@@ -291,3 +291,11 @@ model AuditLog {
   @@index([createdAt])
   @@map("audit_logs")
 }
+
+model SystemStatus {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("system_status")
+}
