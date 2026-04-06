@@ -11,7 +11,14 @@
     "db:seed": "npx prisma db seed",
     "db:setup": "npx prisma db push && npx prisma db seed",
     "db:migrate": "npx prisma migrate dev",
-    "db:studio": "npx prisma studio"
+    "db:studio": "npx prisma studio",
+    "dev:setup": "bash scripts/dev-setup.sh",
+    "dev:sync": "bash scripts/dev-sync.sh",
+    "dev:snapshot": "bash scripts/dev-snapshot.sh",
+    "dev:db:up": "docker compose -f docker-compose.dev.yml up -d",
+    "dev:db:down": "docker compose -f docker-compose.dev.yml down",
+    "dev:db:reset": "docker compose -f docker-compose.dev.yml down -v && bash scripts/dev-setup.sh",
+    "dev:seed": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' prisma/seed-dev.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.2",

@@ -1,0 +1,19 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: chpms_dev
+      POSTGRES_USER: chpms_user
+      POSTGRES_PASSWORD: chpms_dev_password
+    ports:
+      - "${DEV_DB_PORT:-5434}:5432"
+    volumes:
+      - pgdata_dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chpms_user -d chpms_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata_dev:
