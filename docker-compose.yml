@@ -60,7 +60,7 @@ services:
         condition: service_healthy
     entrypoint: /bin/sh
     command: >
-      -c "cp /backup.sh /tmp/backup.sh && chmod +x /tmp/backup.sh && echo '0 2 * * * /tmp/backup.sh >> /var/log/backup.log 2>&1' | crontab - && crond -f"
+      -c "cp /backup.sh /tmp/backup.sh && sed -i 's/\r$$//' /tmp/backup.sh && chmod +x /tmp/backup.sh && echo '0 2 * * * /tmp/backup.sh >> /var/log/backup.log 2>&1' | crontab - && crond -f"
     restart: unless-stopped
 
 networks:
