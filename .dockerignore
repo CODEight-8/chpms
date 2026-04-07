@@ -1,6 +1,27 @@
 node_modules
 .next
-.env
-.env.local
 .git
+.gitattributes
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Development files
+snapshots/
+scripts/
+docker-compose.dev.yml
 *.md
+*.log
+
+# IDE and OS
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+dist/
+build/
+coverage/

@@ -31,6 +31,7 @@ WEEKLY_KEEP_DAYS=$((RETENTION_WEEKS * 7))
 find "$BACKUP_DIR/weekly" -name "*.sql.gz" -mtime +"$WEEKLY_KEEP_DAYS" -delete 2>/dev/null || true
 
 # Update last_backup_at in system_status table
-psql -c "INSERT INTO system_status (key, value, updated_at) VALUES ('last_backup_at', '$(date -u +%Y-%m-%dT%H:%M:%SZ)', NOW()) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW();" 2>/dev/null || true
+TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+psql -c "INSERT INTO system_status (key, value, updated_at) VALUES ('last_backup_at', '$TIMESTAMP', NOW()) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW();" 2>/dev/null || true
 
 echo "[$DATE] Backup complete."
