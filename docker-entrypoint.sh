@@ -8,7 +8,18 @@ npx prisma db push --skip-generate
 mkdir -p /app/data
 if [ ! -f /app/data/.seeded ]; then
   echo "First run — seeding database..."
-  node prisma/compiled/seed.js && touch /app/data/.seeded
+  if [ ! -f prisma/compiled/seed.js ]; then
+    echo "ERROR: prisma/compiled/seed.js not found."
+    echo "TypeScript compilation may have failed during Docker build."
+    exit 1
+  fi
+  if node prisma/compiled/seed.js; then
+    touch /app/data/.seeded
+    echo "Seed completed successfully."
+  else
+    echo "ERROR: Seed script failed. Check OWNER_EMAIL and OWNER_PASSWORD env vars."
+    exit 1
+  fi
 else
   echo "Already seeded, skipping."
 fi

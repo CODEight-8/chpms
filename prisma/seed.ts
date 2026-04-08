@@ -5,7 +5,7 @@ const prisma = new PrismaClient();
 
 async function main() {
   // Create default Owner account
-  const ownerEmail = process.env.OWNER_EMAIL;
+  const ownerEmail = process.env.OWNER_EMAIL?.toLowerCase().trim();
   const ownerPassword = process.env.OWNER_PASSWORD;
 
   if (!ownerEmail || !ownerPassword) {

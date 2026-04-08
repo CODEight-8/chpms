@@ -31,6 +31,9 @@ export async function POST(request: NextRequest) {
     return errorResponse(parsed.error.issues[0].message);
   }
 
+  // Normalize email
+  parsed.data.email = parsed.data.email.toLowerCase().trim();
+
   // Check if email already exists
   const existing = await prisma.user.findUnique({
     where: { email: parsed.data.email },

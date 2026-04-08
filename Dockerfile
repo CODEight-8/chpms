@@ -11,7 +11,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npx prisma generate
 RUN npm run build
-RUN npx tsc prisma/seed.ts --outDir prisma/compiled --esModuleInterop --module commonjs --skipLibCheck || true
+RUN npx tsc prisma/seed.ts --outDir prisma/compiled --esModuleInterop --module commonjs --moduleResolution node --skipLibCheck
 
 FROM base AS runner
 WORKDIR /app
