@@ -37,7 +37,7 @@ export default async function UsersPage({
   };
 
   return (
-    <div>
+    <div className="pt-6">
       <PageHeader
         title="User Management"
         description="Manage system users and access control"

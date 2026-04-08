@@ -9,6 +9,8 @@ services:
       - pgdata:/var/lib/postgresql/data
     expose:
       - "5432"
+    ports:
+      - "5433:5432"
     networks:
       - internal
     restart: unless-stopped

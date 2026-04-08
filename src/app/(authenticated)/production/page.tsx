@@ -42,7 +42,7 @@ export default async function ProductionPage({
   ]);
 
   return (
-    <div>
+    <div className="pt-6">
       <PageHeader
         title="Production Batches"
         description="Coconut husk chip production — batch processing and output tracking"

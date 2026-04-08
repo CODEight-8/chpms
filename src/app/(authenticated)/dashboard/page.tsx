@@ -79,7 +79,7 @@ export default async function DashboardPage() {
   }));
 
   return (
-    <div>
+    <div className="pt-6">
       <PageHeader title="Dashboard" description="Business overview at a glance" />
 
       {/* KPI Cards */}

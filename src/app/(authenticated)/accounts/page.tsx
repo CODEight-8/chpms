@@ -81,7 +81,7 @@ export default async function AccountsPage({
   }));
 
   return (
-    <div>
+    <div className="pt-6">
       <PageHeader
         title="Accounts"
         description="Payment tracking \u2014 Money Out (suppliers) & Money In (clients)"

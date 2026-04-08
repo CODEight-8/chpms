@@ -21,6 +21,18 @@ import {
 import { SearchInput } from "@/components/shared/search-input";
 import { Plus, ShoppingCart, CheckCircle, Truck, Clock } from "lucide-react";
 
+const ORDER_STATUS_FILTERS: Array<{
+  label: string;
+  value: OrderStatus | "ALL";
+}> = [
+  { label: "All", value: "ALL" },
+  { label: "Pending", value: "PENDING" },
+  { label: "Confirmed", value: "CONFIRMED" },
+  { label: "Fulfilled", value: "FULFILLED" },
+  { label: "Dispatched", value: "DISPATCHED" },
+  { label: "Cancelled", value: "CANCELLED" },
+];
+
 export default async function OrdersPage({
   searchParams,
 }: {
@@ -36,8 +48,23 @@ export default async function OrdersPage({
     getOrderStatusCounts(),
   ]);
 
+  function getFilterHref(status: OrderStatus | "ALL") {
+    const params = new URLSearchParams();
+
+    if (searchParams.search) {
+      params.set("search", searchParams.search);
+    }
+
+    if (status !== "ALL") {
+      params.set("status", status);
+    }
+
+    const query = params.toString();
+    return query ? `/orders?${query}` : "/orders";
+  }
+
   return (
-    <div>
+    <div className="pt-6">
       <PageHeader
         title="Orders"
         description="Client orders and fulfillment tracking"
@@ -68,7 +95,29 @@ export default async function OrdersPage({
         <SummaryCard title="Dispatched" value={counts.DISPATCHED} icon={Truck} />
       </div>
 
-      <div className="mb-4">
+      <div className="mb-4 flex flex-col gap-3">
+        <div className="flex flex-wrap gap-2">
+          {ORDER_STATUS_FILTERS.map((filter) => {
+            const isActive =
+              (filter.value === "ALL" && !statusFilter) ||
+              filter.value === statusFilter;
+
+            return (
+              <Link key={filter.value} href={getFilterHref(filter.value)}>
+                <Button
+                  type="button"
+                  variant={isActive ? "default" : "outline"}
+                  className={
+                    isActive ? "bg-emerald-700 hover:bg-emerald-800" : undefined
+                  }
+                >
+                  {filter.label}
+                </Button>
+              </Link>
+            );
+          })}
+        </div>
+
         <SearchInput placeholder="Search by order #, client name..." />
       </div>
 
@@ -76,7 +125,13 @@ export default async function OrdersPage({
         <EmptyState
           icon={ShoppingCart}
           title="No orders found"
-          description="Create your first order to start tracking"
+          description={
+            searchParams.search
+              ? "Try a different search term"
+              : statusFilter
+                ? `No ${statusFilter.toLowerCase()} orders found`
+                : "Create your first order to start tracking"
+          }
           action={
             canCreate ? (
               <Link href="/orders/new">

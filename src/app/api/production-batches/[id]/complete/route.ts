@@ -5,6 +5,8 @@ import { requireAuth, errorResponse, jsonResponse } from "@/lib/api-helpers";
 import { logAuditEvent } from "@/lib/audit-log";
 import { BatchQualityGrade } from "@prisma/client";
 
+const OUTPUT_UNIT = "kg";
+
 function calculateQualityGrade(score: number): BatchQualityGrade {
   if (score >= 75) return "GOOD";
   if (score >= 10) return "AVERAGE";
@@ -20,6 +22,13 @@ export async function PATCH(
 
   const batch = await prisma.productionBatch.findUnique({
     where: { id: params.id },
+    include: {
+      batchLots: {
+        select: {
+          quantityUsed: true,
+        },
+      },
+    },
   });
   if (!batch) return errorResponse("Batch not found", 404);
 
@@ -34,6 +43,17 @@ export async function PATCH(
     return errorResponse(parsed.error.issues[0].message);
   }
 
+  const totalInputHusks = batch.batchLots.reduce(
+    (sum, lot) => sum + lot.quantityUsed,
+    0
+  );
+
+  if (parsed.data.outputQuantity > totalInputHusks) {
+    return errorResponse(
+      `Output quantity cannot be more than total input husks (${totalInputHusks.toLocaleString()} kg).`
+    );
+  }
+
   const qualityGrade = calculateQualityGrade(parsed.data.qualityScore);
 
   const updated = await prisma.productionBatch.update({
@@ -42,7 +62,7 @@ export async function PATCH(
       status: "COMPLETED",
       completedAt: new Date(),
       outputQuantity: parsed.data.outputQuantity,
-      outputUnit: parsed.data.outputUnit,
+      outputUnit: OUTPUT_UNIT,
       qualityScore: parsed.data.qualityScore,
       qualityGrade,
     },
@@ -59,7 +79,7 @@ export async function PATCH(
     details: {
       batchNumber: batch.batchNumber,
       outputQuantity: parsed.data.outputQuantity,
-      outputUnit: parsed.data.outputUnit,
+      outputUnit: OUTPUT_UNIT,
       qualityScore: parsed.data.qualityScore,
       qualityGrade,
     },

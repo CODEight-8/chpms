@@ -62,3 +62,62 @@ export async function PUT(
 
   return jsonResponse(updated);
 }
+
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const { user, error } = await requireAuth("supplier-lots", "delete");
+  if (error || !user) return error!;
+
+  const lot = await prisma.supplierLot.findUnique({
+    where: { id: params.id },
+    include: {
+      supplier: { select: { id: true, name: true } },
+      productionBatchLots: {
+        select: {
+          id: true,
+        },
+      },
+      payments: {
+        select: {
+          id: true,
+        },
+      },
+    },
+  });
+  if (!lot) return errorResponse("Lot not found", 404);
+
+  if (lot.productionBatchLots.length > 0) {
+    return errorResponse(
+      "Cannot delete this lot because it has already been used in production batches.",
+      400
+    );
+  }
+
+  if (lot.payments.length > 0) {
+    return errorResponse(
+      "Cannot delete this lot because supplier payments are linked to it.",
+      400
+    );
+  }
+
+  await prisma.supplierLot.delete({
+    where: { id: params.id },
+  });
+
+  logAuditEvent({
+    user,
+    action: "DELETE",
+    entityType: "SupplierLot",
+    entityId: params.id,
+    details: {
+      lotNumber: lot.lotNumber,
+      invoiceNumber: lot.invoiceNumber,
+      supplierId: lot.supplier.id,
+      supplierName: lot.supplier.name,
+    },
+  });
+
+  return jsonResponse({ success: true });
+}

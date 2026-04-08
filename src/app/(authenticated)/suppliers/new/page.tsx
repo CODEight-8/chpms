@@ -3,7 +3,7 @@ import { SupplierForm } from "@/components/suppliers/supplier-form";
 
 export default function NewSupplierPage() {
   return (
-    <div>
+    <div className="pt-6">
       <PageHeader
         title="Add Supplier"
         description="Register a new coconut husk supplier"

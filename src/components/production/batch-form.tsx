@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { validateFormWithToast } from "@/lib/form-validation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -52,6 +53,7 @@ export function BatchForm() {
   const [chipSize, setChipSize] = useState("");
   const [availableLots, setAvailableLots] = useState<AvailableLot[]>([]);
   const [selectedLots, setSelectedLots] = useState<SelectedLot[]>([]);
+  const [lotToAdd, setLotToAdd] = useState("");
 
   useEffect(() => {
     Promise.all([
@@ -99,7 +101,10 @@ export function BatchForm() {
 
   function addLot(lotId: string) {
     const lot = availableLots.find((l) => l.id === lotId);
-    if (!lot) return;
+    if (!lot) {
+      setLotToAdd("");
+      return;
+    }
 
     setSelectedLots((prev) => [
       ...prev,
@@ -113,6 +118,7 @@ export function BatchForm() {
         quantityUsed: lot.availableHusks,
       },
     ]);
+    setLotToAdd("");
   }
 
   function removeLot(lotId: string) {
@@ -131,7 +137,23 @@ export function BatchForm() {
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!product || !chipSize || selectedLots.length === 0) return;
+
+    if (!validateFormWithToast(e.currentTarget)) {
+      return;
+    }
+
+    if (!product) {
+      toast.error("Product is still loading.");
+      return;
+    }
+    if (!chipSize) {
+      toast.error("Target chip size is required.");
+      return;
+    }
+    if (selectedLots.length === 0) {
+      toast.error("Select at least one supplier lot.");
+      return;
+    }
 
     setLoading(true);
     const form = new FormData(e.currentTarget);
@@ -170,7 +192,7 @@ export function BatchForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} noValidate className="space-y-6">
       {/* Product Info & Chip Size */}
       <Card>
         <CardContent className="pt-6 space-y-4">
@@ -219,7 +241,10 @@ export function BatchForm() {
         <CardContent className="space-y-4">
           {unselectedLots.length > 0 && (
             <div className="flex items-center gap-2">
-              <Select onValueChange={addLot}>
+              <Select value={lotToAdd} onValueChange={(value) => {
+                setLotToAdd(value);
+                addLot(value);
+              }}>
                 <SelectTrigger className="flex-1" aria-label="Select a supplier lot to add">
                   <SelectValue placeholder="Add a supplier lot..." />
                 </SelectTrigger>

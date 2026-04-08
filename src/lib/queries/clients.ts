@@ -40,7 +40,7 @@ export async function getClientsWithStats(filters?: ClientFilters) {
         select: { amount: true },
       },
     },
-    orderBy: { name: "asc" },
+    orderBy: [{ isActive: "desc" }, { name: "asc" }],
   });
 
   return clients.map((client) => {

@@ -306,7 +306,7 @@ Invoice → Supplier Lot → Production Batch → Client Order → Payment
 | GET | `/api/supplier-lots/[id]` | Get lot detail |
 | PATCH | `/api/supplier-lots/[id]` | Update lot |
 | PATCH | `/api/supplier-lots/[id]/status` | Change lot status |
-| DELETE | `/api/supplier-lots/[id]` | Delete lot |
+| DELETE | `/api/supplier-lots/[id]` | Delete lot if it has no linked production usage or supplier payments |
 
 ### Production Batches
 | Method | Endpoint | Description |

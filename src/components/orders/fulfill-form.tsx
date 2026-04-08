@@ -112,8 +112,7 @@ export function FulfillForm({
       <DialogTrigger asChild>
         <Button
           size="sm"
-          variant="outline"
-          className="gap-1.5 text-emerald-700 border-emerald-200 hover:bg-emerald-50"
+          className="min-w-[104px] gap-1.5 bg-emerald-700 text-white shadow-sm hover:bg-emerald-800"
         >
           <PackageCheck className="h-3.5 w-3.5" />
           Fulfill

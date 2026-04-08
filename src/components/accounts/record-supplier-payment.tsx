@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { validateFormWithToast } from "@/lib/form-validation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -39,6 +40,11 @@ export function RecordSupplierPayment({
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+
+    if (!validateFormWithToast(e.currentTarget)) {
+      return;
+    }
+
     setLoading(true);
 
     const form = new FormData(e.currentTarget);
@@ -87,7 +93,7 @@ export function RecordSupplierPayment({
         <DialogHeader>
           <DialogTitle>Record Payment to {supplierName}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} noValidate className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="amount">Amount (LKR) *</Label>

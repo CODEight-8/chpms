@@ -11,7 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
-import { CheckCircle, XCircle } from "lucide-react";
+import { CheckCircle, Trash2, XCircle } from "lucide-react";
 import { toast } from "sonner";
 
 interface LotActionsProps {
@@ -19,6 +19,8 @@ interface LotActionsProps {
   currentStatus: string;
   currentGrade: string | null;
   canEdit: boolean;
+  canDelete: boolean;
+  deleteBlockReason?: string | null;
 }
 
 export function LotActions({
@@ -26,6 +28,8 @@ export function LotActions({
   currentStatus,
   currentGrade,
   canEdit,
+  canDelete,
+  deleteBlockReason,
 }: LotActionsProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -67,7 +71,49 @@ export function LotActions({
     }
   }
 
-  if (!canEdit) return null;
+  async function handleDelete() {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/supplier-lots/${lotId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      toast.success("Supplier lot deleted");
+      router.push("/supplier-lots");
+      router.refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to delete lot");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (!canEdit && !canDelete) return null;
+
+  const deleteAction = canDelete ? (
+    deleteBlockReason ? (
+      <p className="text-sm text-gray-500">{deleteBlockReason}</p>
+    ) : (
+      <ConfirmDialog
+        title="Delete this lot?"
+        description="This will permanently remove the supplier lot record. Use this only for an erroneous lot intake that has not been used in production or linked to payments."
+        confirmLabel="Delete Lot"
+        variant="destructive"
+        onConfirm={handleDelete}
+        disabled={loading}
+      >
+        <Button
+          type="button"
+          variant="outline"
+          className="text-red-600 border-red-200 hover:bg-red-50 gap-2"
+          disabled={loading}
+        >
+          <Trash2 className="h-4 w-4" />
+          Delete Lot
+        </Button>
+      </ConfirmDialog>
+    )
+  ) : null;
 
   if (currentStatus === "AUDIT") {
     return (
@@ -126,9 +172,11 @@ export function LotActions({
             Reject
           </Button>
         </ConfirmDialog>
+
+        {deleteAction}
       </div>
     );
   }
 
-  return null;
+  return deleteAction;
 }

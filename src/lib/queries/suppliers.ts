@@ -39,7 +39,7 @@ export async function getSuppliersWithStats(filters?: SupplierFilters) {
         },
       },
     },
-    orderBy: { name: "asc" },
+    orderBy: [{ isActive: "desc" }, { name: "asc" }],
   });
 
   return suppliers.map((supplier) => {
@@ -66,7 +66,9 @@ export async function getSuppliersWithStats(filters?: SupplierFilters) {
       phone: supplier.phone,
       location: supplier.location,
       contactPerson: supplier.contactPerson,
-      bankDetails: supplier.bankDetails,
+      bankName: supplier.bankName,
+      branchName: supplier.branchName,
+      accountNumber: supplier.accountNumber,
       isActive: supplier.isActive,
       createdAt: supplier.createdAt,
       totalLots,

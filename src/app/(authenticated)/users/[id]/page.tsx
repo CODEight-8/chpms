@@ -33,7 +33,7 @@ export default async function UserDetailPage({
   };
 
   return (
-    <div>
+    <div className="pt-6">
       <PageHeader
         title={user.name}
         description={`${user.role} account`}

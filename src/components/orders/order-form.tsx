@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { validateFormWithToast } from "@/lib/form-validation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -42,10 +43,13 @@ const CHIP_SIZES = ["5mm", "10mm", "15mm", "20mm", "25mm"];
 export function OrderForm() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [loadingData, setLoadingData] = useState(true);
   const [clients, setClients] = useState<Client[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [clientId, setClientId] = useState("");
   const [items, setItems] = useState<LineItem[]>([]);
+  const today = new Date().toISOString().split("T")[0];
+  const [orderDate, setOrderDate] = useState(today);
 
   useEffect(() => {
     Promise.all([
@@ -67,7 +71,8 @@ export function OrderForm() {
           ]);
         }
       })
-      .catch(() => toast.error("Failed to load data"));
+      .catch(() => toast.error("Failed to load data"))
+      .finally(() => setLoadingData(false));
   }, []);
 
   const totalValue = useMemo(
@@ -117,15 +122,27 @@ export function OrderForm() {
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+
+    if (!validateFormWithToast(e.currentTarget)) {
+      return;
+    }
+
     const validItems = items.filter((i) => i.productId && i.quantity > 0);
-    if (!clientId || validItems.length === 0) return;
+    if (!clientId) {
+      toast.error("Client is required.");
+      return;
+    }
+    if (validItems.length === 0) {
+      toast.error("Add at least one order item with a quantity greater than zero.");
+      return;
+    }
 
     setLoading(true);
     const form = new FormData(e.currentTarget);
 
     const data = {
       clientId,
-      orderDate: form.get("orderDate") as string,
+      orderDate,
       expectedDelivery: (form.get("expectedDelivery") as string) || undefined,
       items: validItems.map((i) => ({
         productId: i.productId,
@@ -159,11 +176,20 @@ export function OrderForm() {
     }
   }
 
-  const today = new Date().toISOString().split("T")[0];
-  const hasValidItems = items.some((i) => i.quantity > 0);
+  const hasValidItems =
+    items.length > 0 &&
+    items.every(
+      (i) =>
+        !!i.productId &&
+        !!i.chipSize &&
+        i.quantity > 0 &&
+        i.unitPrice > 0
+    );
+  const isSubmitDisabled =
+    loading || loadingData || !clientId || !orderDate || !hasValidItems;
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 max-w-lg">
+    <form onSubmit={handleSubmit} noValidate className="space-y-6 max-w-lg">
       {/* Client & Dates */}
       <Card>
         <CardContent className="pt-6 space-y-4">
@@ -191,7 +217,8 @@ export function OrderForm() {
                 id="orderDate"
                 name="orderDate"
                 type="date"
-                defaultValue={today}
+                value={orderDate}
+                onChange={(e) => setOrderDate(e.target.value)}
                 required
               />
             </div>
@@ -373,7 +400,7 @@ export function OrderForm() {
         <Button
           type="submit"
           className="bg-emerald-700 hover:bg-emerald-800"
-          disabled={loading || !clientId || !hasValidItems}
+          disabled={isSubmitDisabled}
         >
           {loading ? "Creating..." : "Create Order"}
         </Button>

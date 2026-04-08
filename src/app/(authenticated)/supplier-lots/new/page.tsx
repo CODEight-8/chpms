@@ -3,7 +3,7 @@ import { LotForm } from "@/components/supplier-lots/lot-form";
 
 export default function NewSupplierLotPage() {
   return (
-    <div>
+    <div  className="pt-6">
       <PageHeader
         title="New Lot Intake"
         description="Record incoming coconut husk delivery from supplier"

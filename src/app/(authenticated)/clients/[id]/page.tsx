@@ -37,7 +37,7 @@ export default async function ClientDetailPage({
   if (!client) notFound();
 
   return (
-    <div>
+    <div className="pt-6">
       <PageHeader
         title={client.name}
         description={client.companyName || "Client"}
@@ -47,7 +47,8 @@ export default async function ClientDetailPage({
             clientId={client.id}
             clientName={client.name}
             isActive={client.isActive}
-            canEdit={canDelete}
+            canDeactivate={canDelete}
+            canReactivate={canEdit}
           />
         }
       />

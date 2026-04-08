@@ -8,6 +8,7 @@ import { formatLKR } from "@/lib/currency";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { SearchInput } from "@/components/shared/search-input";
+import { StatusFilter } from "@/components/shared/status-filter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -23,22 +24,28 @@ import { Plus, Truck } from "lucide-react";
 export default async function SuppliersPage({
   searchParams,
 }: {
-  searchParams: { search?: string };
+  searchParams: { search?: string; active?: string };
 }) {
   const session = await getServerSession(authOptions);
   const role = session!.user.role as UserRole;
   const canCreate = hasPermission(role, "suppliers", "create");
+  const activeFilter =
+    searchParams.active === "false"
+      ? false
+      : searchParams.active === "true" || !searchParams.active
+        ? true
+        : undefined;
 
   const suppliers = await getSuppliersWithStats({
-    active: true,
+    active: activeFilter,
     search: searchParams.search,
   });
 
   return (
-    <div>
+    <div className="pt-6">
       <PageHeader
         title="Suppliers"
-        description="Manage coconut husk suppliers"
+        description="Manage supplier accounts, including inactive suppliers with preserved history"
         action={
           canCreate ? (
             <Link href="/suppliers/new">
@@ -51,11 +58,12 @@ export default async function SuppliersPage({
         }
       />
 
-      <div className="mb-4">
+      <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <SearchInput
           placeholder="Search by name, phone, or location..."
           paramName="search"
         />
+        <StatusFilter />
       </div>
 
       {suppliers.length === 0 ? (
@@ -65,6 +73,10 @@ export default async function SuppliersPage({
           description={
             searchParams.search
               ? `No suppliers matching "${searchParams.search}"`
+              : searchParams.active === "false"
+                ? "No inactive suppliers found"
+                : searchParams.active === undefined || searchParams.active === "true"
+                  ? "No active suppliers found"
               : "Add your first supplier to start receiving materials"
           }
           action={

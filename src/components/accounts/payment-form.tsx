@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { validateFormWithToast } from "@/lib/form-validation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -63,6 +64,16 @@ export function PaymentForm({ type }: PaymentFormProps) {
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+
+    if (!validateFormWithToast(e.currentTarget)) {
+      return;
+    }
+
+    if (!entityId) {
+      toast.error(`${label} is required.`);
+      return;
+    }
+
     setLoading(true);
 
     const form = new FormData(e.currentTarget);
@@ -120,7 +131,7 @@ export function PaymentForm({ type }: PaymentFormProps) {
             Record {type === "supplier" ? "Supplier Payment" : "Client Payment"}
           </DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} noValidate className="space-y-4">
           <div className="space-y-2">
             <Label>{label} *</Label>
             <Select value={entityId} onValueChange={setEntityId} required>

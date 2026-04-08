@@ -24,6 +24,21 @@ export async function POST(request: NextRequest) {
     return errorResponse(parsed.error.issues[0].message);
   }
 
+  const supplier = await prisma.supplier.findUnique({
+    where: { id: parsed.data.supplierId },
+    select: { id: true, isActive: true },
+  });
+
+  if (!supplier) {
+    return errorResponse("Supplier not found", 404);
+  }
+
+  if (!supplier.isActive) {
+    return errorResponse(
+      "Cannot record a payment for an inactive supplier. Reactivate the supplier first."
+    );
+  }
+
   const payment = await prisma.supplierPayment.create({
     data: {
       supplierId: parsed.data.supplierId,

@@ -35,6 +35,10 @@ export async function PUT(
   const existing = await prisma.client.findUnique({ where: { id: params.id } });
   if (!existing) return errorResponse("Client not found", 404);
 
+  if (parsed.data.name.trim() !== existing.name.trim()) {
+    return errorResponse("Client name cannot be changed after creation.", 400);
+  }
+
   const client = await prisma.client.update({
     where: { id: params.id },
     data: parsed.data,
@@ -57,6 +61,13 @@ export async function DELETE(
 ) {
   const { user, error } = await requireAuth("clients", "delete");
   if (error || !user) return error!;
+
+  const existing = await prisma.client.findUnique({ where: { id: params.id } });
+  if (!existing) return errorResponse("Client not found", 404);
+
+  if (!existing.isActive) {
+    return errorResponse("Client is already inactive");
+  }
 
   const client = await prisma.client.update({
     where: { id: params.id },

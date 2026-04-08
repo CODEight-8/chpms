@@ -81,7 +81,9 @@ model Supplier {
   phone         String?
   location      String?
   contactPerson String?  @map("contact_person")
-  bankDetails   String?  @map("bank_details")
+  bankName      String?  @map("bank_name")
+  branchName    String?  @map("branch_name")
+  accountNumber String?  @map("account_number")
   isActive      Boolean  @default(true) @map("is_active")
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")

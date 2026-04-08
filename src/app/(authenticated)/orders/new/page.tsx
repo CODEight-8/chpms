@@ -3,7 +3,7 @@ import { OrderForm } from "@/components/orders/order-form";
 
 export default function NewOrderPage() {
   return (
-    <div>
+    <div className="pt-6">
       <PageHeader
         title="New Order"
         description="Create a new client order with line items"

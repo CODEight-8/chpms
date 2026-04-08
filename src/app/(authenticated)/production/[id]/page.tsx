@@ -38,7 +38,7 @@ export default async function ProductionBatchDetailPage({
   if (!batch) notFound();
 
   return (
-    <div>
+    <div className="pt-6">
       <PageHeader
         title={`Batch ${batch.batchNumber}`}
         description={`Product: ${batch.product.name}`}
@@ -54,7 +54,7 @@ export default async function ProductionBatchDetailPage({
             <BatchActions
               batchId={batch.id}
               currentStatus={batch.status}
-              productUnit={batch.product.unit}
+              totalInputHusks={batch.totalInputHusks}
               canEdit={canEdit}
             />
           </div>

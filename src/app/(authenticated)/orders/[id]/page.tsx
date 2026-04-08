@@ -33,7 +33,7 @@ export default async function OrderDetailPage({
   if (!order) notFound();
 
   return (
-    <div>
+    <div className="pt-6">
       <PageHeader
         title={`Order ${order.orderNumber}`}
         description={`Client: ${order.client.name}`}

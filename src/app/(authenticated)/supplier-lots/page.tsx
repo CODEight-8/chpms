@@ -40,7 +40,7 @@ export default async function SupplierLotsPage({
   ]);
 
   return (
-    <div>
+    <div className="pt-6">
       <PageHeader
         title="Supplier Lots"
         description="Material intake, quality audit, and batch aging"

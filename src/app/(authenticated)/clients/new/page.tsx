@@ -3,7 +3,7 @@ import { ClientForm } from "@/components/clients/client-form";
 
 export default function NewClientPage() {
   return (
-    <div>
+    <div className="pt-6">
       <PageHeader
         title="Add Client"
         description="Register a new client"

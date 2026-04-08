@@ -31,12 +31,20 @@ export default async function SupplierLotDetailPage({
   const session = await getServerSession(authOptions);
   const role = session!.user.role as UserRole;
   const canEdit = hasPermission(role, "supplier-lots", "edit");
+  const canDelete = hasPermission(role, "supplier-lots", "delete");
 
   const lot = await getLotDetail(params.id);
   if (!lot) notFound();
 
+  const deleteBlockReason =
+    lot.productionBatchLots.length > 0
+      ? "This lot cannot be deleted because it has already been used in production."
+      : lot.payments.length > 0
+        ? "This lot cannot be deleted because supplier payments are linked to it."
+        : null;
+
   return (
-    <div>
+    <div className="pt-6">
       <PageHeader
         title={`Lot ${lot.lotNumber}`}
         description={`Invoice: ${lot.invoiceNumber}`}
@@ -66,6 +74,8 @@ export default async function SupplierLotDetailPage({
           currentStatus={lot.status}
           currentGrade={lot.qualityGrade}
           canEdit={canEdit}
+          canDelete={canDelete}
+          deleteBlockReason={deleteBlockReason}
         />
       </div>
 

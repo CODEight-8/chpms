@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { validateFormWithToast } from "@/lib/form-validation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,6 +28,9 @@ export function LotForm() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loadingSuppliers, setLoadingSuppliers] = useState(true);
   const [supplierId, setSupplierId] = useState("");
+  const [harvestDate, setHarvestDate] = useState("");
+  const today = new Date().toISOString().split("T")[0];
+  const [dateReceived, setDateReceived] = useState(today);
   const [huskCount, setHuskCount] = useState<number>(0);
   const [perHuskRate, setPerHuskRate] = useState<number>(0);
   const [qualityGrade, setQualityGrade] = useState<string>("");
@@ -44,19 +48,37 @@ export function LotForm() {
       .finally(() => setLoadingSuppliers(false));
   }, []);
 
+  const isSubmitDisabled =
+    loading ||
+    loadingSuppliers ||
+    !supplierId ||
+    !harvestDate ||
+    !dateReceived ||
+    huskCount <= 0 ||
+    perHuskRate <= 0;
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+
+    if (!validateFormWithToast(e.currentTarget)) {
+      return;
+    }
+
+    if (!supplierId) {
+      toast.error("Supplier is required.");
+      return;
+    }
+
     setLoading(true);
 
-    const form = new FormData(e.currentTarget);
     const data = {
       supplierId,
-      harvestDate: form.get("harvestDate") as string,
-      dateReceived: form.get("dateReceived") as string,
+      harvestDate,
+      dateReceived,
       huskCount,
       perHuskRate,
       qualityGrade: qualityGrade || undefined,
-      notes: (form.get("notes") as string) || undefined,
+      notes: (new FormData(e.currentTarget).get("notes") as string) || undefined,
     };
 
     try {
@@ -82,12 +104,10 @@ export function LotForm() {
     }
   }
 
-  const today = new Date().toISOString().split("T")[0];
-
   return (
     <Card>
       <CardContent className="pt-6">
-        <form onSubmit={handleSubmit} className="space-y-5 max-w-lg">
+        <form onSubmit={handleSubmit} noValidate className="space-y-5 max-w-lg">
           <div className="space-y-2">
             <Label>Supplier *</Label>
             <Select value={supplierId} onValueChange={setSupplierId} required disabled={loadingSuppliers}>
@@ -112,6 +132,8 @@ export function LotForm() {
                 name="harvestDate"
                 type="date"
                 max={today}
+                value={harvestDate}
+                onChange={(e) => setHarvestDate(e.target.value)}
                 required
               />
             </div>
@@ -121,7 +143,8 @@ export function LotForm() {
                 id="dateReceived"
                 name="dateReceived"
                 type="date"
-                defaultValue={today}
+                value={dateReceived}
+                onChange={(e) => setDateReceived(e.target.value)}
                 max={today}
                 required
               />
@@ -208,7 +231,7 @@ export function LotForm() {
             <Button
               type="submit"
               className="bg-emerald-700 hover:bg-emerald-800"
-              disabled={loading || !supplierId}
+              disabled={isSubmitDisabled}
             >
               {loading ? "Creating..." : "Create Supplier Lot"}
             </Button>
