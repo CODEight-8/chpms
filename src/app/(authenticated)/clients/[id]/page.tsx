@@ -1,8 +1,8 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { hasPermission } from "@/lib/permissions";
+import { canAccessModule, hasPermission } from "@/lib/permissions";
 import { UserRole } from "@prisma/client";
 import { formatLKR } from "@/lib/currency";
 import { getClientWithStats } from "@/lib/queries/clients";
@@ -30,6 +30,9 @@ export default async function ClientDetailPage({
 }) {
   const session = await getServerSession(authOptions);
   const role = session!.user.role as UserRole;
+  if (!canAccessModule(role, "clients")) {
+    redirect("/dashboard");
+  }
   const canEdit = hasPermission(role, "clients", "edit");
   const canDelete = hasPermission(role, "clients", "delete");
 

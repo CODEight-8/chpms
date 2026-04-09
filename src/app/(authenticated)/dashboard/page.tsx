@@ -1,4 +1,8 @@
 import Link from "next/link";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { canAccessModule } from "@/lib/permissions";
+import { UserRole } from "@prisma/client";
 import { formatLKR } from "@/lib/currency";
 import { getDashboardData } from "@/lib/queries/dashboard";
 import {
@@ -34,6 +38,9 @@ import {
 } from "lucide-react";
 
 export default async function DashboardPage() {
+  const session = await getServerSession(authOptions);
+  const role = session!.user.role as UserRole;
+  const canViewClients = canAccessModule(role, "clients");
   const [data, throughput, profitability, supplierAnalytics, clientAnalytics] =
     await Promise.all([
       getDashboardData(),
@@ -315,12 +322,18 @@ export default async function DashboardPage() {
                     {clientAnalytics.slice(0, 10).map((c: Record<string, unknown>) => (
                       <TableRow key={c.id as string}>
                         <TableCell>
-                          <Link
-                            href={`/clients/${c.id}`}
-                            className="font-medium text-emerald-700 hover:underline"
-                          >
-                            {c.name as string}
-                          </Link>
+                          {canViewClients ? (
+                            <Link
+                              href={`/clients/${c.id}`}
+                              className="font-medium text-emerald-700 hover:underline"
+                            >
+                              {c.name as string}
+                            </Link>
+                          ) : (
+                            <span className="font-medium text-gray-900">
+                              {c.name as string}
+                            </span>
+                          )}
                         </TableCell>
                         <TableCell className="text-center">
                           {c.totalOrders as number}

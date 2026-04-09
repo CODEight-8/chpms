@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { hasPermission } from "@/lib/permissions";
+import { canAccessModule, hasPermission } from "@/lib/permissions";
 import { UserRole } from "@prisma/client";
 import { formatLKR } from "@/lib/currency";
 import { getOrderDetail } from "@/lib/queries/orders";
@@ -28,6 +28,7 @@ export default async function OrderDetailPage({
   const session = await getServerSession(authOptions);
   const role = session!.user.role as UserRole;
   const canEdit = hasPermission(role, "orders", "edit");
+  const canViewClients = canAccessModule(role, "clients");
 
   const order = await getOrderDetail(params.id);
   if (!order) notFound();
@@ -64,15 +65,24 @@ export default async function OrderDetailPage({
                 <InfoField
                   label="Client"
                   value={
-                    <Link
-                      href={`/clients/${order.client.id}`}
-                      className="text-emerald-700 hover:underline"
-                    >
-                      {order.client.name}
-                      {order.client.companyName
-                        ? ` (${order.client.companyName})`
-                        : ""}
-                    </Link>
+                    canViewClients ? (
+                      <Link
+                        href={`/clients/${order.client.id}`}
+                        className="text-emerald-700 hover:underline"
+                      >
+                        {order.client.name}
+                        {order.client.companyName
+                          ? ` (${order.client.companyName})`
+                          : ""}
+                      </Link>
+                    ) : (
+                      <span>
+                        {order.client.name}
+                        {order.client.companyName
+                          ? ` (${order.client.companyName})`
+                          : ""}
+                      </span>
+                    )
                   }
                 />
                 <InfoField

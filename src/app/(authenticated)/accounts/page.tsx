@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { hasPermission } from "@/lib/permissions";
+import { canAccessModule, hasPermission } from "@/lib/permissions";
 import { UserRole } from "@prisma/client";
 import { formatLKR } from "@/lib/currency";
 import {
@@ -42,6 +42,7 @@ export default async function AccountsPage({
   const session = await getServerSession(authOptions);
   const role = session!.user.role as UserRole;
   const canCreate = hasPermission(role, "accounts", "create");
+  const canViewClients = canAccessModule(role, "clients");
 
   const filters = {
     search: searchParams.search,
@@ -117,6 +118,7 @@ export default async function AccountsPage({
       <OutstandingAlerts
         suppliers={outstandingSuppliers}
         clients={outstandingClients}
+        linkClients={canViewClients}
       />
 
       {/* Filters */}
@@ -268,12 +270,16 @@ export default async function AccountsPage({
                           {new Date(p.paymentDate).toLocaleDateString("en-LK")}
                         </TableCell>
                         <TableCell>
-                          <Link
-                            href={`/clients/${p.client.id}`}
-                            className="text-emerald-700 hover:underline"
-                          >
-                            {p.client.name}
-                          </Link>
+                          {canViewClients ? (
+                            <Link
+                              href={`/clients/${p.client.id}`}
+                              className="text-emerald-700 hover:underline"
+                            >
+                              {p.client.name}
+                            </Link>
+                          ) : (
+                            <span className="text-gray-700">{p.client.name}</span>
+                          )}
                         </TableCell>
                         <TableCell className="font-mono text-xs text-gray-500">
                           {p.order?.orderNumber || "\u2014"}

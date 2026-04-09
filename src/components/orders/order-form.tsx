@@ -342,6 +342,7 @@ export function OrderForm() {
                       onChange={(e) =>
                         updateItem(index, "quantity", parseFloat(e.target.value) || 0)
                       }
+                      onWheel={(e) => e.currentTarget.blur()}
                       required
                     />
                   </div>
@@ -355,6 +356,7 @@ export function OrderForm() {
                       onChange={(e) =>
                         updateItem(index, "unitPrice", parseFloat(e.target.value) || 0)
                       }
+                      onWheel={(e) => e.currentTarget.blur()}
                       required
                     />
                   </div>

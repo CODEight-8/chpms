@@ -304,6 +304,7 @@ export function BatchForm() {
                       onChange={(e) =>
                         updateQuantity(lot.lotId, parseInt(e.target.value) || 1)
                       }
+                      onWheel={(e) => e.currentTarget.blur()}
                       className="w-24 text-center h-8"
                     />
                     <Button

@@ -160,6 +160,7 @@ export function LotForm() {
                 min={1}
                 value={huskCount || ""}
                 onChange={(e) => setHuskCount(parseInt(e.target.value) || 0)}
+                onWheel={(e) => e.currentTarget.blur()}
                 required
               />
             </div>
@@ -174,6 +175,7 @@ export function LotForm() {
                 onChange={(e) =>
                   setPerHuskRate(parseFloat(e.target.value) || 0)
                 }
+                onWheel={(e) => e.currentTarget.blur()}
                 required
               />
             </div>

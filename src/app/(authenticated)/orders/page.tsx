@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { hasPermission } from "@/lib/permissions";
+import { canAccessModule, hasPermission } from "@/lib/permissions";
 import { UserRole, OrderStatus } from "@prisma/client";
 import { formatLKR } from "@/lib/currency";
 import { getOrdersWithDetails, getOrderStatusCounts } from "@/lib/queries/orders";
@@ -41,6 +41,7 @@ export default async function OrdersPage({
   const session = await getServerSession(authOptions);
   const role = session!.user.role as UserRole;
   const canCreate = hasPermission(role, "orders", "create");
+  const canViewClients = canAccessModule(role, "clients");
 
   const statusFilter = searchParams.status as OrderStatus | undefined;
   const [orders, counts] = await Promise.all([
@@ -168,12 +169,16 @@ export default async function OrdersPage({
                     </Link>
                   </TableCell>
                   <TableCell>
-                    <Link
-                      href={`/clients/${order.client.id}`}
-                      className="text-gray-700 hover:underline"
-                    >
-                      {order.client.name}
-                    </Link>
+                    {canViewClients ? (
+                      <Link
+                        href={`/clients/${order.client.id}`}
+                        className="text-gray-700 hover:underline"
+                      >
+                        {order.client.name}
+                      </Link>
+                    ) : (
+                      <span className="text-gray-700">{order.client.name}</span>
+                    )}
                   </TableCell>
                   <TableCell className="text-gray-600">
                     {new Date(order.orderDate).toLocaleDateString("en-LK")}

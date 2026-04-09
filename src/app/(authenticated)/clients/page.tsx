@@ -1,7 +1,8 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { hasPermission } from "@/lib/permissions";
+import { canAccessModule, hasPermission } from "@/lib/permissions";
 import { UserRole } from "@prisma/client";
 import { formatLKR } from "@/lib/currency";
 import { getClientsWithStats } from "@/lib/queries/clients";
@@ -28,6 +29,9 @@ export default async function ClientsPage({
 }) {
   const session = await getServerSession(authOptions);
   const role = session!.user.role as UserRole;
+  if (!canAccessModule(role, "clients")) {
+    redirect("/dashboard");
+  }
   const canCreate = hasPermission(role, "clients", "create");
   const activeFilter =
     searchParams.active === "false"

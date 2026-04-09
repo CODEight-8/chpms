@@ -37,6 +37,7 @@ export default async function SupplierDetailPage({
   const role = session!.user.role as UserRole;
   const canEdit = hasPermission(role, "suppliers", "edit");
   const canDelete = hasPermission(role, "suppliers", "delete");
+  const canManageSupplierActiveState = role === "OWNER";
 
   const supplier = await getSupplierWithStats(params.id);
   if (!supplier) notFound();
@@ -52,8 +53,8 @@ export default async function SupplierDetailPage({
             supplierId={supplier.id}
             supplierName={supplier.name}
             isActive={supplier.isActive}
-            canDeactivate={canDelete}
-            canReactivate={canEdit}
+            canDeactivate={canManageSupplierActiveState && canDelete}
+            canReactivate={canManageSupplierActiveState && canEdit}
           />
         }
       />

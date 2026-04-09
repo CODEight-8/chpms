@@ -54,11 +54,15 @@ export function hasPermission(
 }
 
 export function canAccessModule(role: UserRole, module: Module): boolean {
+  if (role === "MANAGER" && module === "clients") {
+    return false;
+  }
+
   return (PERMISSIONS[role]?.[module]?.length ?? 0) > 0;
 }
 
 export function getAccessibleModules(role: UserRole): Module[] {
   return (Object.keys(PERMISSIONS[role]) as Module[]).filter(
-    (mod) => PERMISSIONS[role][mod].length > 0
+    (mod) => canAccessModule(role, mod)
   );
 }
