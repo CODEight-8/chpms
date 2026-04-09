@@ -4,14 +4,6 @@ import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -20,7 +12,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { PackageCheck, AlertTriangle } from "lucide-react";
+import { PackageCheck, AlertTriangle, Plus, Trash2 } from "lucide-react";
 
 interface FulfillFormProps {
   orderId: string;
@@ -39,6 +31,11 @@ interface CompletedBatch {
   outputUnit: string;
 }
 
+interface BatchAllocation {
+  batchId: string;
+  quantity: number;
+}
+
 export function FulfillForm({
   orderId,
   orderItemId,
@@ -51,8 +48,7 @@ export function FulfillForm({
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [batches, setBatches] = useState<CompletedBatch[]>([]);
-  const [batchId, setBatchId] = useState("");
-  const [quantity, setQuantity] = useState<number>(remaining);
+  const [allocations, setAllocations] = useState<BatchAllocation[]>([]);
 
   useEffect(() => {
     if (!open) return;
@@ -61,7 +57,10 @@ export function FulfillForm({
 
     fetch(`/api/production-batches?${params}`)
       .then((r) => r.json())
-      .then((data) => setBatches(data))
+      .then((data) => {
+        setBatches(data);
+        setAllocations([]);
+      })
       .catch(() => toast.error("Failed to load batches"));
   }, [open, chipSize]);
 
@@ -70,10 +69,57 @@ export function FulfillForm({
     [batches]
   );
 
+  const totalAllocated = useMemo(
+    () => allocations.reduce((sum, a) => sum + a.quantity, 0),
+    [allocations]
+  );
+
   const isShortage = totalAvailable < remaining;
+  const allocatedBatchIds = new Set(allocations.map((a) => a.batchId));
+  const availableBatches = batches.filter((b) => !allocatedBatchIds.has(b.id));
+
+  function addBatch(batchId: string) {
+    const batch = batches.find((b) => b.id === batchId);
+    if (!batch) return;
+
+    const batchAvailable = Number(batch.outputQuantity);
+    const stillNeeded = remaining - totalAllocated;
+    const qty = Math.min(batchAvailable, Math.max(stillNeeded, 0));
+
+    setAllocations((prev) => [...prev, { batchId, quantity: qty }]);
+  }
+
+  function removeBatch(batchId: string) {
+    setAllocations((prev) => prev.filter((a) => a.batchId !== batchId));
+  }
+
+  function updateQuantity(batchId: string, quantity: number) {
+    setAllocations((prev) =>
+      prev.map((a) => (a.batchId === batchId ? { ...a, quantity } : a))
+    );
+  }
+
+  function getBatch(batchId: string) {
+    return batches.find((b) => b.id === batchId);
+  }
 
   async function handleSubmit() {
-    if (!batchId || quantity <= 0) return;
+    if (allocations.length === 0 || totalAllocated <= 0) return;
+
+    const invalidAlloc = allocations.find((a) => {
+      const batch = getBatch(a.batchId);
+      return !batch || a.quantity <= 0 || a.quantity > Number(batch.outputQuantity);
+    });
+    if (invalidAlloc) {
+      toast.error("Invalid quantity for one or more batches");
+      return;
+    }
+
+    if (totalAllocated > remaining) {
+      toast.error(`Total allocated (${totalAllocated} ${unit}) exceeds remaining (${remaining} ${unit})`);
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -81,13 +127,11 @@ export function FulfillForm({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          fulfillments: [
-            {
-              orderItemId,
-              productionBatchId: batchId,
-              quantityFulfilled: quantity,
-            },
-          ],
+          fulfillments: allocations.map((a) => ({
+            orderItemId,
+            productionBatchId: a.batchId,
+            quantityFulfilled: a.quantity,
+          })),
         }),
       });
 
@@ -98,7 +142,7 @@ export function FulfillForm({
 
       toast.success("Order item fulfilled");
       setOpen(false);
-      setBatchId("");
+      setAllocations([]);
       router.refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong");
@@ -118,11 +162,12 @@ export function FulfillForm({
           Fulfill
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Fulfill Order Item</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 pt-2">
+          {/* Order item summary */}
           <div className="bg-gray-50 rounded-lg p-3">
             <p className="text-sm font-medium">{productName}</p>
             <p className="text-xs text-gray-500">
@@ -135,6 +180,7 @@ export function FulfillForm({
             </p>
           </div>
 
+          {/* Shortage warning */}
           {isShortage && (
             <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
               <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
@@ -143,7 +189,7 @@ export function FulfillForm({
                 <p className="text-xs mt-0.5">
                   Only {totalAvailable.toLocaleString()} {unit} available from{" "}
                   {chipSize ? `${chipSize} ` : ""}batches ({remaining.toLocaleString()}{" "}
-                  {unit} needed). You may need to create more production batches.
+                  {unit} needed).
                 </p>
               </div>
             </div>
@@ -155,43 +201,139 @@ export function FulfillForm({
             </div>
           ) : (
             <>
-              <div className="space-y-2">
-                <Label>Production Batch *</Label>
-                <Select value={batchId} onValueChange={setBatchId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a completed batch" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {batches.map((b) => (
-                      <SelectItem key={b.id} value={b.id}>
-                        {b.batchNumber}
-                        {b.chipSize ? ` — ${b.chipSize}` : ""} —{" "}
-                        {Number(b.outputQuantity).toLocaleString()} {b.outputUnit}{" "}
-                        available
-                      </SelectItem>
+              {/* Allocated batches */}
+              {allocations.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-gray-700">
+                    Selected Batches
+                  </p>
+                  {allocations.map((alloc) => {
+                    const batch = getBatch(alloc.batchId);
+                    if (!batch) return null;
+                    return (
+                      <div
+                        key={alloc.batchId}
+                        className="flex items-center gap-2 p-2 bg-white border rounded-lg"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-mono font-medium truncate">
+                            {batch.batchNumber}
+                            {batch.chipSize && (
+                              <span className="text-xs text-blue-600 ml-1">
+                                [{batch.chipSize}]
+                              </span>
+                            )}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {Number(batch.outputQuantity).toLocaleString()}{" "}
+                            {batch.outputUnit} available
+                          </p>
+                        </div>
+                        <div className="w-24">
+                          <Input
+                            type="number"
+                            min={0.01}
+                            max={Number(batch.outputQuantity)}
+                            step={0.01}
+                            value={alloc.quantity || ""}
+                            onChange={(e) =>
+                              updateQuantity(
+                                alloc.batchId,
+                                parseFloat(e.target.value) || 0
+                              )
+                            }
+                            className="h-8 text-sm"
+                          />
+                        </div>
+                        <span className="text-xs text-gray-500 w-6">
+                          {unit}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                          onClick={() => removeBatch(alloc.batchId)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    );
+                  })}
+
+                  {/* Total allocated bar */}
+                  <div className="flex justify-between items-center p-2 bg-gray-50 rounded-lg border">
+                    <span className="text-sm font-medium text-gray-600">
+                      Total Allocated
+                    </span>
+                    <span
+                      className={`text-sm font-bold ${
+                        totalAllocated > remaining
+                          ? "text-red-600"
+                          : totalAllocated === remaining
+                          ? "text-green-600"
+                          : "text-orange-600"
+                      }`}
+                    >
+                      {totalAllocated.toLocaleString()} / {remaining.toLocaleString()}{" "}
+                      {unit}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Add batch selector */}
+              {availableBatches.length > 0 && totalAllocated < remaining && (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-gray-700">
+                    {allocations.length === 0
+                      ? "Select Batches"
+                      : "Add Another Batch"}
+                  </p>
+                  <div className="space-y-1 max-h-40 overflow-y-auto border rounded-lg">
+                    {availableBatches.map((b) => (
+                      <button
+                        key={b.id}
+                        type="button"
+                        onClick={() => addBatch(b.id)}
+                        className="w-full flex items-center justify-between p-2 hover:bg-emerald-50 text-left transition-colors"
+                      >
+                        <div>
+                          <span className="text-sm font-mono font-medium">
+                            {b.batchNumber}
+                          </span>
+                          {b.chipSize && (
+                            <span className="text-xs text-blue-600 ml-1">
+                              [{b.chipSize}]
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-gray-500">
+                            {Number(b.outputQuantity).toLocaleString()}{" "}
+                            {b.outputUnit}
+                          </span>
+                          <Plus className="h-3.5 w-3.5 text-emerald-600" />
+                        </div>
+                      </button>
                     ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                  </div>
+                </div>
+              )}
 
-              <div className="space-y-2">
-                <Label>Quantity ({unit}) *</Label>
-                <Input
-                  type="number"
-                  min={0.01}
-                  max={remaining}
-                  step={0.01}
-                  value={quantity || ""}
-                  onChange={(e) => setQuantity(parseFloat(e.target.value) || 0)}
-                />
-              </div>
-
+              {/* Submit */}
               <Button
                 onClick={handleSubmit}
                 className="w-full bg-emerald-700 hover:bg-emerald-800"
-                disabled={loading || !batchId || quantity <= 0}
+                disabled={
+                  loading ||
+                  allocations.length === 0 ||
+                  totalAllocated <= 0 ||
+                  totalAllocated > remaining
+                }
               >
-                {loading ? "Fulfilling..." : "Confirm Fulfillment"}
+                {loading
+                  ? "Fulfilling..."
+                  : `Confirm Fulfillment (${totalAllocated.toLocaleString()} ${unit})`}
               </Button>
             </>
           )}
