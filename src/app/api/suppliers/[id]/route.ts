@@ -40,7 +40,7 @@ export async function PUT(
     data: parsed.data,
   });
 
-  logAuditEvent({
+  await logAuditEvent({
     user,
     action: "UPDATE",
     entityType: "Supplier",
@@ -63,7 +63,7 @@ export async function DELETE(
     data: { isActive: false },
   });
 
-  logAuditEvent({
+  await logAuditEvent({
     user,
     action: "DELETE",
     entityType: "Supplier",

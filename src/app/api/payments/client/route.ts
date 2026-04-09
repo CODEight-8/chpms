@@ -24,6 +24,24 @@ export async function POST(request: NextRequest) {
     return errorResponse(parsed.error.issues[0].message);
   }
 
+  // Validate client exists and is active
+  const client = await prisma.client.findUnique({
+    where: { id: parsed.data.clientId },
+  });
+  if (!client || !client.isActive) {
+    return errorResponse("Client not found or inactive", 404);
+  }
+
+  // Validate order belongs to client if provided
+  if (parsed.data.orderId) {
+    const order = await prisma.order.findUnique({
+      where: { id: parsed.data.orderId },
+    });
+    if (!order || order.clientId !== parsed.data.clientId) {
+      return errorResponse("Order not found or does not belong to this client", 404);
+    }
+  }
+
   const payment = await prisma.clientPayment.create({
     data: {
       clientId: parsed.data.clientId,
@@ -39,7 +57,7 @@ export async function POST(request: NextRequest) {
     },
   });
 
-  logAuditEvent({
+  await logAuditEvent({
     user,
     action: "PAYMENT",
     entityType: "ClientPayment",

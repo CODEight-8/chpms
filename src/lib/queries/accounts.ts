@@ -71,6 +71,7 @@ export async function getClientPayments(filters?: PaymentFilters) {
 export async function getAccountsSummary() {
   // Total payable (sum of all lot costs)
   const totalPayable = await prisma.supplierLot.aggregate({
+    where: { status: { not: "REJECTED" } },
     _sum: { totalCost: true },
   });
 
@@ -116,7 +117,7 @@ export async function getOutstandingSuppliers() {
   const suppliers = await prisma.supplier.findMany({
     where: { isActive: true },
     include: {
-      lots: { select: { totalCost: true } },
+      lots: { where: { status: { not: "REJECTED" } }, select: { totalCost: true } },
       payments: { select: { amount: true } },
     },
   });

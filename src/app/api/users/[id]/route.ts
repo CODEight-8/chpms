@@ -110,7 +110,7 @@ export async function PUT(
     },
   });
 
-  logAuditEvent({
+  await logAuditEvent({
     user,
     action: "UPDATE",
     entityType: "User",
@@ -163,7 +163,7 @@ export async function DELETE(
     data: { isActive: false },
   });
 
-  logAuditEvent({
+  await logAuditEvent({
     user,
     action: "DELETE",
     entityType: "User",

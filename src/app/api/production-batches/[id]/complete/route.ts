@@ -51,7 +51,7 @@ export async function PATCH(
     },
   });
 
-  logAuditEvent({
+  await logAuditEvent({
     user,
     action: "COMPLETE",
     entityType: "ProductionBatch",

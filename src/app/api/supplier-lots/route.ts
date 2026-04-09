@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
     },
   });
 
-  logAuditEvent({
+  await logAuditEvent({
     user,
     action: "CREATE",
     entityType: "SupplierLot",

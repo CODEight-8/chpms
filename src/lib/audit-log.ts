@@ -33,9 +33,9 @@ interface AuditEventParams {
   details?: Prisma.InputJsonValue;
 }
 
-export function logAuditEvent(params: AuditEventParams): void {
-  prisma.auditLog
-    .create({
+export async function logAuditEvent(params: AuditEventParams): Promise<void> {
+  try {
+    await prisma.auditLog.create({
       data: {
         userId: params.user.id,
         userEmail: params.user.email,
@@ -44,8 +44,8 @@ export function logAuditEvent(params: AuditEventParams): void {
         entityId: params.entityId,
         details: params.details,
       },
-    })
-    .catch((err) => {
-      console.error("Audit log failed:", err);
     });
+  } catch (err) {
+    console.error("Audit log failed:", err);
+  }
 }

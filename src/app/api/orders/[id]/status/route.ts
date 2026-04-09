@@ -36,7 +36,7 @@ export async function PATCH(
     },
   });
 
-  logAuditEvent({
+  await logAuditEvent({
     user,
     action: "STATUS_CHANGE",
     entityType: "Order",

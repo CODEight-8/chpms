@@ -32,7 +32,7 @@ export async function POST(
     data: { isActive: true },
   });
 
-  logAuditEvent({
+  await logAuditEvent({
     user,
     action: "UPDATE",
     entityType: "User",

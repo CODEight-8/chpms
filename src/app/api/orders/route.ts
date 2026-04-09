@@ -50,6 +50,17 @@ export async function POST(request: NextRequest) {
     return errorResponse("Client not found or inactive", 404);
   }
 
+  // Validate all products exist and are active
+  const productIds = Array.from(new Set(items.map((i) => i.productId)));
+  const products = await prisma.product.findMany({
+    where: { id: { in: productIds }, isActive: true },
+  });
+  if (products.length !== productIds.length) {
+    const foundIds = new Set(products.map((p) => p.id));
+    const missing = productIds.find((id) => !foundIds.has(id));
+    return errorResponse(`Product ${missing} not found or inactive`, 404);
+  }
+
   const orderNumber = await generateOrderNumber();
 
   const order = await prisma.order.create({
@@ -78,7 +89,7 @@ export async function POST(request: NextRequest) {
     },
   });
 
-  logAuditEvent({
+  await logAuditEvent({
     user,
     action: "CREATE",
     entityType: "Order",

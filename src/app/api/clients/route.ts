@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
     data: parsed.data,
   });
 
-  logAuditEvent({
+  await logAuditEvent({
     user,
     action: "CREATE",
     entityType: "Client",

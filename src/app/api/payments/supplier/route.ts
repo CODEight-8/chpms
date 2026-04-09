@@ -24,6 +24,24 @@ export async function POST(request: NextRequest) {
     return errorResponse(parsed.error.issues[0].message);
   }
 
+  // Validate supplier exists and is active
+  const supplier = await prisma.supplier.findUnique({
+    where: { id: parsed.data.supplierId },
+  });
+  if (!supplier || !supplier.isActive) {
+    return errorResponse("Supplier not found or inactive", 404);
+  }
+
+  // Validate lot belongs to supplier if provided
+  if (parsed.data.supplierLotId) {
+    const lot = await prisma.supplierLot.findUnique({
+      where: { id: parsed.data.supplierLotId },
+    });
+    if (!lot || lot.supplierId !== parsed.data.supplierId) {
+      return errorResponse("Supplier lot not found or does not belong to this supplier", 404);
+    }
+  }
+
   const payment = await prisma.supplierPayment.create({
     data: {
       supplierId: parsed.data.supplierId,
@@ -39,7 +57,7 @@ export async function POST(request: NextRequest) {
     },
   });
 
-  logAuditEvent({
+  await logAuditEvent({
     user,
     action: "PAYMENT",
     entityType: "SupplierPayment",

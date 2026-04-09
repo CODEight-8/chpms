@@ -52,7 +52,7 @@ export async function PUT(
     },
   });
 
-  logAuditEvent({
+  await logAuditEvent({
     user,
     action: "UPDATE",
     entityType: "SupplierLot",

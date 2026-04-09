@@ -4,7 +4,7 @@ import { productionBatchSchema } from "@/lib/validators";
 import { requireAuth, errorResponse, jsonResponse } from "@/lib/api-helpers";
 import { generateBatchNumber } from "@/lib/id-generators";
 import { getBatchesWithDetails, getBatchStatusCounts } from "@/lib/queries/production-batches";
-import { BatchStatus } from "@prisma/client";
+import { BatchStatus, Prisma } from "@prisma/client";
 import { logAuditEvent } from "@/lib/audit-log";
 
 export async function GET(request: NextRequest) {
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
   // Generate batch number
   const batchNumber = await generateBatchNumber();
 
-  // Calculate total raw cost
+  // Calculate total raw cost using Decimal to avoid floating-point errors
   const lotDetails = await Promise.all(
     lots.map(async (l) => {
       const lot = await prisma.supplierLot.findUnique({
@@ -83,14 +83,14 @@ export async function POST(request: NextRequest) {
       });
       return {
         ...l,
-        perHuskRate: Number(lot!.perHuskRate),
+        perHuskRate: lot!.perHuskRate,
       };
     })
   );
 
   const totalRawCost = lotDetails.reduce(
-    (sum, l) => sum + l.quantityUsed * l.perHuskRate,
-    0
+    (sum, l) => sum.add(new Prisma.Decimal(l.quantityUsed).mul(l.perHuskRate)),
+    new Prisma.Decimal(0)
   );
 
   // Create batch in transaction
@@ -145,7 +145,7 @@ export async function POST(request: NextRequest) {
     return newBatch;
   });
 
-  logAuditEvent({
+  await logAuditEvent({
     user,
     action: "CREATE",
     entityType: "ProductionBatch",

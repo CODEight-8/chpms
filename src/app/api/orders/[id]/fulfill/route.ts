@@ -42,6 +42,13 @@ export async function POST(
       return errorResponse("Production batch must be completed for fulfillment");
     }
 
+    // Validate product match
+    if (batch.productId !== item.productId) {
+      return errorResponse(
+        `Product mismatch: batch ${batch.batchNumber} does not match the ordered product`
+      );
+    }
+
     // Validate chip size match
     if (item.chipSize && batch.chipSize && item.chipSize !== batch.chipSize) {
       return errorResponse(
@@ -98,7 +105,7 @@ export async function POST(
     }
   });
 
-  logAuditEvent({
+  await logAuditEvent({
     user,
     action: "FULFILL",
     entityType: "Order",
