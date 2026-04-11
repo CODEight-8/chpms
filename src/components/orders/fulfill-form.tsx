@@ -323,7 +323,7 @@ export function FulfillForm({
               {/* Submit */}
               <Button
                 onClick={handleSubmit}
-                className="w-full bg-emerald-700 hover:bg-emerald-800"
+                className={`w-full ${totalAllocated < remaining ? "bg-orange-100 text-orange-800 border border-orange-200 hover:bg-orange-200" : "bg-emerald-700 text-white hover:bg-emerald-800"}`}
                 disabled={
                   loading ||
                   allocations.length === 0 ||
@@ -333,6 +333,8 @@ export function FulfillForm({
               >
                 {loading
                   ? "Fulfilling..."
+                  : totalAllocated < remaining
+                  ? `Confirm Partial Fulfillment (${totalAllocated.toLocaleString()} ${unit})`
                   : `Confirm Fulfillment (${totalAllocated.toLocaleString()} ${unit})`}
               </Button>
             </>

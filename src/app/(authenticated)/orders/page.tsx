@@ -193,7 +193,14 @@ export default async function OrdersPage({
                     {formatLKR(order.totalValue)}
                   </TableCell>
                   <TableCell>
-                    <StatusBadge status={order.status} />
+                    <StatusBadge
+                      status={
+                        order.status === "CONFIRMED" &&
+                        order.items.some((i) => Number(i.quantityFulfilled) > 0)
+                          ? "PARTIALLY_FULFILLED"
+                          : order.status
+                      }
+                    />
                   </TableCell>
                 </TableRow>
               ))}

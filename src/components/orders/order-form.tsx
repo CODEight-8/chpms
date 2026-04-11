@@ -223,12 +223,13 @@ export function OrderForm() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="expectedDelivery">Expected Delivery</Label>
+              <Label htmlFor="expectedDelivery">Expected Delivery *</Label>
               <Input
                 id="expectedDelivery"
                 name="expectedDelivery"
                 type="date"
                 min={today}
+                required
               />
             </div>
           </div>

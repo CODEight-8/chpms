@@ -60,7 +60,16 @@ export default async function OrderDetailPage({
                 <InfoField label="Order Number" value={order.orderNumber} />
                 <InfoField
                   label="Status"
-                  value={<StatusBadge status={order.status} />}
+                  value={
+                    <StatusBadge
+                      status={
+                        order.status === "CONFIRMED" &&
+                        order.items.some((i) => Number(i.quantityFulfilled) > 0)
+                          ? "PARTIALLY_FULFILLED"
+                          : order.status
+                      }
+                    />
+                  }
                 />
                 <InfoField
                   label="Client"
