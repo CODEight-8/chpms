@@ -17,6 +17,7 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { ThroughputChart } from "@/components/dashboard/throughput-chart";
 import { ProfitabilityChart } from "@/components/dashboard/profitability-chart";
 import { DashboardExport } from "@/components/dashboard/dashboard-export";
+import { FinancialOverview } from "@/components/dashboard/financial-overview";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -29,28 +30,27 @@ import {
 import {
   ClipboardCheck,
   CheckCircle,
-  Factory,
   Clock,
-  Wallet,
-  TrendingUp,
-  ArrowUpRight,
-  ArrowDownLeft,
 } from "lucide-react";
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
   const role = session!.user.role as UserRole;
+  const isOwner = role === "OWNER";
+  const isManager = role === "MANAGER";
+  const canViewRankings = isOwner || isManager;
   const canViewClients = canAccessModule(role, "clients");
+
   const [data, throughput, profitability, supplierAnalytics, clientAnalytics] =
     await Promise.all([
       getDashboardData(),
-      getMonthlyThroughput(),
-      getBatchProfitability(),
-      getSupplierAnalytics(),
-      getClientAnalytics(),
+      isOwner ? getMonthlyThroughput() : Promise.resolve([]),
+      isOwner ? getBatchProfitability() : Promise.resolve([]),
+      canViewRankings ? getSupplierAnalytics() : Promise.resolve([]),
+      canViewRankings ? getClientAnalytics() : Promise.resolve([]),
     ]);
 
-  // Flatten for CSV exports
+  // Flatten for CSV exports (owner only)
   const supplierCsvData = supplierAnalytics.map((s: Record<string, unknown>) => ({
     name: s.name,
     totalLots: s.totalLots,
@@ -89,8 +89,8 @@ export default async function DashboardPage() {
     <div className="pt-6">
       <PageHeader title="Dashboard" description="Business overview at a glance" />
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
+      {/* Operational KPI Cards — visible to all roles */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <SummaryCard
           title="Lots in Audit"
           value={data.kpis.lotsInAudit}
@@ -99,16 +99,6 @@ export default async function DashboardPage() {
         <SummaryCard
           title="Good to Go"
           value={data.kpis.lotsGoodToGo}
-          icon={CheckCircle}
-        />
-        <SummaryCard
-          title="WIP Batches"
-          value={data.kpis.batchesInProgress}
-          icon={Factory}
-        />
-        <SummaryCard
-          title="Ready to Ship"
-          value={data.kpis.batchesCompleted}
           icon={CheckCircle}
         />
         <SummaryCard
@@ -123,260 +113,239 @@ export default async function DashboardPage() {
         />
       </div>
 
-      {/* Financial Overview */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <SummaryCard
-          title="Procurement Spend"
-          value={formatLKR(data.financial.totalProcurement)}
-          subtitle={`${formatLKR(data.financial.outstandingPayable)} outstanding`}
-          icon={ArrowUpRight}
-        />
-        <SummaryCard
-          title="Revenue"
-          value={formatLKR(data.financial.totalRevenue)}
-          subtitle={`${formatLKR(data.financial.outstandingReceivable)} outstanding`}
-          icon={ArrowDownLeft}
-        />
-        <SummaryCard
-          title="Received"
-          value={formatLKR(data.financial.totalReceived)}
-          icon={Wallet}
-        />
-        <SummaryCard
-          title="Gross Profit"
-          value={formatLKR(data.financial.grossProfit)}
-          icon={TrendingUp}
-        />
-      </div>
+      {/* Financial Overview — OWNER only */}
+      {isOwner && <FinancialOverview />}
 
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        {/* Throughput Chart */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">
-              Monthly Throughput (Last 6 Months)
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ThroughputChart data={throughput} />
-          </CardContent>
-        </Card>
+      {/* Charts — OWNER only */}
+      {isOwner && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">
+                Monthly Throughput (Last 6 Months)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ThroughputChart data={throughput} />
+            </CardContent>
+          </Card>
 
-        {/* Profitability Chart */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">Batch Profitability</CardTitle>
-              <DashboardExport
-                data={profitCsvData}
-                filename="batch-profitability"
-                columns={[
-                  { key: "batchNumber", header: "Batch #" },
-                  { key: "product", header: "Product" },
-                  { key: "output", header: "Output" },
-                  { key: "rawMaterialCost", header: "Raw Material Cost (LKR)" },
-                  { key: "revenue", header: "Revenue (LKR)" },
-                  { key: "profit", header: "Profit (LKR)" },
-                  { key: "margin", header: "Margin (%)" },
-                ]}
-              />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <ProfitabilityChart data={profitability} />
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Enhanced Rankings */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        {/* Supplier Analytics */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">Supplier Rankings</CardTitle>
-              <DashboardExport
-                data={supplierCsvData}
-                filename="supplier-rankings"
-                columns={[
-                  { key: "name", header: "Supplier" },
-                  { key: "totalLots", header: "Lots" },
-                  { key: "totalHusks", header: "Total Husks" },
-                  { key: "gradeA", header: "Grade A" },
-                  { key: "gradeB", header: "Grade B" },
-                  { key: "gradeC", header: "Grade C" },
-                  { key: "rejected", header: "Rejected" },
-                  { key: "rejectionRate", header: "Reject %" },
-                  { key: "avgRate", header: "Avg Rate (LKR)" },
-                  { key: "totalSpend", header: "Total Spend (LKR)" },
-                  { key: "outstanding", header: "Outstanding (LKR)" },
-                ]}
-              />
-            </div>
-          </CardHeader>
-          <CardContent>
-            {supplierAnalytics.length === 0 ? (
-              <p className="text-sm text-gray-500 text-center py-4">
-                No supplier data yet
-              </p>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Supplier</TableHead>
-                      <TableHead className="text-center">Husks</TableHead>
-                      <TableHead className="text-center">Quality</TableHead>
-                      <TableHead className="text-center">Reject %</TableHead>
-                      <TableHead className="text-right">Avg Rate</TableHead>
-                      <TableHead className="text-right">Spend</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {supplierAnalytics.slice(0, 10).map((s: Record<string, unknown>) => (
-                      <TableRow key={s.id as string}>
-                        <TableCell>
-                          <Link
-                            href={`/suppliers/${s.id}`}
-                            className="font-medium text-emerald-700 hover:underline"
-                          >
-                            {s.name as string}
-                          </Link>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {(s.totalHusks as number).toLocaleString()}
-                        </TableCell>
-                        <TableCell className="text-center text-xs">
-                          <span className="text-green-600">{s.gradeA as number}A</span>
-                          {" / "}
-                          <span className="text-blue-600">{s.gradeB as number}B</span>
-                          {" / "}
-                          <span className="text-yellow-600">{s.gradeC as number}C</span>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <span
-                            className={
-                              (s.rejectionRate as number) > 10
-                                ? "text-red-600 font-medium"
-                                : "text-green-600"
-                            }
-                          >
-                            {(s.rejectionRate as number).toFixed(0)}%
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-right text-sm">
-                          {formatLKR(s.avgRate as number)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {formatLKR(s.totalSpend as number)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg">Batch Profitability</CardTitle>
+                <DashboardExport
+                  data={profitCsvData}
+                  filename="batch-profitability"
+                  columns={[
+                    { key: "batchNumber", header: "Batch #" },
+                    { key: "product", header: "Product" },
+                    { key: "output", header: "Output" },
+                    { key: "rawMaterialCost", header: "Raw Material Cost (LKR)" },
+                    { key: "revenue", header: "Revenue (LKR)" },
+                    { key: "profit", header: "Profit (LKR)" },
+                    { key: "margin", header: "Margin (%)" },
+                  ]}
+                />
               </div>
-            )}
-          </CardContent>
-        </Card>
+            </CardHeader>
+            <CardContent>
+              <ProfitabilityChart data={profitability} />
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
-        {/* Client Analytics */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">Client Rankings</CardTitle>
-              <DashboardExport
-                data={clientCsvData}
-                filename="client-rankings"
-                columns={[
-                  { key: "name", header: "Client" },
-                  { key: "totalOrders", header: "Orders" },
-                  { key: "totalRevenue", header: "Revenue (LKR)" },
-                  { key: "totalPaid", header: "Paid (LKR)" },
-                  { key: "outstanding", header: "Outstanding (LKR)" },
-                  { key: "paymentReliability", header: "Payment %" },
-                  { key: "orderFrequency", header: "Orders/Month" },
-                ]}
-              />
-            </div>
-          </CardHeader>
-          <CardContent>
-            {clientAnalytics.length === 0 ? (
-              <p className="text-sm text-gray-500 text-center py-4">
-                No client data yet
-              </p>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Client</TableHead>
-                      <TableHead className="text-center">Orders</TableHead>
-                      <TableHead className="text-right">Revenue</TableHead>
-                      <TableHead className="text-center">Payment %</TableHead>
-                      <TableHead className="text-center">Freq</TableHead>
-                      <TableHead className="text-right">Outstanding</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {clientAnalytics.slice(0, 10).map((c: Record<string, unknown>) => (
-                      <TableRow key={c.id as string}>
-                        <TableCell>
-                          {canViewClients ? (
+      {/* Rankings — OWNER and MANAGER */}
+      {canViewRankings && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          {/* Supplier Analytics */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg">Supplier Rankings</CardTitle>
+                <DashboardExport
+                  data={supplierCsvData}
+                  filename="supplier-rankings"
+                  columns={[
+                    { key: "name", header: "Supplier" },
+                    { key: "totalLots", header: "Lots" },
+                    { key: "totalHusks", header: "Total Husks" },
+                    { key: "gradeA", header: "Grade A" },
+                    { key: "gradeB", header: "Grade B" },
+                    { key: "gradeC", header: "Grade C" },
+                    { key: "rejected", header: "Rejected" },
+                    { key: "rejectionRate", header: "Reject %" },
+                    { key: "avgRate", header: "Avg Rate (LKR)" },
+                    { key: "totalSpend", header: "Total Spend (LKR)" },
+                    { key: "outstanding", header: "Outstanding (LKR)" },
+                  ]}
+                />
+              </div>
+            </CardHeader>
+            <CardContent>
+              {supplierAnalytics.length === 0 ? (
+                <p className="text-sm text-gray-500 text-center py-4">
+                  No supplier data yet
+                </p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Supplier</TableHead>
+                        <TableHead className="text-center">Husks</TableHead>
+                        <TableHead className="text-center">Quality</TableHead>
+                        <TableHead className="text-center">Reject %</TableHead>
+                        <TableHead className="text-right">Avg Rate</TableHead>
+                        <TableHead className="text-right">Spend</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {supplierAnalytics.slice(0, 10).map((s: Record<string, unknown>) => (
+                        <TableRow key={s.id as string}>
+                          <TableCell>
                             <Link
-                              href={`/clients/${c.id}`}
+                              href={`/suppliers/${s.id}`}
                               className="font-medium text-emerald-700 hover:underline"
                             >
-                              {c.name as string}
+                              {s.name as string}
                             </Link>
-                          ) : (
-                            <span className="font-medium text-gray-900">
-                              {c.name as string}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {(s.totalHusks as number).toLocaleString()}
+                          </TableCell>
+                          <TableCell className="text-center text-xs">
+                            <span className="text-green-600">{s.gradeA as number}A</span>
+                            {" / "}
+                            <span className="text-blue-600">{s.gradeB as number}B</span>
+                            {" / "}
+                            <span className="text-yellow-600">{s.gradeC as number}C</span>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <span
+                              className={
+                                (s.rejectionRate as number) > 10
+                                  ? "text-red-600 font-medium"
+                                  : "text-green-600"
+                              }
+                            >
+                              {(s.rejectionRate as number).toFixed(0)}%
                             </span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {c.totalOrders as number}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {formatLKR(c.totalRevenue as number)}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <span
-                            className={
-                              (c.paymentReliability as number) >= 80
-                                ? "text-green-600"
-                                : (c.paymentReliability as number) >= 50
-                                ? "text-yellow-600"
-                                : "text-red-600"
-                            }
-                          >
-                            {(c.paymentReliability as number).toFixed(0)}%
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-center text-sm text-gray-600">
-                          {(c.orderFrequency as number).toFixed(1)}/mo
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {(c.outstanding as number) > 0 ? (
-                            <span className="text-orange-600">
-                              {formatLKR(c.outstanding as number)}
-                            </span>
-                          ) : (
-                            <span className="text-green-600">Paid</span>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+                          </TableCell>
+                          <TableCell className="text-right text-sm">
+                            {formatLKR(s.avgRate as number)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {formatLKR(s.totalSpend as number)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
-      {/* Recent Activity */}
+          {/* Client Analytics */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg">Client Rankings</CardTitle>
+                <DashboardExport
+                  data={clientCsvData}
+                  filename="client-rankings"
+                  columns={[
+                    { key: "name", header: "Client" },
+                    { key: "totalOrders", header: "Orders" },
+                    { key: "totalRevenue", header: "Revenue (LKR)" },
+                    { key: "totalPaid", header: "Paid (LKR)" },
+                    { key: "outstanding", header: "Outstanding (LKR)" },
+                    { key: "paymentReliability", header: "Payment %" },
+                    { key: "orderFrequency", header: "Orders/Month" },
+                  ]}
+                />
+              </div>
+            </CardHeader>
+            <CardContent>
+              {clientAnalytics.length === 0 ? (
+                <p className="text-sm text-gray-500 text-center py-4">
+                  No client data yet
+                </p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Client</TableHead>
+                        <TableHead className="text-center">Orders</TableHead>
+                        <TableHead className="text-right">Revenue</TableHead>
+                        <TableHead className="text-center">Payment %</TableHead>
+                        <TableHead className="text-center">Freq</TableHead>
+                        <TableHead className="text-right">Outstanding</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {clientAnalytics.slice(0, 10).map((c: Record<string, unknown>) => (
+                        <TableRow key={c.id as string}>
+                          <TableCell>
+                            {canViewClients ? (
+                              <Link
+                                href={`/clients/${c.id}`}
+                                className="font-medium text-emerald-700 hover:underline"
+                              >
+                                {c.name as string}
+                              </Link>
+                            ) : (
+                              <span className="font-medium text-gray-900">
+                                {c.name as string}
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {c.totalOrders as number}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {formatLKR(c.totalRevenue as number)}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <span
+                              className={
+                                (c.paymentReliability as number) >= 80
+                                  ? "text-green-600"
+                                  : (c.paymentReliability as number) >= 50
+                                  ? "text-yellow-600"
+                                  : "text-red-600"
+                              }
+                            >
+                              {(c.paymentReliability as number).toFixed(0)}%
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-center text-sm text-gray-600">
+                            {(c.orderFrequency as number).toFixed(1)}/mo
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {(c.outstanding as number) > 0 ? (
+                              <span className="text-orange-600">
+                                {formatLKR(c.outstanding as number)}
+                              </span>
+                            ) : (
+                              <span className="text-green-600">Paid</span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Recent Activity — visible to all roles */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
@@ -402,7 +371,7 @@ export default async function DashboardPage() {
                         {lot.lotNumber}
                       </Link>
                       <p className="text-xs text-gray-500">
-                        {lot.supplier.name} \u2014 {lot.huskCount} husks
+                        {lot.supplier.name} &mdash; {lot.huskCount} husks
                       </p>
                     </div>
                     <StatusBadge status={lot.status} />
