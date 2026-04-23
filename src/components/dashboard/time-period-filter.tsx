@@ -92,7 +92,7 @@ export function TimePeriodFilter({
   return (
     <div className="flex items-center gap-3 flex-wrap">
       <Select value={preset} onValueChange={handlePresetChange}>
-        <SelectTrigger className="w-[160px] h-9">
+        <SelectTrigger className="w-full sm:w-[160px] h-9">
           <SelectValue placeholder="Select period" />
         </SelectTrigger>
         <SelectContent>
@@ -113,14 +113,14 @@ export function TimePeriodFilter({
             type="date"
             value={customFrom}
             onChange={(e) => setCustomFrom(e.target.value)}
-            className="h-9 w-[145px]"
+            className="h-9 w-full sm:w-[145px]"
           />
           <span className="text-sm text-muted-foreground">to</span>
           <Input
             type="date"
             value={customTo}
             onChange={(e) => setCustomTo(e.target.value)}
-            className="h-9 w-[145px]"
+            className="h-9 w-full sm:w-[145px]"
           />
           <button
             onClick={handleCustomApply}

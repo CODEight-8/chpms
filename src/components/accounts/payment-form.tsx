@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { validateFormWithToast } from "@/lib/form-validation";
+import { useFieldErrors } from "@/lib/use-field-errors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -42,6 +42,7 @@ export function PaymentForm({ type }: PaymentFormProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const { validate } = useFieldErrors();
   const [entities, setEntities] = useState<Entity[]>([]);
   const [entityId, setEntityId] = useState("");
   const [method, setMethod] = useState("CASH");
@@ -65,7 +66,7 @@ export function PaymentForm({ type }: PaymentFormProps) {
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
-    if (!validateFormWithToast(e.currentTarget)) {
+    if (!validate(e.currentTarget)) {
       return;
     }
 
@@ -134,9 +135,9 @@ export function PaymentForm({ type }: PaymentFormProps) {
         <form onSubmit={handleSubmit} noValidate className="space-y-4">
           <div className="space-y-2">
             <Label>{label} *</Label>
-            <Select value={entityId} onValueChange={setEntityId} required>
+            <Select value={entityId} onValueChange={setEntityId} required disabled={entities.length === 0 && !entityId}>
               <SelectTrigger>
-                <SelectValue placeholder={`Select ${label.toLowerCase()}`} />
+                <SelectValue placeholder={entities.length === 0 ? "Loading..." : `Select ${label.toLowerCase()}`} />
               </SelectTrigger>
               <SelectContent>
                 {entities.map((e) => (
@@ -227,7 +228,7 @@ export function PaymentForm({ type }: PaymentFormProps) {
             className="w-full bg-emerald-700 hover:bg-emerald-800"
             disabled={loading || !entityId}
           >
-            {loading ? "Saving..." : "Record Payment"}
+            {loading ? "Recording..." : "Record Payment"}
           </Button>
         </form>
       </DialogContent>

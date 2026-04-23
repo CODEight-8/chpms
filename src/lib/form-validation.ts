@@ -29,7 +29,7 @@ function getValidationMessage(field: FormField, form: HTMLFormElement) {
   return field.validationMessage || `${label} is invalid.`;
 }
 
-export function validateFormWithToast(form: HTMLFormElement) {
+export function validateFormFields(form: HTMLFormElement): Record<string, string> {
   const fields = Array.from(form.elements).filter(
     (element): element is FormField =>
       element instanceof HTMLInputElement ||
@@ -37,15 +37,32 @@ export function validateFormWithToast(form: HTMLFormElement) {
       element instanceof HTMLSelectElement
   );
 
-  const invalidField = fields.find(
-    (field) => !field.disabled && !field.checkValidity()
-  );
+  const errors: Record<string, string> = {};
+  for (const field of fields) {
+    if (!field.disabled && !field.checkValidity()) {
+      const key = field.name || field.id;
+      if (key) {
+        errors[key] = getValidationMessage(field, form);
+      }
+    }
+  }
+  return errors;
+}
 
-  if (!invalidField) {
+export function validateFormWithToast(form: HTMLFormElement) {
+  const errors = validateFormFields(form);
+  const keys = Object.keys(errors);
+
+  if (keys.length === 0) {
     return true;
   }
 
-  toast.error(getValidationMessage(invalidField, form));
-  invalidField.focus();
+  toast.error(errors[keys[0]]);
+
+  const firstInvalid = form.elements.namedItem(keys[0]);
+  if (firstInvalid && "focus" in firstInvalid) {
+    (firstInvalid as HTMLElement).focus();
+  }
+
   return false;
 }

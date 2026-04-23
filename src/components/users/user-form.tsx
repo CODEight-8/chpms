@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { validateFormWithToast } from "@/lib/form-validation";
+import { useFieldErrors } from "@/lib/use-field-errors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 import {
   Select,
   SelectContent,
@@ -29,12 +30,13 @@ export function UserForm({ defaultValues }: UserFormProps) {
   const router = useRouter();
   const isEdit = !!defaultValues?.id;
   const [loading, setLoading] = useState(false);
+  const { errors, validate, clearError } = useFieldErrors();
   const [role, setRole] = useState(defaultValues?.role || "MANAGER");
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
-    if (!validateFormWithToast(e.currentTarget)) {
+    if (!validate(e.currentTarget)) {
       return;
     }
 
@@ -88,9 +90,12 @@ export function UserForm({ defaultValues }: UserFormProps) {
               id="name"
               name="name"
               defaultValue={defaultValues?.name || ""}
+              onChange={() => clearError("name")}
+              className={cn(errors.name && "border-red-500")}
               maxLength={200}
               required
             />
+            {errors.name && <p className="text-xs text-red-600">{errors.name}</p>}
           </div>
 
           <div className="space-y-2">
@@ -100,9 +105,12 @@ export function UserForm({ defaultValues }: UserFormProps) {
               name="email"
               type="email"
               defaultValue={defaultValues?.email || ""}
+              onChange={() => clearError("email")}
+              className={cn(errors.email && "border-red-500")}
               maxLength={200}
               required
             />
+            {errors.email && <p className="text-xs text-red-600">{errors.email}</p>}
           </div>
 
           <div className="space-y-2">
@@ -116,8 +124,11 @@ export function UserForm({ defaultValues }: UserFormProps) {
               minLength={6}
               maxLength={128}
               required={!isEdit}
+              onChange={() => clearError("password")}
+              className={cn(errors.password && "border-red-500")}
               placeholder={isEdit ? "Leave blank to keep current password" : ""}
             />
+            {errors.password && <p className="text-xs text-red-600">{errors.password}</p>}
           </div>
 
           <div className="space-y-2">
@@ -129,12 +140,13 @@ export function UserForm({ defaultValues }: UserFormProps) {
               <SelectContent>
                 <SelectItem value="MANAGER">Manager</SelectItem>
                 <SelectItem value="OWNER">Owner</SelectItem>
-                {/* PRODUCTION role hidden for now — Manager handles production duties */}
+                <SelectItem value="PRODUCTION">Production</SelectItem>
               </SelectContent>
             </Select>
             <p className="text-xs text-gray-500">
               {role === "OWNER" && "Full access to all modules including user management"}
-              {role === "MANAGER" && "Access to all modules including production — everything except user management"}
+              {role === "MANAGER" && "Access to all modules except clients, accounts, and user management"}
+              {role === "PRODUCTION" && "View suppliers and lots, manage production batches, and view orders"}
             </p>
           </div>
 
@@ -144,7 +156,7 @@ export function UserForm({ defaultValues }: UserFormProps) {
               className="bg-emerald-700 hover:bg-emerald-800"
               disabled={loading}
             >
-              {loading ? "Saving..." : isEdit ? "Update User" : "Create User"}
+              {loading ? (isEdit ? "Saving..." : "Creating...") : isEdit ? "Update User" : "Create User"}
             </Button>
             <Button type="button" variant="outline" onClick={() => router.back()}>
               Cancel

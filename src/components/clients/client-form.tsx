@@ -7,9 +7,10 @@ import {
   isClientPaymentTerm,
 } from "@/lib/client-payment-terms";
 import { PHONE_ALLOWED_REGEX } from "@/lib/validators";
-import { validateFormWithToast } from "@/lib/form-validation";
+import { useFieldErrors } from "@/lib/use-field-errors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
@@ -52,6 +53,7 @@ export function ClientForm({ defaultValues }: ClientFormProps) {
   const router = useRouter();
   const isEdit = !!defaultValues?.id;
   const [loading, setLoading] = useState(false);
+  const { errors, validate, clearError } = useFieldErrors();
   const initialPaymentTerms = isClientPaymentTerm(defaultValues?.paymentTerms)
     ? defaultValues.paymentTerms
     : "";
@@ -83,7 +85,7 @@ export function ClientForm({ defaultValues }: ClientFormProps) {
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
-    if (!validateFormWithToast(e.currentTarget)) {
+    if (!validate(e.currentTarget)) {
       return;
     }
 
@@ -133,16 +135,19 @@ export function ClientForm({ defaultValues }: ClientFormProps) {
                 id="name"
                 name="name"
                 value={fields.name}
-                onChange={(e) =>
+                onChange={(e) => {
+                  clearError("name");
                   setFields((current) => ({
                     ...current,
                     name: stripNonLetters(e.target.value),
-                  }))
-                }
+                  }));
+                }}
+                className={cn(errors.name && "border-red-500")}
                 maxLength={200}
                 disabled={isEdit}
                 required
               />
+              {errors.name && <p className="text-xs text-red-600">{errors.name}</p>}
               <p className="text-xs text-gray-500">
                 {isEdit
                   ? "Client name is locked after creation and cannot be changed."
@@ -155,15 +160,18 @@ export function ClientForm({ defaultValues }: ClientFormProps) {
                 id="companyName"
                 name="companyName"
                 value={fields.companyName}
-                onChange={(e) =>
+                onChange={(e) => {
+                  clearError("companyName");
                   setFields((current) => ({
                     ...current,
                     companyName: e.target.value,
-                  }))
-                }
+                  }));
+                }}
+                className={cn(errors.companyName && "border-red-500")}
                 maxLength={200}
                 required
               />
+              {errors.companyName && <p className="text-xs text-red-600">{errors.companyName}</p>}
             </div>
           </div>
 
@@ -176,17 +184,20 @@ export function ClientForm({ defaultValues }: ClientFormProps) {
                 type="tel"
                 placeholder="+94771234567 or 0771234567"
                 value={fields.phone}
-                onChange={(e) =>
+                onChange={(e) => {
+                  clearError("phone");
                   setFields((current) => ({
                     ...current,
                     phone: e.target.value,
-                  }))
-                }
+                  }));
+                }}
+                className={cn(errors.phone && "border-red-500")}
                 maxLength={50}
                 pattern={phonePattern}
                 title="Phone number can contain only digits, spaces, +, parentheses, and hyphens."
                 required
               />
+              {errors.phone && <p className="text-xs text-red-600">{errors.phone}</p>}
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email *</Label>
@@ -196,15 +207,18 @@ export function ClientForm({ defaultValues }: ClientFormProps) {
                 type="email"
                 placeholder="client@example.com"
                 value={fields.email}
-                onChange={(e) =>
+                onChange={(e) => {
+                  clearError("email");
                   setFields((current) => ({
                     ...current,
                     email: e.target.value,
-                  }))
-                }
+                  }));
+                }}
+                className={cn(errors.email && "border-red-500")}
                 maxLength={200}
                 required
               />
+              {errors.email && <p className="text-xs text-red-600">{errors.email}</p>}
             </div>
           </div>
 
@@ -231,13 +245,17 @@ export function ClientForm({ defaultValues }: ClientFormProps) {
               id="paymentTerms"
               name="paymentTerms"
               value={fields.paymentTerms}
-              onChange={(e) =>
+              onChange={(e) => {
+                clearError("paymentTerms");
                 setFields((current) => ({
                   ...current,
                   paymentTerms: e.target.value,
-                }))
-              }
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                }));
+              }}
+              className={cn(
+                "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+                errors.paymentTerms && "border-red-500"
+              )}
               required
             >
               <option value="">Select</option>
@@ -255,7 +273,7 @@ export function ClientForm({ defaultValues }: ClientFormProps) {
               className="bg-emerald-700 hover:bg-emerald-800"
               disabled={isSubmitDisabled}
             >
-              {loading ? "Saving..." : isEdit ? "Update Client" : "Create Client"}
+              {loading ? (isEdit ? "Saving..." : "Creating...") : isEdit ? "Update Client" : "Create Client"}
             </Button>
             <Button type="button" variant="outline" onClick={() => router.back()}>
               Cancel

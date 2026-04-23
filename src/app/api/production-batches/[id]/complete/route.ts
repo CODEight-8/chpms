@@ -9,7 +9,7 @@ const OUTPUT_UNIT = "kg";
 
 function calculateQualityGrade(score: number): BatchQualityGrade {
   if (score >= 75) return "GOOD";
-  if (score >= 10) return "AVERAGE";
+  if (score >= 50) return "AVERAGE";
   return "REJECT";
 }
 

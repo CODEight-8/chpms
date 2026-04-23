@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
 
   const { productId, chipSize, lots, notes, remarks } = parsed.data;
 
-  // Verify product exists
+  // Verify product exists (safe outside transaction — products are not mutated)
   const product = await prisma.product.findUnique({
     where: { id: productId },
   });
@@ -52,106 +52,95 @@ export async function POST(request: NextRequest) {
     return errorResponse("Product not found or inactive", 404);
   }
 
-  // Verify all lots exist and have enough available husks
-  for (const lotEntry of lots) {
-    const lot = await prisma.supplierLot.findUnique({
-      where: { id: lotEntry.lotId },
-    });
-    if (!lot) {
-      return errorResponse(`Lot ${lotEntry.lotId} not found`, 404);
-    }
-    if (lot.status !== "GOOD_TO_GO" && lot.status !== "ALLOCATED") {
-      return errorResponse(
-        `Lot ${lot.lotNumber} is not available (status: ${lot.status})`
-      );
-    }
-    if (lot.availableHusks < lotEntry.quantityUsed) {
-      return errorResponse(
-        `Lot ${lot.lotNumber} only has ${lot.availableHusks} husks available, requested ${lotEntry.quantityUsed}`
-      );
-    }
-  }
-
-  // Generate batch number
   const batchNumber = await generateBatchNumber();
 
-  // Calculate total raw cost
-  const lotDetails = await Promise.all(
-    lots.map(async (l) => {
-      const lot = await prisma.supplierLot.findUnique({
-        where: { id: l.lotId },
-      });
-      return {
-        ...l,
-        perHuskRate: Number(lot!.perHuskRate),
-      };
-    })
-  );
+  // All lot validation, cost calculation, and updates happen inside the transaction
+  // to prevent race conditions (concurrent requests double-allocating husks)
+  try {
+    const batch = await prisma.$transaction(async (tx) => {
+      // Validate lots and compute cost atomically
+      let totalRawCost = 0;
+      for (const lotEntry of lots) {
+        const lot = await tx.supplierLot.findUnique({
+          where: { id: lotEntry.lotId },
+        });
+        if (!lot) {
+          throw new Error(`Lot ${lotEntry.lotId} not found`);
+        }
+        if (lot.status !== "GOOD_TO_GO" && lot.status !== "ALLOCATED") {
+          throw new Error(
+            `Lot ${lot.lotNumber} is not available (status: ${lot.status})`
+          );
+        }
+        if (lot.availableHusks < lotEntry.quantityUsed) {
+          throw new Error(
+            `Lot ${lot.lotNumber} only has ${lot.availableHusks} husks available, requested ${lotEntry.quantityUsed}`
+          );
+        }
+        totalRawCost += lotEntry.quantityUsed * Number(lot.perHuskRate);
+      }
 
-  const totalRawCost = lotDetails.reduce(
-    (sum, l) => sum + l.quantityUsed * l.perHuskRate,
-    0
-  );
-
-  // Create batch in transaction
-  const batch = await prisma.$transaction(async (tx) => {
-    // Create the production batch
-    const newBatch = await tx.productionBatch.create({
-      data: {
-        batchNumber,
-        productId,
-        chipSize,
-        totalRawCost,
-        notes: notes || null,
-        remarks: remarks || null,
-        batchLots: {
-          create: lots.map((l) => ({
-            supplierLotId: l.lotId,
-            quantityUsed: l.quantityUsed,
-          })),
+      // Create the production batch
+      const newBatch = await tx.productionBatch.create({
+        data: {
+          batchNumber,
+          productId,
+          chipSize,
+          totalRawCost,
+          notes: notes || null,
+          remarks: remarks || null,
+          batchLots: {
+            create: lots.map((l) => ({
+              supplierLotId: l.lotId,
+              quantityUsed: l.quantityUsed,
+            })),
+          },
         },
-      },
-      include: {
-        product: { select: { id: true, name: true, unit: true } },
-        batchLots: {
-          include: {
-            supplierLot: {
-              select: {
-                id: true,
-                lotNumber: true,
-                supplier: { select: { name: true } },
+        include: {
+          product: { select: { id: true, name: true, unit: true } },
+          batchLots: {
+            include: {
+              supplierLot: {
+                select: {
+                  id: true,
+                  lotNumber: true,
+                  supplier: { select: { name: true } },
+                },
               },
             },
           },
         },
-      },
+      });
+
+      // Update each supplier lot: deduct husks and update status
+      for (const lotEntry of lots) {
+        const lot = await tx.supplierLot.findUnique({
+          where: { id: lotEntry.lotId },
+        });
+        const newAvailable = lot!.availableHusks - lotEntry.quantityUsed;
+        await tx.supplierLot.update({
+          where: { id: lotEntry.lotId },
+          data: {
+            availableHusks: newAvailable,
+            status: newAvailable === 0 ? "CONSUMED" : "ALLOCATED",
+          },
+        });
+      }
+
+      return newBatch;
     });
 
-    // Update each supplier lot: deduct husks and update status
-    for (const lotEntry of lots) {
-      const lot = await tx.supplierLot.findUnique({
-        where: { id: lotEntry.lotId },
-      });
-      const newAvailable = lot!.availableHusks - lotEntry.quantityUsed;
-      await tx.supplierLot.update({
-        where: { id: lotEntry.lotId },
-        data: {
-          availableHusks: newAvailable,
-          status: newAvailable === 0 ? "CONSUMED" : "ALLOCATED",
-        },
-      });
-    }
+    logAuditEvent({
+      user,
+      action: "CREATE",
+      entityType: "ProductionBatch",
+      entityId: batch.id,
+      details: { batchNumber, productId, lots, totalRawCost: Number(batch.totalRawCost) },
+    });
 
-    return newBatch;
-  });
-
-  logAuditEvent({
-    user,
-    action: "CREATE",
-    entityType: "ProductionBatch",
-    entityId: batch.id,
-    details: { batchNumber, productId, lots, totalRawCost },
-  });
-
-  return jsonResponse(batch, 201);
+    return jsonResponse(batch, 201);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to create batch";
+    return errorResponse(message);
+  }
 }

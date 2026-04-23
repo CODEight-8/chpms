@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { validateFormWithToast } from "@/lib/form-validation";
+import { useFieldErrors } from "@/lib/use-field-errors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -36,12 +36,13 @@ export function RecordSupplierPayment({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const { validate } = useFieldErrors();
   const [method, setMethod] = useState("CASH");
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
-    if (!validateFormWithToast(e.currentTarget)) {
+    if (!validate(e.currentTarget)) {
       return;
     }
 
@@ -129,7 +130,7 @@ export function RecordSupplierPayment({
           </div>
 
           <Button type="submit" className="w-full bg-emerald-700 hover:bg-emerald-800" disabled={loading}>
-            {loading ? "Saving..." : "Record Payment"}
+            {loading ? "Recording..." : "Record Payment"}
           </Button>
         </form>
       </DialogContent>

@@ -30,11 +30,11 @@ export default async function SuppliersPage({
   const role = session!.user.role as UserRole;
   const canCreate = hasPermission(role, "suppliers", "create");
   const activeFilter =
-    searchParams.active === "false"
-      ? false
-      : searchParams.active === "true" || !searchParams.active
-        ? true
-        : undefined;
+    searchParams.active === "all"
+      ? undefined
+      : searchParams.active === "false"
+        ? false
+        : true;
 
   const suppliers = await getSuppliersWithStats({
     active: activeFilter,

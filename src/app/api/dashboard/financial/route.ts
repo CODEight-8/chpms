@@ -1,15 +1,15 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, errorResponse, jsonResponse } from "@/lib/api-helpers";
 
 export async function GET(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  if (session.user.role !== "OWNER") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  // Financial dashboard is restricted to OWNER only, beyond the generic
+  // "dashboard:view" permission, because it exposes sensitive financial data.
+  const { user, error } = await requireAuth();
+  if (error || !user) return error!;
+
+  if (user.role !== "OWNER") {
+    return errorResponse("Forbidden", 403);
   }
 
   const { searchParams } = new URL(req.url);
@@ -61,7 +61,7 @@ export async function GET(req: NextRequest) {
     0
   );
 
-  return NextResponse.json({
+  return jsonResponse({
     totalProcurement,
     totalPaidSuppliers,
     outstandingPayable: totalProcurement - totalPaidSuppliers,

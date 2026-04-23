@@ -50,6 +50,24 @@ export async function POST(request: NextRequest) {
     return errorResponse("Client not found or inactive", 404);
   }
 
+  // Validate all products exist and are active
+  const productIds = Array.from(new Set(items.map((item) => item.productId)));
+  const products = await prisma.product.findMany({
+    where: { id: { in: productIds } },
+    select: { id: true, isActive: true, name: true },
+  });
+  if (products.length !== productIds.length) {
+    const foundIds = new Set(products.map((p) => p.id));
+    const missing = productIds.find((id) => !foundIds.has(id));
+    return errorResponse(`Product ${missing} not found`, 404);
+  }
+  const inactiveProduct = products.find((p) => !p.isActive);
+  if (inactiveProduct) {
+    return errorResponse(
+      `Product "${inactiveProduct.name}" is inactive and cannot be ordered`
+    );
+  }
+
   const orderNumber = await generateOrderNumber();
 
   const order = await prisma.order.create({

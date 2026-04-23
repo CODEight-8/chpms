@@ -40,7 +40,7 @@ export function StatusBadge({ status }: { status: string }) {
   return (
     <Badge
       variant="outline"
-      className={cn("font-medium", STATUS_STYLES[status] ?? "bg-gray-100")}
+      className={cn("font-medium", STATUS_STYLES[status] ?? "bg-gray-100 text-gray-700 border-gray-200")}
     >
       {STATUS_LABELS[status] ?? status}
     </Badge>

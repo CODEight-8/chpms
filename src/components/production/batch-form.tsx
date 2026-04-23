@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { validateFormWithToast } from "@/lib/form-validation";
+import { useFieldErrors } from "@/lib/use-field-errors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -49,6 +50,7 @@ interface SelectedLot {
 export function BatchForm() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const { errors, validate } = useFieldErrors();
   const [product, setProduct] = useState<Product | null>(null);
   const [chipSize, setChipSize] = useState("");
   const [availableLots, setAvailableLots] = useState<AvailableLot[]>([]);
@@ -138,7 +140,7 @@ export function BatchForm() {
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
-    if (!validateFormWithToast(e.currentTarget)) {
+    if (!validate(e.currentTarget)) {
       return;
     }
 
@@ -288,7 +290,7 @@ export function BatchForm() {
                       type="button"
                       variant="outline"
                       size="icon"
-                      className="h-8 w-8"
+                      className="h-9 w-9"
                       onClick={() =>
                         updateQuantity(lot.lotId, lot.quantityUsed - 10)
                       }
@@ -305,13 +307,13 @@ export function BatchForm() {
                         updateQuantity(lot.lotId, parseInt(e.target.value) || 1)
                       }
                       onWheel={(e) => e.currentTarget.blur()}
-                      className="w-24 text-center h-8"
+                      className="w-24 text-center h-9"
                     />
                     <Button
                       type="button"
                       variant="outline"
                       size="icon"
-                      className="h-8 w-8"
+                      className="h-9 w-9"
                       onClick={() =>
                         updateQuantity(lot.lotId, lot.quantityUsed + 10)
                       }
@@ -326,7 +328,7 @@ export function BatchForm() {
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 text-red-500 hover:text-red-700"
+                    className="h-9 w-9 text-red-500 hover:text-red-700"
                     onClick={() => removeLot(lot.lotId)}
                     aria-label={`Remove lot ${lot.lotNumber}`}
                   >

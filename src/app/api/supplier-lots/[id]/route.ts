@@ -102,8 +102,11 @@ export async function DELETE(
     );
   }
 
-  await prisma.supplierLot.delete({
+  const deleted = await prisma.supplierLot.delete({
     where: { id: params.id },
+    include: {
+      supplier: { select: { id: true, name: true } },
+    },
   });
 
   logAuditEvent({
@@ -112,12 +115,12 @@ export async function DELETE(
     entityType: "SupplierLot",
     entityId: params.id,
     details: {
-      lotNumber: lot.lotNumber,
-      invoiceNumber: lot.invoiceNumber,
-      supplierId: lot.supplier.id,
-      supplierName: lot.supplier.name,
+      lotNumber: deleted.lotNumber,
+      invoiceNumber: deleted.invoiceNumber,
+      supplierId: deleted.supplier.id,
+      supplierName: deleted.supplier.name,
     },
   });
 
-  return jsonResponse({ success: true });
+  return jsonResponse(deleted);
 }

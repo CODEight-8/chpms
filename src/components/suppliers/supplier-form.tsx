@@ -4,10 +4,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { type SupplierBankDetailsFields } from "@/lib/bank-details";
 import { PHONE_ALLOWED_REGEX } from "@/lib/validators";
-import { validateFormWithToast } from "@/lib/form-validation";
+import { useFieldErrors } from "@/lib/use-field-errors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
 
@@ -56,6 +57,7 @@ export function SupplierForm({ defaultValues }: SupplierFormProps) {
   const router = useRouter();
   const isEdit = !!defaultValues?.id;
   const [loading, setLoading] = useState(false);
+  const { errors, validate, clearError } = useFieldErrors();
   const initialRequiredFields = {
     name: defaultValues?.name || "",
     phone: defaultValues?.phone || "",
@@ -98,7 +100,7 @@ export function SupplierForm({ defaultValues }: SupplierFormProps) {
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
-    if (!validateFormWithToast(e.currentTarget)) {
+    if (!validate(e.currentTarget)) {
       return;
     }
 
@@ -158,16 +160,19 @@ export function SupplierForm({ defaultValues }: SupplierFormProps) {
                   id="name"
                   name="name"
                   value={requiredFields.name}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    clearError("name");
                     setRequiredFields((current) => ({
                       ...current,
                       name: stripDigits(e.target.value),
-                    }))
-                  }
+                    }));
+                  }}
+                  className={cn(errors.name && "border-red-500")}
                   maxLength={200}
                   disabled={isEdit}
                   required
                 />
+                {errors.name && <p className="text-xs text-red-600">{errors.name}</p>}
                 <p className="text-xs text-gray-500">
                   {isEdit
                     ? "Supplier name is locked after creation and cannot be changed."
@@ -184,17 +189,20 @@ export function SupplierForm({ defaultValues }: SupplierFormProps) {
                     type="tel"
                     placeholder="+94771234567 or 0771234567"
                     value={requiredFields.phone}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      clearError("phone");
                       setRequiredFields((current) => ({
                         ...current,
                         phone: e.target.value,
-                      }))
-                    }
+                      }));
+                    }}
+                    className={cn(errors.phone && "border-red-500")}
                     maxLength={50}
                     pattern={phonePattern}
                     title="Phone number can contain only digits, spaces, +, parentheses, and hyphens."
                     required
                   />
+                  {errors.phone && <p className="text-xs text-red-600">{errors.phone}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="contactPerson">Contact Person *</Label>
@@ -202,15 +210,18 @@ export function SupplierForm({ defaultValues }: SupplierFormProps) {
                     id="contactPerson"
                     name="contactPerson"
                     value={requiredFields.contactPerson}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      clearError("contactPerson");
                       setRequiredFields((current) => ({
                         ...current,
                         contactPerson: stripDigits(e.target.value),
-                      }))
-                    }
+                      }));
+                    }}
+                    className={cn(errors.contactPerson && "border-red-500")}
                     maxLength={200}
                     required
                   />
+                  {errors.contactPerson && <p className="text-xs text-red-600">{errors.contactPerson}</p>}
                 </div>
               </div>
 
@@ -220,15 +231,18 @@ export function SupplierForm({ defaultValues }: SupplierFormProps) {
                   id="location"
                   name="location"
                   value={requiredFields.location}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    clearError("location");
                     setRequiredFields((current) => ({
                       ...current,
                       location: e.target.value,
-                    }))
-                  }
+                    }));
+                  }}
+                  className={cn(errors.location && "border-red-500")}
                   maxLength={500}
                   required
                 />
+                {errors.location && <p className="text-xs text-red-600">{errors.location}</p>}
               </div>
             </div>
 
@@ -311,7 +325,7 @@ export function SupplierForm({ defaultValues }: SupplierFormProps) {
               disabled={isSubmitDisabled}
             >
               {loading
-                ? "Saving..."
+                ? (isEdit ? "Saving..." : "Creating...")
                 : isEdit
                   ? "Update Supplier"
                   : "Create Supplier"}

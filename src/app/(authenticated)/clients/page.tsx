@@ -34,11 +34,11 @@ export default async function ClientsPage({
   }
   const canCreate = hasPermission(role, "clients", "create");
   const activeFilter =
-    searchParams.active === "false"
-      ? false
-      : searchParams.active === "true" || !searchParams.active
-        ? true
-        : undefined;
+    searchParams.active === "all"
+      ? undefined
+      : searchParams.active === "false"
+        ? false
+        : true;
 
   const clients = await getClientsWithStats({
     active: activeFilter,

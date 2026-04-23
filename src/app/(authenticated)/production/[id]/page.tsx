@@ -70,7 +70,7 @@ export default async function ProductionBatchDetailPage({
               <CardTitle className="text-lg">Batch Details</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <InfoField label="Batch Number" value={batch.batchNumber} />
                 <InfoField
                   label="Status"

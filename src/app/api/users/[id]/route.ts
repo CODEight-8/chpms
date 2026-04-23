@@ -48,6 +48,11 @@ export async function PUT(
   const existing = await prisma.user.findUnique({ where: { id: params.id } });
   if (!existing) return errorResponse("User not found", 404);
 
+  // Prevent self-role-change
+  if (existing.id === user.id && parsed.data.role !== existing.role) {
+    return errorResponse("You cannot change your own role");
+  }
+
   // Check email uniqueness (exclude current user)
   if (parsed.data.email !== existing.email) {
     const emailTaken = await prisma.user.findUnique({
@@ -161,6 +166,14 @@ export async function DELETE(
   const deactivated = await prisma.user.update({
     where: { id: params.id },
     data: { isActive: false },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      isActive: true,
+      createdAt: true,
+    },
   });
 
   logAuditEvent({
@@ -171,5 +184,5 @@ export async function DELETE(
     details: { name: deactivated.name, email: deactivated.email },
   });
 
-  return jsonResponse({ success: true });
+  return jsonResponse(deactivated);
 }

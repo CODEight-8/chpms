@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { validateFormWithToast } from "@/lib/form-validation";
+import { useFieldErrors } from "@/lib/use-field-errors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -43,6 +44,7 @@ const CHIP_SIZES = ["5mm", "10mm", "15mm", "20mm", "25mm"];
 export function OrderForm() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const { errors, validate, clearError } = useFieldErrors();
   const [loadingData, setLoadingData] = useState(true);
   const [clients, setClients] = useState<Client[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -123,7 +125,7 @@ export function OrderForm() {
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
-    if (!validateFormWithToast(e.currentTarget)) {
+    if (!validate(e.currentTarget)) {
       return;
     }
 
@@ -195,9 +197,9 @@ export function OrderForm() {
         <CardContent className="pt-6 space-y-4">
           <div className="space-y-2">
             <Label>Client *</Label>
-            <Select value={clientId} onValueChange={setClientId} required>
+            <Select value={clientId} onValueChange={setClientId} required disabled={loadingData}>
               <SelectTrigger>
-                <SelectValue placeholder="Select a client" />
+                <SelectValue placeholder={loadingData ? "Loading clients..." : "Select a client"} />
               </SelectTrigger>
               <SelectContent>
                 {clients.map((c) => (
@@ -210,7 +212,7 @@ export function OrderForm() {
             </Select>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="orderDate">Order Date *</Label>
               <Input
@@ -330,7 +332,7 @@ export function OrderForm() {
                   </Select>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>
                       Quantity ({product?.unit || "kg"}) *

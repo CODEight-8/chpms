@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { validateFormWithToast } from "@/lib/form-validation";
+import { useFieldErrors } from "@/lib/use-field-errors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -25,6 +26,7 @@ interface Supplier {
 export function LotForm() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const { errors, validate, clearError } = useFieldErrors();
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loadingSuppliers, setLoadingSuppliers] = useState(true);
   const [supplierId, setSupplierId] = useState("");
@@ -60,7 +62,7 @@ export function LotForm() {
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
-    if (!validateFormWithToast(e.currentTarget)) {
+    if (!validate(e.currentTarget)) {
       return;
     }
 
@@ -124,7 +126,7 @@ export function LotForm() {
             </Select>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="harvestDate">Harvest Date *</Label>
               <Input
@@ -133,9 +135,11 @@ export function LotForm() {
                 type="date"
                 max={today}
                 value={harvestDate}
-                onChange={(e) => setHarvestDate(e.target.value)}
+                onChange={(e) => { clearError("harvestDate"); setHarvestDate(e.target.value); }}
+                className={cn(errors.harvestDate && "border-red-500")}
                 required
               />
+              {errors.harvestDate && <p className="text-xs text-red-600">{errors.harvestDate}</p>}
             </div>
             <div className="space-y-2">
               <Label htmlFor="dateReceived">Date Received *</Label>
@@ -144,40 +148,46 @@ export function LotForm() {
                 name="dateReceived"
                 type="date"
                 value={dateReceived}
-                onChange={(e) => setDateReceived(e.target.value)}
+                onChange={(e) => { clearError("dateReceived"); setDateReceived(e.target.value); }}
+                className={cn(errors.dateReceived && "border-red-500")}
                 max={today}
                 required
               />
+              {errors.dateReceived && <p className="text-xs text-red-600">{errors.dateReceived}</p>}
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="huskCount">Husk Count *</Label>
               <Input
                 id="huskCount"
+                name="huskCount"
                 type="number"
                 min={1}
                 value={huskCount || ""}
-                onChange={(e) => setHuskCount(parseInt(e.target.value) || 0)}
+                onChange={(e) => { clearError("huskCount"); setHuskCount(parseInt(e.target.value) || 0); }}
+                className={cn(errors.huskCount && "border-red-500")}
                 onWheel={(e) => e.currentTarget.blur()}
                 required
               />
+              {errors.huskCount && <p className="text-xs text-red-600">{errors.huskCount}</p>}
             </div>
             <div className="space-y-2">
               <Label htmlFor="perHuskRate">Per-Husk Rate (LKR) *</Label>
               <Input
                 id="perHuskRate"
+                name="perHuskRate"
                 type="number"
                 min={0.01}
                 step={0.01}
                 value={perHuskRate || ""}
-                onChange={(e) =>
-                  setPerHuskRate(parseFloat(e.target.value) || 0)
-                }
+                onChange={(e) => { clearError("perHuskRate"); setPerHuskRate(parseFloat(e.target.value) || 0); }}
+                className={cn(errors.perHuskRate && "border-red-500")}
                 onWheel={(e) => e.currentTarget.blur()}
                 required
               />
+              {errors.perHuskRate && <p className="text-xs text-red-600">{errors.perHuskRate}</p>}
             </div>
           </div>
 

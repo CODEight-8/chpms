@@ -90,7 +90,7 @@ export default async function DashboardPage() {
       <PageHeader title="Dashboard" description="Business overview at a glance" />
 
       {/* Operational KPI Cards — visible to all roles */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <SummaryCard
           title="Lots in Audit"
           value={data.kpis.lotsInAudit}

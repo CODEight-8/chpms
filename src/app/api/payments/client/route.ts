@@ -24,6 +24,20 @@ export async function POST(request: NextRequest) {
     return errorResponse(parsed.error.issues[0].message);
   }
 
+  // Validate order belongs to the specified client
+  if (parsed.data.orderId) {
+    const order = await prisma.order.findUnique({
+      where: { id: parsed.data.orderId },
+      select: { id: true, clientId: true },
+    });
+    if (!order) {
+      return errorResponse("Order not found", 404);
+    }
+    if (order.clientId !== parsed.data.clientId) {
+      return errorResponse("Order does not belong to the specified client");
+    }
+  }
+
   const payment = await prisma.clientPayment.create({
     data: {
       clientId: parsed.data.clientId,
