@@ -126,12 +126,12 @@ export default async function AccountsPage({
 
       {/* Payment Tabs */}
       <Tabs defaultValue="out" className="space-y-4">
-        <div className="flex items-center justify-between">
-          <TabsList>
-            <TabsTrigger value="out">
+        <div className="space-y-3">
+          <TabsList className="w-full sm:w-auto">
+            <TabsTrigger value="out" className="flex-1 sm:flex-none">
               Money Out ({supplierPayments.length})
             </TabsTrigger>
-            <TabsTrigger value="in">
+            <TabsTrigger value="in" className="flex-1 sm:flex-none">
               Money In ({clientPayments.length})
             </TabsTrigger>
           </TabsList>

@@ -190,7 +190,7 @@ export function OrderForm() {
     loading || loadingData || !clientId || !orderDate || !hasValidItems;
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="space-y-6 max-w-lg">
+    <form onSubmit={handleSubmit} noValidate className="space-y-6 max-w-2xl mx-auto">
       {/* Client & Dates */}
       <Card>
         <CardContent className="pt-6 space-y-4">

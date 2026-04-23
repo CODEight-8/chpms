@@ -193,7 +193,7 @@ export function BatchForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="space-y-6">
+    <form onSubmit={handleSubmit} noValidate className="space-y-6 max-w-2xl mx-auto">
       {/* Product Info & Chip Size */}
       <Card>
         <CardContent className="pt-6 space-y-4">

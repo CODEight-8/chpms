@@ -151,7 +151,7 @@ export function SupplierForm({ defaultValues }: SupplierFormProps) {
   return (
     <Card>
       <CardContent className="pt-6">
-        <form onSubmit={handleSubmit} noValidate className="space-y-6">
+        <form onSubmit={handleSubmit} noValidate className="space-y-6 max-w-2xl mx-auto">
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
             <div className="space-y-4">
               <div className="space-y-2">

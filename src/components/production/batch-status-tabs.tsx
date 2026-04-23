@@ -32,7 +32,7 @@ export function BatchStatusTabs({ counts }: BatchStatusTabsProps) {
   const totalCount = Object.values(counts).reduce((a, b) => a + b, 0);
 
   return (
-    <div className="flex flex-wrap gap-1 rounded-lg bg-muted p-1">
+    <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-1 rounded-lg bg-muted p-1">
       {STATUS_TABS.map((tab) => {
         const count = tab.value ? counts[tab.value] || 0 : totalCount;
         const isActive = currentStatus === tab.value;
@@ -42,7 +42,7 @@ export function BatchStatusTabs({ counts }: BatchStatusTabsProps) {
             key={tab.value}
             onClick={() => handleTabClick(tab.value)}
             className={cn(
-              "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+              "rounded-md px-2 py-1.5 text-xs sm:text-sm sm:px-3 font-medium transition-colors text-center",
               isActive
                 ? "bg-background text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"

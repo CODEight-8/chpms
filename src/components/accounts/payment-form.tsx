@@ -121,9 +121,9 @@ export function PaymentForm({ type }: PaymentFormProps) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="bg-emerald-700 hover:bg-emerald-800 gap-2">
+        <Button className="bg-emerald-700 hover:bg-emerald-800 gap-2" size="sm">
           <Plus className="h-4 w-4" />
-          Record {type === "supplier" ? "Payment Out" : "Payment In"}
+          <span className="hidden sm:inline">Record</span> {type === "supplier" ? "Payment Out" : "Payment In"}
         </Button>
       </DialogTrigger>
       <DialogContent>

@@ -127,7 +127,7 @@ export function ClientForm({ defaultValues }: ClientFormProps) {
   return (
     <Card>
       <CardContent className="pt-6">
-        <form onSubmit={handleSubmit} noValidate className="space-y-4 max-w-lg">
+        <form onSubmit={handleSubmit} noValidate className="space-y-4 max-w-2xl mx-auto">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="name">Client Name *</Label>

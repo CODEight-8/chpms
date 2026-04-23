@@ -109,7 +109,7 @@ export function LotForm() {
   return (
     <Card>
       <CardContent className="pt-6">
-        <form onSubmit={handleSubmit} noValidate className="space-y-5 max-w-lg">
+        <form onSubmit={handleSubmit} noValidate className="space-y-5 max-w-2xl mx-auto">
           <div className="space-y-2">
             <Label>Supplier *</Label>
             <Select value={supplierId} onValueChange={setSupplierId} required disabled={loadingSuppliers}>

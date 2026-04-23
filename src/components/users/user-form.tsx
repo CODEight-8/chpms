@@ -83,7 +83,7 @@ export function UserForm({ defaultValues }: UserFormProps) {
   return (
     <Card>
       <CardContent className="pt-6">
-        <form onSubmit={handleSubmit} noValidate className="space-y-4 max-w-lg">
+        <form onSubmit={handleSubmit} noValidate className="space-y-4 max-w-2xl mx-auto">
           <div className="space-y-2">
             <Label htmlFor="name">Full Name *</Label>
             <Input
