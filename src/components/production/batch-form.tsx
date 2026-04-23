@@ -6,7 +6,6 @@ import { useFieldErrors } from "@/lib/use-field-errors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -50,7 +49,7 @@ interface SelectedLot {
 export function BatchForm() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const { errors, validate } = useFieldErrors();
+  const { validate } = useFieldErrors();
   const [product, setProduct] = useState<Product | null>(null);
   const [chipSize, setChipSize] = useState("");
   const [availableLots, setAvailableLots] = useState<AvailableLot[]>([]);

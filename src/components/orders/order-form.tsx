@@ -6,7 +6,6 @@ import { useFieldErrors } from "@/lib/use-field-errors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -44,7 +43,7 @@ const CHIP_SIZES = ["5mm", "10mm", "15mm", "20mm", "25mm"];
 export function OrderForm() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const { errors, validate, clearError } = useFieldErrors();
+  const { validate } = useFieldErrors();
   const [loadingData, setLoadingData] = useState(true);
   const [clients, setClients] = useState<Client[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
