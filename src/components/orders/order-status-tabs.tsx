@@ -5,7 +5,6 @@ import { cn } from "@/lib/utils";
 
 const STATUS_TABS = [
   { value: "", label: "All" },
-  { value: "PENDING", label: "Pending" },
   { value: "CONFIRMED", label: "Confirmed" },
   { value: "FULFILLED", label: "Fulfilled" },
   { value: "DISPATCHED", label: "Dispatched" },

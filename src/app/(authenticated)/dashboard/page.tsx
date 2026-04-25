@@ -30,7 +30,8 @@ import {
 import {
   ClipboardCheck,
   CheckCircle,
-  Clock,
+  AlertTriangle,
+  AlertCircle,
 } from "lucide-react";
 
 export default async function DashboardPage() {
@@ -102,16 +103,109 @@ export default async function DashboardPage() {
           icon={CheckCircle}
         />
         <SummaryCard
-          title="Pending Orders"
-          value={data.kpis.pendingOrders}
-          icon={Clock}
+          title="Overdue Orders"
+          value={data.kpis.overdueOrders}
+          icon={AlertTriangle}
         />
         <SummaryCard
-          title="Confirmed Orders"
-          value={data.kpis.confirmedOrders}
-          icon={CheckCircle}
+          title="Due Soon"
+          value={data.kpis.closeToOverdueOrders}
+          icon={AlertCircle}
         />
       </div>
+
+      {/* Overdue & Close-to-Overdue Orders */}
+      {(data.overdueOrders.length > 0 || data.closeToOverdueOrders.length > 0) && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          {data.overdueOrders.length > 0 && (
+            <Card className="border-red-200">
+              <CardHeader>
+                <CardTitle className="text-lg text-red-700 flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5" />
+                  Overdue Orders ({data.overdueOrders.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {data.overdueOrders.slice(0, 10).map((order) => (
+                    <div
+                      key={order.id}
+                      className="flex items-center justify-between text-sm border-b pb-2"
+                    >
+                      <div>
+                        <Link
+                          href={`/orders/${order.id}`}
+                          className="font-mono text-emerald-700 hover:underline"
+                        >
+                          {order.orderNumber}
+                        </Link>
+                        <p className="text-xs text-gray-500">
+                          {order.client.name} &mdash; Due{" "}
+                          {order.expectedDelivery
+                            ? new Date(order.expectedDelivery).toLocaleDateString("en-LK")
+                            : "N/A"}
+                        </p>
+                      </div>
+                      <StatusBadge
+                        status={
+                          order.status === "CONFIRMED" &&
+                          order.items.some((i) => Number(i.quantityFulfilled) > 0)
+                            ? "PARTIALLY_FULFILLED"
+                            : order.status
+                        }
+                      />
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {data.closeToOverdueOrders.length > 0 && (
+            <Card className="border-yellow-200">
+              <CardHeader>
+                <CardTitle className="text-lg text-yellow-700 flex items-center gap-2">
+                  <AlertCircle className="h-5 w-5" />
+                  Due Soon ({data.closeToOverdueOrders.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {data.closeToOverdueOrders.slice(0, 10).map((order) => (
+                    <div
+                      key={order.id}
+                      className="flex items-center justify-between text-sm border-b pb-2"
+                    >
+                      <div>
+                        <Link
+                          href={`/orders/${order.id}`}
+                          className="font-mono text-emerald-700 hover:underline"
+                        >
+                          {order.orderNumber}
+                        </Link>
+                        <p className="text-xs text-gray-500">
+                          {order.client.name} &mdash; Due{" "}
+                          {order.expectedDelivery
+                            ? new Date(order.expectedDelivery).toLocaleDateString("en-LK")
+                            : "N/A"}
+                        </p>
+                      </div>
+                      <StatusBadge
+                        status={
+                          order.status === "CONFIRMED" &&
+                          order.items.some((i) => Number(i.quantityFulfilled) > 0)
+                            ? "PARTIALLY_FULFILLED"
+                            : order.status
+                        }
+                      />
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
 
       {/* Financial Overview — OWNER only */}
       {isOwner && <FinancialOverview />}

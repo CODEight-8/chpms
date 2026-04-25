@@ -45,7 +45,6 @@ enum BatchQualityGrade {
 }
 
 enum OrderStatus {
-  PENDING
   CONFIRMED
   FULFILLED
   DISPATCHED
@@ -84,6 +83,7 @@ model Supplier {
   bankName      String?  @map("bank_name")
   branchName    String?  @map("branch_name")
   accountNumber String?  @map("account_number")
+  remarks       String?
   isActive      Boolean  @default(true) @map("is_active")
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
@@ -182,8 +182,10 @@ model Client {
   phone        String?
   email        String?
   address      String?
-  paymentTerms String?  @map("payment_terms")
-  isActive     Boolean  @default(true) @map("is_active")
+  paymentMethod String?  @map("payment_method")
+  paymentTerms  String?  @map("payment_terms")
+  remarks       String?
+  isActive      Boolean  @default(true) @map("is_active")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
@@ -196,10 +198,11 @@ model Client {
 model Order {
   id               String      @id @default(uuid())
   orderNumber      String      @unique @map("order_number")
+  invoiceNumber    String      @unique @map("invoice_number")
   clientId         String      @map("client_id")
   orderDate        DateTime    @map("order_date") @db.Date
   expectedDelivery DateTime?   @map("expected_delivery") @db.Date
-  status           OrderStatus @default(PENDING)
+  status           OrderStatus @default(CONFIRMED)
   notes            String?
   createdAt        DateTime    @default(now()) @map("created_at")
   updatedAt        DateTime    @updatedAt @map("updated_at")
@@ -244,6 +247,7 @@ model OrderFulfillment {
 
 model SupplierPayment {
   id            String        @id @default(uuid())
+  receiptNumber String        @unique @map("receipt_number")
   supplierId    String        @map("supplier_id")
   supplierLotId String?       @map("supplier_lot_id")
   amount        Decimal       @db.Decimal(12, 2)
@@ -262,6 +266,7 @@ model SupplierPayment {
 
 model ClientPayment {
   id            String        @id @default(uuid())
+  receiptNumber String        @unique @map("receipt_number")
   clientId      String        @map("client_id")
   orderId       String?       @map("order_id")
   amount        Decimal       @db.Decimal(12, 2)

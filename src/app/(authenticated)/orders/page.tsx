@@ -20,7 +20,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { SearchInput } from "@/components/shared/search-input";
-import { Plus, ShoppingCart, CheckCircle, Truck, Clock } from "lucide-react";
+import { Plus, ShoppingCart, CheckCircle, Truck, AlertTriangle } from "lucide-react";
 
 export default async function OrdersPage({
   searchParams,
@@ -56,18 +56,18 @@ export default async function OrdersPage({
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <SummaryCard title="Pending" value={counts.PENDING} icon={Clock} />
         <SummaryCard
           title="Confirmed"
-          value={counts.CONFIRMED}
+          value={counts.CONFIRMED || 0}
           icon={CheckCircle}
         />
         <SummaryCard
           title="Fulfilled"
-          value={counts.FULFILLED}
+          value={counts.FULFILLED || 0}
           icon={ShoppingCart}
         />
-        <SummaryCard title="Dispatched" value={counts.DISPATCHED} icon={Truck} />
+        <SummaryCard title="Dispatched" value={counts.DISPATCHED || 0} icon={Truck} />
+        <SummaryCard title="Cancelled" value={counts.CANCELLED || 0} icon={AlertTriangle} />
       </div>
 
       <div className="mb-4 flex flex-col gap-3">

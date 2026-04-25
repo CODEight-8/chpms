@@ -66,6 +66,7 @@ export async function getClientsWithStats(filters?: ClientFilters) {
       phone: client.phone,
       email: client.email,
       address: client.address,
+      paymentMethod: client.paymentMethod,
       paymentTerms: client.paymentTerms,
       isActive: client.isActive,
       createdAt: client.createdAt,

@@ -12,6 +12,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { formatLKR } from "@/lib/currency";
 import { PackageCheck, AlertTriangle, Plus, Trash2 } from "lucide-react";
 
 interface FulfillFormProps {
@@ -29,6 +30,7 @@ interface CompletedBatch {
   chipSize: string | null;
   outputQuantity: string;
   outputUnit: string;
+  totalRawCost: string;
 }
 
 interface BatchAllocation {
@@ -72,6 +74,17 @@ export function FulfillForm({
   const totalAllocated = useMemo(
     () => allocations.reduce((sum, a) => sum + a.quantity, 0),
     [allocations]
+  );
+
+  const totalAllocatedCost = useMemo(
+    () =>
+      allocations.reduce((sum, a) => {
+        const batch = batches.find((b) => b.id === a.batchId);
+        if (!batch) return sum;
+        const output = Number(batch.outputQuantity) || 1;
+        return sum + (a.quantity / output) * Number(batch.totalRawCost);
+      }, 0),
+    [allocations, batches]
   );
 
   const isShortage = totalAvailable < remaining;
@@ -210,6 +223,9 @@ export function FulfillForm({
                   {allocations.map((alloc) => {
                     const batch = getBatch(alloc.batchId);
                     if (!batch) return null;
+                    const output = Number(batch.outputQuantity) || 1;
+                    const allocCost =
+                      (alloc.quantity / output) * Number(batch.totalRawCost);
                     return (
                       <div
                         key={alloc.batchId}
@@ -227,6 +243,9 @@ export function FulfillForm({
                           <p className="text-xs text-gray-500">
                             {Number(batch.outputQuantity).toLocaleString()}{" "}
                             {batch.outputUnit} available
+                            <span className="ml-2 text-orange-600 font-medium">
+                              Cost: {formatLKR(allocCost)}
+                            </span>
                           </p>
                         </div>
                         <div className="w-24">
@@ -261,22 +280,32 @@ export function FulfillForm({
                   })}
 
                   {/* Total allocated bar */}
-                  <div className="flex justify-between items-center p-2 bg-gray-50 rounded-lg border">
-                    <span className="text-sm font-medium text-gray-600">
-                      Total Allocated
-                    </span>
-                    <span
-                      className={`text-sm font-bold ${
-                        totalAllocated > remaining
-                          ? "text-red-600"
-                          : totalAllocated === remaining
-                          ? "text-green-600"
-                          : "text-orange-600"
-                      }`}
-                    >
-                      {totalAllocated.toLocaleString()} / {remaining.toLocaleString()}{" "}
-                      {unit}
-                    </span>
+                  <div className="p-2 bg-gray-50 rounded-lg border space-y-1">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium text-gray-600">
+                        Total Allocated
+                      </span>
+                      <span
+                        className={`text-sm font-bold ${
+                          totalAllocated > remaining
+                            ? "text-red-600"
+                            : totalAllocated === remaining
+                            ? "text-green-600"
+                            : "text-orange-600"
+                        }`}
+                      >
+                        {totalAllocated.toLocaleString()} / {remaining.toLocaleString()}{" "}
+                        {unit}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-500">
+                        Production Cost
+                      </span>
+                      <span className="text-xs font-medium text-orange-600">
+                        {formatLKR(totalAllocatedCost)}
+                      </span>
+                    </div>
                   </div>
                 </div>
               )}
@@ -290,32 +319,41 @@ export function FulfillForm({
                       : "Add Another Batch"}
                   </p>
                   <div className="space-y-1 max-h-40 overflow-y-auto border rounded-lg">
-                    {availableBatches.map((b) => (
-                      <button
-                        key={b.id}
-                        type="button"
-                        onClick={() => addBatch(b.id)}
-                        className="w-full flex items-center justify-between p-2 hover:bg-emerald-50 text-left transition-colors"
-                      >
-                        <div>
-                          <span className="text-sm font-mono font-medium">
-                            {b.batchNumber}
-                          </span>
-                          {b.chipSize && (
-                            <span className="text-xs text-blue-600 ml-1">
-                              [{b.chipSize}]
+                    {availableBatches.map((b) => {
+                      const costPerUnit =
+                        Number(b.outputQuantity) > 0
+                          ? Number(b.totalRawCost) / Number(b.outputQuantity)
+                          : 0;
+                      return (
+                        <button
+                          key={b.id}
+                          type="button"
+                          onClick={() => addBatch(b.id)}
+                          className="w-full flex items-center justify-between p-2 hover:bg-emerald-50 text-left transition-colors"
+                        >
+                          <div>
+                            <span className="text-sm font-mono font-medium">
+                              {b.batchNumber}
                             </span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-gray-500">
-                            {Number(b.outputQuantity).toLocaleString()}{" "}
-                            {b.outputUnit}
-                          </span>
-                          <Plus className="h-3.5 w-3.5 text-emerald-600" />
-                        </div>
-                      </button>
-                    ))}
+                            {b.chipSize && (
+                              <span className="text-xs text-blue-600 ml-1">
+                                [{b.chipSize}]
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs text-gray-400">
+                              {formatLKR(costPerUnit)}/{b.outputUnit}
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              {Number(b.outputQuantity).toLocaleString()}{" "}
+                              {b.outputUnit}
+                            </span>
+                            <Plus className="h-3.5 w-3.5 text-emerald-600" />
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}

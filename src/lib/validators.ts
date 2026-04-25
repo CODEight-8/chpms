@@ -3,7 +3,7 @@ import {
   BANK_DETAILS_ACCOUNT_REGEX,
   BANK_DETAILS_NAME_REGEX,
 } from "@/lib/bank-details";
-import { CLIENT_PAYMENT_TERMS } from "@/lib/client-payment-terms";
+import { CLIENT_PAYMENT_METHODS, CLIENT_PAYMENT_TERMS } from "@/lib/client-payment-terms";
 
 export const PHONE_ALLOWED_REGEX = /^\+?[\d\s()-]+$/;
 
@@ -83,6 +83,7 @@ export const supplierSchema = z.object({
   bankName: bankTextFieldSchema,
   branchName: bankTextFieldSchema,
   accountNumber: accountNumberSchema,
+  remarks: z.string().max(2000).optional().or(z.literal("")),
 }).superRefine((data, ctx) => {
   const bankName = data.bankName?.trim() || "";
   const branchName = data.branchName?.trim() || "";
@@ -165,6 +166,16 @@ export const clientSchema = z.object({
     .email("Email must be a valid email address")
     .max(200),
   address: z.string().max(500).optional(),
+  paymentMethod: z
+    .string()
+    .min(1, "Payment method is required")
+    .refine(
+      (value) =>
+        CLIENT_PAYMENT_METHODS.includes(
+          value as (typeof CLIENT_PAYMENT_METHODS)[number]
+        ),
+      { message: "Payment method is required" }
+    ),
   paymentTerms: z
     .string()
     .min(1, "Payment terms is required")
@@ -175,6 +186,7 @@ export const clientSchema = z.object({
         ),
       { message: "Payment terms is required" }
     ),
+  remarks: z.string().max(2000).optional().or(z.literal("")),
 });
 
 export const orderSchema = z.object({

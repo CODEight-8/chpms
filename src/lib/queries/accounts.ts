@@ -177,3 +177,105 @@ export async function getOutstandingClients() {
     .filter((c) => c.outstanding > 0)
     .sort((a, b) => b.outstanding - a.outstanding);
 }
+
+export async function getSupplierPaymentDetail(id: string) {
+  const payment = await prisma.supplierPayment.findUnique({
+    where: { id },
+    include: {
+      supplier: true,
+      supplierLot: {
+        select: {
+          id: true,
+          lotNumber: true,
+          invoiceNumber: true,
+          totalCost: true,
+          huskCount: true,
+          perHuskRate: true,
+        },
+      },
+    },
+  });
+
+  if (!payment) return null;
+
+  // Get sibling payments on the same lot for balance calculation
+  let lotTotalPaid = 0;
+  let previouslyPaid = 0;
+  if (payment.supplierLotId) {
+    const siblingPayments = await prisma.supplierPayment.findMany({
+      where: { supplierLotId: payment.supplierLotId },
+      select: { id: true, amount: true, paymentDate: true },
+      orderBy: { paymentDate: "asc" },
+    });
+    for (const p of siblingPayments) {
+      lotTotalPaid += Number(p.amount);
+      if (p.id !== payment.id && p.paymentDate <= payment.paymentDate) {
+        previouslyPaid += Number(p.amount);
+      }
+    }
+  }
+
+  return {
+    ...payment,
+    lotTotalPaid,
+    previouslyPaid,
+    remainingBalance: payment.supplierLot
+      ? Number(payment.supplierLot.totalCost) - lotTotalPaid
+      : null,
+  };
+}
+
+export async function getClientPaymentDetail(id: string) {
+  const payment = await prisma.clientPayment.findUnique({
+    where: { id },
+    include: {
+      client: true,
+      order: {
+        include: {
+          items: {
+            select: {
+              quantityOrdered: true,
+              unitPrice: true,
+              product: { select: { name: true, unit: true } },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!payment) return null;
+
+  // Calculate order total
+  const orderTotal = payment.order
+    ? payment.order.items.reduce(
+        (sum, i) => sum + Number(i.quantityOrdered) * Number(i.unitPrice),
+        0
+      )
+    : null;
+
+  // Get sibling payments on the same order for balance calculation
+  let orderTotalPaid = 0;
+  let previouslyPaid = 0;
+  if (payment.orderId) {
+    const siblingPayments = await prisma.clientPayment.findMany({
+      where: { orderId: payment.orderId },
+      select: { id: true, amount: true, paymentDate: true },
+      orderBy: { paymentDate: "asc" },
+    });
+    for (const p of siblingPayments) {
+      orderTotalPaid += Number(p.amount);
+      if (p.id !== payment.id && p.paymentDate <= payment.paymentDate) {
+        previouslyPaid += Number(p.amount);
+      }
+    }
+  }
+
+  return {
+    ...payment,
+    orderTotal,
+    orderTotalPaid,
+    previouslyPaid,
+    remainingBalance: orderTotal !== null ? orderTotal - orderTotalPaid : null,
+  };
+}

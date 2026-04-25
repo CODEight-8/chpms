@@ -24,30 +24,28 @@ import {
 import { toast } from "sonner";
 import { Plus } from "lucide-react";
 
-interface LotOption {
-  id: string;
-  lotNumber: string;
-  invoiceNumber: string;
-  outstanding: number;
+interface RecordClientPaymentProps {
+  clientId: string;
+  clientName: string;
+  orders?: Array<{
+    id: string;
+    orderNumber: string;
+    invoiceNumber: string;
+    outstanding: number;
+  }>;
 }
 
-interface RecordSupplierPaymentProps {
-  supplierId: string;
-  supplierName: string;
-  lots?: LotOption[];
-}
-
-export function RecordSupplierPayment({
-  supplierId,
-  supplierName,
-  lots,
-}: RecordSupplierPaymentProps) {
+export function RecordClientPayment({
+  clientId,
+  clientName,
+  orders,
+}: RecordClientPaymentProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const { validate } = useFieldErrors();
   const [method, setMethod] = useState("CASH");
-  const [selectedLotId, setSelectedLotId] = useState("");
+  const [selectedOrderId, setSelectedOrderId] = useState("");
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -60,8 +58,8 @@ export function RecordSupplierPayment({
 
     const form = new FormData(e.currentTarget);
     const data = {
-      supplierId,
-      supplierLotId: selectedLotId || undefined,
+      clientId,
+      orderId: selectedOrderId || undefined,
       amount: parseFloat(form.get("amount") as string),
       paymentDate: form.get("paymentDate") as string,
       paymentMethod: method,
@@ -70,7 +68,7 @@ export function RecordSupplierPayment({
     };
 
     try {
-      const res = await fetch("/api/payments/supplier", {
+      const res = await fetch("/api/payments/client", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -83,7 +81,7 @@ export function RecordSupplierPayment({
 
       toast.success("Payment recorded");
       setOpen(false);
-      setSelectedLotId("");
+      setSelectedOrderId("");
       router.refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong");
@@ -93,34 +91,34 @@ export function RecordSupplierPayment({
   }
 
   const today = new Date().toISOString().split("T")[0];
-  const selectedLot = lots?.find((l) => l.id === selectedLotId);
+  const selectedOrder = orders?.find((o) => o.id === selectedOrderId);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button size="sm" className="bg-emerald-700 hover:bg-emerald-800 gap-1.5">
           <Plus className="h-3.5 w-3.5" />
-          Record Payment
+          <span className="hidden sm:inline">Record</span> Payment
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Record Payment to {supplierName}</DialogTitle>
+          <DialogTitle>Record Payment from {clientName}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} noValidate className="space-y-4">
-          {lots && lots.length > 0 && (
+          {orders && orders.length > 0 && (
             <div className="space-y-2">
-              <Label>Link to Lot (Invoice)</Label>
-              <Select value={selectedLotId} onValueChange={setSelectedLotId}>
+              <Label>Link to Order (Invoice)</Label>
+              <Select value={selectedOrderId} onValueChange={setSelectedOrderId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select lot (optional)" />
+                  <SelectValue placeholder="Select order (optional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No specific lot</SelectItem>
-                  {lots.map((lot) => (
-                    <SelectItem key={lot.id} value={lot.id}>
-                      {lot.invoiceNumber} — Outstanding:{" "}
-                      {lot.outstanding.toLocaleString("en-LK", {
+                  <SelectItem value="">No specific order</SelectItem>
+                  {orders.map((order) => (
+                    <SelectItem key={order.id} value={order.id}>
+                      {order.invoiceNumber} — Outstanding:{" "}
+                      {order.outstanding.toLocaleString("en-LK", {
                         style: "currency",
                         currency: "LKR",
                       })}
@@ -128,9 +126,9 @@ export function RecordSupplierPayment({
                   ))}
                 </SelectContent>
               </Select>
-              {selectedLot && (
+              {selectedOrder && (
                 <p className="text-xs text-orange-600">
-                  Outstanding: LKR {selectedLot.outstanding.toLocaleString()}
+                  Outstanding: LKR {selectedOrder.outstanding.toLocaleString()}
                 </p>
               )}
             </div>

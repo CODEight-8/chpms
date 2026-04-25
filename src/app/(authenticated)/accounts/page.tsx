@@ -62,6 +62,7 @@ export default async function AccountsPage({
 
   // Flatten for CSV export
   const supplierCsvData = supplierPayments.map((p) => ({
+    receipt: p.receiptNumber,
     date: new Date(p.paymentDate).toLocaleDateString("en-LK"),
     supplier: p.supplier.name,
     lot: p.supplierLot ? `${p.supplierLot.lotNumber} / ${p.supplierLot.invoiceNumber}` : "",
@@ -72,6 +73,7 @@ export default async function AccountsPage({
   }));
 
   const clientCsvData = clientPayments.map((p) => ({
+    receipt: p.receiptNumber,
     date: new Date(p.paymentDate).toLocaleDateString("en-LK"),
     client: p.client.name,
     order: p.order?.orderNumber || "",
@@ -155,6 +157,7 @@ export default async function AccountsPage({
                   data={supplierCsvData}
                   filename="supplier-payments"
                   columns={[
+                    { key: "receipt", header: "Receipt #" },
                     { key: "date", header: "Date" },
                     { key: "supplier", header: "Supplier" },
                     { key: "lot", header: "Lot / Invoice" },
@@ -175,18 +178,25 @@ export default async function AccountsPage({
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead>Receipt #</TableHead>
                       <TableHead>Date</TableHead>
                       <TableHead>Supplier</TableHead>
                       <TableHead>Lot / Invoice</TableHead>
                       <TableHead>Method</TableHead>
-                      <TableHead>Reference</TableHead>
                       <TableHead className="text-right">Amount</TableHead>
-                      <TableHead>Notes</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {supplierPayments.map((p) => (
                       <TableRow key={p.id}>
+                        <TableCell>
+                          <Link
+                            href={`/payments/supplier/${p.id}/receipt`}
+                            className="font-mono text-xs text-emerald-700 hover:underline"
+                          >
+                            {p.receiptNumber}
+                          </Link>
+                        </TableCell>
                         <TableCell>
                           {new Date(p.paymentDate).toLocaleDateString("en-LK")}
                         </TableCell>
@@ -204,14 +214,8 @@ export default async function AccountsPage({
                             : "\u2014"}
                         </TableCell>
                         <TableCell>{p.paymentMethod}</TableCell>
-                        <TableCell className="text-gray-600">
-                          {p.reference || "\u2014"}
-                        </TableCell>
                         <TableCell className="text-right font-medium text-red-600">
                           {formatLKR(p.amount)}
-                        </TableCell>
-                        <TableCell className="text-gray-500 text-sm max-w-32 truncate">
-                          {p.notes || "\u2014"}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -234,6 +238,7 @@ export default async function AccountsPage({
                   data={clientCsvData}
                   filename="client-payments"
                   columns={[
+                    { key: "receipt", header: "Receipt #" },
                     { key: "date", header: "Date" },
                     { key: "client", header: "Client" },
                     { key: "order", header: "Order #" },
@@ -254,18 +259,25 @@ export default async function AccountsPage({
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead>Receipt #</TableHead>
                       <TableHead>Date</TableHead>
                       <TableHead>Client</TableHead>
                       <TableHead>Order #</TableHead>
                       <TableHead>Method</TableHead>
-                      <TableHead>Reference</TableHead>
                       <TableHead className="text-right">Amount</TableHead>
-                      <TableHead>Notes</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {clientPayments.map((p) => (
                       <TableRow key={p.id}>
+                        <TableCell>
+                          <Link
+                            href={`/payments/client/${p.id}/receipt`}
+                            className="font-mono text-xs text-emerald-700 hover:underline"
+                          >
+                            {p.receiptNumber}
+                          </Link>
+                        </TableCell>
                         <TableCell>
                           {new Date(p.paymentDate).toLocaleDateString("en-LK")}
                         </TableCell>
@@ -285,14 +297,8 @@ export default async function AccountsPage({
                           {p.order?.orderNumber || "\u2014"}
                         </TableCell>
                         <TableCell>{p.paymentMethod}</TableCell>
-                        <TableCell className="text-gray-600">
-                          {p.reference || "\u2014"}
-                        </TableCell>
                         <TableCell className="text-right font-medium text-green-600">
                           {formatLKR(p.amount)}
-                        </TableCell>
-                        <TableCell className="text-gray-500 text-sm max-w-32 truncate">
-                          {p.notes || "\u2014"}
                         </TableCell>
                       </TableRow>
                     ))}

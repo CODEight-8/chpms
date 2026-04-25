@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { orderSchema } from "@/lib/validators";
 import { requireAuth, errorResponse, jsonResponse } from "@/lib/api-helpers";
-import { generateOrderNumber } from "@/lib/id-generators";
+import { generateOrderNumber, generateOrderInvoiceNumber } from "@/lib/id-generators";
 import { getOrdersWithDetails, getOrderStatusCounts } from "@/lib/queries/orders";
 import { OrderStatus } from "@prisma/client";
 import { logAuditEvent } from "@/lib/audit-log";
@@ -69,10 +69,12 @@ export async function POST(request: NextRequest) {
   }
 
   const orderNumber = await generateOrderNumber();
+  const invoiceNumber = generateOrderInvoiceNumber(orderNumber);
 
   const order = await prisma.order.create({
     data: {
       orderNumber,
+      invoiceNumber,
       clientId,
       orderDate: new Date(orderDate),
       expectedDelivery: expectedDelivery ? new Date(expectedDelivery) : null,

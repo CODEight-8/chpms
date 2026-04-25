@@ -38,3 +38,25 @@ export async function generateOrderNumber(): Promise<string> {
   const seq = String(count + 1).padStart(3, "0");
   return `${prefix}-${seq}`;
 }
+
+export function generateOrderInvoiceNumber(orderNumber: string): string {
+  return `INV-${orderNumber}`;
+}
+
+export async function generateSupplierReceiptNumber(): Promise<string> {
+  const prefix = `REC-S-${todayPrefix()}`;
+  const count = await prisma.supplierPayment.count({
+    where: { receiptNumber: { startsWith: prefix } },
+  });
+  const seq = String(count + 1).padStart(3, "0");
+  return `${prefix}-${seq}`;
+}
+
+export async function generateClientReceiptNumber(): Promise<string> {
+  const prefix = `REC-C-${todayPrefix()}`;
+  const count = await prisma.clientPayment.count({
+    where: { receiptNumber: { startsWith: prefix } },
+  });
+  const seq = String(count + 1).padStart(3, "0");
+  return `${prefix}-${seq}`;
+}

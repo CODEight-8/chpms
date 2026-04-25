@@ -15,7 +15,6 @@ const BATCH_TRANSITIONS: Record<BatchStatus, BatchStatus[]> = {
 };
 
 const ORDER_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
-  PENDING: [OrderStatus.CONFIRMED, OrderStatus.CANCELLED],
   CONFIRMED: [OrderStatus.FULFILLED, OrderStatus.CANCELLED],
   FULFILLED: [OrderStatus.DISPATCHED, OrderStatus.CANCELLED],
   DISPATCHED: [],

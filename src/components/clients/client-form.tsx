@@ -3,7 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  CLIENT_PAYMENT_METHODS,
   CLIENT_PAYMENT_TERMS,
+  isClientPaymentMethod,
   isClientPaymentTerm,
 } from "@/lib/client-payment-terms";
 import { PHONE_ALLOWED_REGEX } from "@/lib/validators";
@@ -24,7 +26,9 @@ interface ClientFormProps {
     phone: string | null;
     email: string | null;
     address: string | null;
+    paymentMethod: string | null;
     paymentTerms: string | null;
+    remarks: string | null;
   };
 }
 
@@ -54,6 +58,9 @@ export function ClientForm({ defaultValues }: ClientFormProps) {
   const isEdit = !!defaultValues?.id;
   const [loading, setLoading] = useState(false);
   const { errors, validate, clearError } = useFieldErrors();
+  const initialPaymentMethod = isClientPaymentMethod(defaultValues?.paymentMethod)
+    ? defaultValues.paymentMethod
+    : "";
   const initialPaymentTerms = isClientPaymentTerm(defaultValues?.paymentTerms)
     ? defaultValues.paymentTerms
     : "";
@@ -63,7 +70,9 @@ export function ClientForm({ defaultValues }: ClientFormProps) {
     phone: defaultValues?.phone || "",
     email: defaultValues?.email || "",
     address: defaultValues?.address || "",
+    paymentMethod: initialPaymentMethod,
     paymentTerms: initialPaymentTerms,
+    remarks: defaultValues?.remarks || "",
   };
   const [fields, setFields] = useState(initialFields);
   const phonePattern = PHONE_ALLOWED_REGEX.source;
@@ -72,13 +81,16 @@ export function ClientForm({ defaultValues }: ClientFormProps) {
     fields.phone.trim() !== initialFields.phone.trim() ||
     fields.email.trim() !== initialFields.email.trim() ||
     fields.address.trim() !== initialFields.address.trim() ||
-    fields.paymentTerms.trim() !== initialFields.paymentTerms.trim();
+    fields.paymentMethod.trim() !== initialFields.paymentMethod.trim() ||
+    fields.paymentTerms.trim() !== initialFields.paymentTerms.trim() ||
+    fields.remarks.trim() !== initialFields.remarks.trim();
   const isSubmitDisabled =
     loading ||
     !fields.name.trim() ||
     !fields.companyName.trim() ||
     !fields.phone.trim() ||
     !fields.email.trim() ||
+    !fields.paymentMethod.trim() ||
     !fields.paymentTerms.trim() ||
     (isEdit && !hasChanges);
 
@@ -97,7 +109,9 @@ export function ClientForm({ defaultValues }: ClientFormProps) {
       phone: fields.phone.trim() || undefined,
       email: fields.email.trim() || undefined,
       address: fields.address.trim() || undefined,
+      paymentMethod: fields.paymentMethod.trim() || undefined,
       paymentTerms: fields.paymentTerms.trim() || undefined,
+      remarks: fields.remarks.trim() || "",
     };
 
     try {
@@ -239,32 +253,79 @@ export function ClientForm({ defaultValues }: ClientFormProps) {
             />
           </div>
 
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="paymentMethod">Payment Method *</Label>
+              <select
+                id="paymentMethod"
+                name="paymentMethod"
+                value={fields.paymentMethod}
+                onChange={(e) => {
+                  clearError("paymentMethod");
+                  setFields((current) => ({
+                    ...current,
+                    paymentMethod: e.target.value,
+                  }));
+                }}
+                className={cn(
+                  "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+                  errors.paymentMethod && "border-red-500"
+                )}
+                required
+              >
+                <option value="">Select</option>
+                {CLIENT_PAYMENT_METHODS.map((method) => (
+                  <option key={method} value={method}>
+                    {method}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="paymentTerms">Payment Terms *</Label>
+              <select
+                id="paymentTerms"
+                name="paymentTerms"
+                value={fields.paymentTerms}
+                onChange={(e) => {
+                  clearError("paymentTerms");
+                  setFields((current) => ({
+                    ...current,
+                    paymentTerms: e.target.value,
+                  }));
+                }}
+                className={cn(
+                  "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+                  errors.paymentTerms && "border-red-500"
+                )}
+                required
+              >
+                <option value="">Select</option>
+                {CLIENT_PAYMENT_TERMS.map((term) => (
+                  <option key={term} value={term}>
+                    {term}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
           <div className="space-y-2">
-            <Label htmlFor="paymentTerms">Payment Terms *</Label>
-            <select
-              id="paymentTerms"
-              name="paymentTerms"
-              value={fields.paymentTerms}
-              onChange={(e) => {
-                clearError("paymentTerms");
+            <Label htmlFor="remarks">Remarks</Label>
+            <Textarea
+              id="remarks"
+              name="remarks"
+              placeholder="Any notes about this client..."
+              value={fields.remarks}
+              onChange={(e) =>
                 setFields((current) => ({
                   ...current,
-                  paymentTerms: e.target.value,
-                }));
-              }}
-              className={cn(
-                "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
-                errors.paymentTerms && "border-red-500"
-              )}
-              required
-            >
-              <option value="">Select</option>
-              {CLIENT_PAYMENT_TERMS.map((term) => (
-                <option key={term} value={term}>
-                  {term}
-                </option>
-              ))}
-            </select>
+                  remarks: e.target.value,
+                }))
+              }
+              rows={3}
+              maxLength={2000}
+            />
           </div>
 
           <div className="flex gap-3 pt-2">

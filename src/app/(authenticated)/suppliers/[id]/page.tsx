@@ -106,6 +106,13 @@ export default async function SupplierDetailPage({
         />
       </div>
 
+      {supplier.remarks && (
+        <div className="mb-6 rounded-lg border bg-gray-50 px-4 py-3">
+          <p className="text-xs font-medium text-gray-500 mb-1">Remarks</p>
+          <p className="text-sm text-gray-700">{supplier.remarks}</p>
+        </div>
+      )}
+
       <Tabs defaultValue="lots" className="space-y-4">
         <TabsList>
           <TabsTrigger value="lots">Lot History</TabsTrigger>
@@ -184,6 +191,114 @@ export default async function SupplierDetailPage({
 
         {/* Payments */}
         <TabsContent value="payments">
+          {/* Lot Payment Status Breakdown */}
+          {supplier.lots.length > 0 && (() => {
+            const lotPaymentData = supplier.lots.map((lot) => {
+              const paid = supplier.payments
+                .filter((p) => p.supplierLotId === lot.id)
+                .reduce((sum, p) => sum + Number(p.amount), 0);
+              const total = Number(lot.totalCost);
+              const outstanding = total - paid;
+              return { ...lot, paid, total, outstanding };
+            });
+            const unpaidLots = lotPaymentData.filter((l) => l.outstanding > 0);
+            const paidLots = lotPaymentData.filter((l) => l.outstanding <= 0);
+
+            return (
+              <div className="space-y-6 mb-6">
+                {/* Outstanding Lots */}
+                {unpaidLots.length > 0 && (
+                  <Card className="border-orange-200">
+                    <CardHeader>
+                      <CardTitle className="text-lg text-orange-700">
+                        Outstanding Lots ({unpaidLots.length})
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {unpaidLots.map((lot) => {
+                          const paidPercent = lot.total > 0 ? (lot.paid / lot.total) * 100 : 0;
+                          return (
+                            <div key={lot.id} className="rounded-lg border p-3">
+                              <div className="flex items-center justify-between mb-2">
+                                <div>
+                                  <Link
+                                    href={`/supplier-lots/${lot.id}`}
+                                    className="font-mono text-sm font-medium text-emerald-700 hover:underline"
+                                  >
+                                    {lot.lotNumber}
+                                  </Link>
+                                  <span className="text-xs text-gray-500 ml-2">
+                                    {lot.invoiceNumber}
+                                  </span>
+                                </div>
+                                <StatusBadge status={lot.status} />
+                              </div>
+                              {/* Progress bar */}
+                              <div className="w-full bg-gray-100 rounded-full h-2 mb-2">
+                                <div
+                                  className="bg-emerald-500 h-2 rounded-full transition-all"
+                                  style={{ width: `${Math.min(paidPercent, 100)}%` }}
+                                />
+                              </div>
+                              <div className="flex justify-between text-xs">
+                                <span className="text-gray-500">
+                                  Paid: <span className="font-medium text-green-600">{formatLKR(lot.paid)}</span>
+                                  {" / "}
+                                  {formatLKR(lot.total)}
+                                </span>
+                                <span className="font-medium text-orange-600">
+                                  Due: {formatLKR(lot.outstanding)}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Fully Paid Lots */}
+                {paidLots.length > 0 && (
+                  <Card className="border-green-200">
+                    <CardHeader>
+                      <CardTitle className="text-lg text-green-700">
+                        Fully Paid Lots ({paidLots.length})
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        {paidLots.map((lot) => (
+                          <div
+                            key={lot.id}
+                            className="flex items-center justify-between text-sm rounded-lg border border-green-100 bg-green-50 px-3 py-2"
+                          >
+                            <div className="flex items-center gap-2">
+                              <Link
+                                href={`/supplier-lots/${lot.id}`}
+                                className="font-mono text-emerald-700 hover:underline"
+                              >
+                                {lot.lotNumber}
+                              </Link>
+                              <span className="text-xs text-gray-500">
+                                {lot.invoiceNumber}
+                              </span>
+                            </div>
+                            <span className="font-medium text-green-600">
+                              {formatLKR(lot.total)} — Paid
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* Payment History */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-lg">Payment History</CardTitle>
@@ -191,6 +306,19 @@ export default async function SupplierDetailPage({
                 <RecordSupplierPayment
                   supplierId={supplier.id}
                   supplierName={supplier.name}
+                  lots={supplier.lots
+                    .map((lot) => {
+                      const paid = supplier.payments
+                        .filter((p) => p.supplierLotId === lot.id)
+                        .reduce((sum, p) => sum + Number(p.amount), 0);
+                      return {
+                        id: lot.id,
+                        lotNumber: lot.lotNumber,
+                        invoiceNumber: lot.invoiceNumber,
+                        outstanding: Number(lot.totalCost) - paid,
+                      };
+                    })
+                    .filter((l) => l.outstanding > 0)}
                 />
               )}
             </CardHeader>
@@ -203,30 +331,38 @@ export default async function SupplierDetailPage({
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead>Receipt #</TableHead>
                       <TableHead>Date</TableHead>
+                      <TableHead>Lot / Invoice</TableHead>
                       <TableHead>Method</TableHead>
-                      <TableHead>Reference</TableHead>
                       <TableHead className="text-right">Amount</TableHead>
-                      <TableHead>Notes</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {supplier.payments.map((payment) => (
                       <TableRow key={payment.id}>
                         <TableCell>
+                          <Link
+                            href={`/payments/supplier/${payment.id}/receipt`}
+                            className="font-mono text-xs text-emerald-700 hover:underline"
+                          >
+                            {payment.receiptNumber}
+                          </Link>
+                        </TableCell>
+                        <TableCell>
                           {new Date(payment.paymentDate).toLocaleDateString(
                             "en-LK"
                           )}
                         </TableCell>
-                        <TableCell>{payment.paymentMethod}</TableCell>
-                        <TableCell className="text-gray-600">
-                          {payment.reference || "—"}
+                        <TableCell className="font-mono text-xs text-gray-500">
+                          {payment.supplierLotId
+                            ? supplier.lots.find((l) => l.id === payment.supplierLotId)
+                                ?.lotNumber || "—"
+                            : "General"}
                         </TableCell>
+                        <TableCell>{payment.paymentMethod}</TableCell>
                         <TableCell className="text-right font-medium">
                           {formatLKR(payment.amount)}
-                        </TableCell>
-                        <TableCell className="text-gray-600 text-sm">
-                          {payment.notes || "—"}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -250,6 +386,7 @@ export default async function SupplierDetailPage({
                 bankName: supplier.bankName,
                 branchName: supplier.branchName,
                 accountNumber: supplier.accountNumber,
+                remarks: supplier.remarks,
               }}
             />
           </TabsContent>

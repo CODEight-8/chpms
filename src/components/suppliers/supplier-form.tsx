@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
 
@@ -22,6 +23,7 @@ interface SupplierFormProps {
     bankName?: string | null;
     branchName?: string | null;
     accountNumber?: string | null;
+    remarks?: string | null;
   };
 }
 
@@ -69,6 +71,7 @@ export function SupplierForm({ defaultValues }: SupplierFormProps) {
     branchName: defaultValues?.branchName || "",
     accountNumber: defaultValues?.accountNumber || "",
   };
+  const [remarks, setRemarks] = useState(defaultValues?.remarks || "");
   const [requiredFields, setRequiredFields] = useState({
     ...initialRequiredFields,
   });
@@ -85,7 +88,8 @@ export function SupplierForm({ defaultValues }: SupplierFormProps) {
       initialRequiredFields.contactPerson.trim() ||
     bankFields.bankName.trim() !== initialBankFields.bankName.trim() ||
     bankFields.branchName.trim() !== initialBankFields.branchName.trim() ||
-    bankFields.accountNumber.trim() !== initialBankFields.accountNumber.trim();
+    bankFields.accountNumber.trim() !== initialBankFields.accountNumber.trim() ||
+    remarks.trim() !== (defaultValues?.remarks || "").trim();
 
   const isSubmitDisabled =
     loading ||
@@ -118,6 +122,7 @@ export function SupplierForm({ defaultValues }: SupplierFormProps) {
       bankName: bankName || undefined,
       branchName: branchName || undefined,
       accountNumber: accountNumber || undefined,
+      remarks: remarks.trim() || "",
     };
 
     try {
@@ -316,6 +321,19 @@ export function SupplierForm({ defaultValues }: SupplierFormProps) {
                 </div>
               </div>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="remarks">Remarks</Label>
+            <Textarea
+              id="remarks"
+              name="remarks"
+              placeholder="Any notes about this supplier..."
+              value={remarks}
+              onChange={(e) => setRemarks(e.target.value)}
+              rows={3}
+              maxLength={2000}
+            />
           </div>
 
           <div className="flex gap-3 pt-2">

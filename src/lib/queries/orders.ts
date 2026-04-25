@@ -67,6 +67,8 @@ export async function getOrderDetail(id: string) {
                   id: true,
                   batchNumber: true,
                   status: true,
+                  totalRawCost: true,
+                  outputQuantity: true,
                   product: { select: { name: true } },
                 },
               },
@@ -91,11 +93,26 @@ export async function getOrderDetail(id: string) {
     0
   );
 
+  const totalProductionCost = order.items.reduce(
+    (sum, item) =>
+      sum +
+      item.fulfillments.reduce((fSum, f) => {
+        const output = Number(f.productionBatch.outputQuantity) || 1;
+        return (
+          fSum +
+          (Number(f.quantityFulfilled) / output) *
+            Number(f.productionBatch.totalRawCost)
+        );
+      }, 0),
+    0
+  );
+
   return {
     ...order,
     totalValue,
     totalPaid,
     outstandingBalance: totalValue - totalPaid,
+    totalProductionCost,
   };
 }
 
@@ -106,7 +123,6 @@ export async function getOrderStatusCounts() {
   });
 
   const result: Record<string, number> = {
-    PENDING: 0,
     CONFIRMED: 0,
     FULFILLED: 0,
     DISPATCHED: 0,

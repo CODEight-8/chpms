@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { supplierPaymentSchema } from "@/lib/validators";
 import { requireAuth, errorResponse, jsonResponse } from "@/lib/api-helpers";
 import { getSupplierPayments } from "@/lib/queries/accounts";
+import { generateSupplierReceiptNumber } from "@/lib/id-generators";
 import { logAuditEvent } from "@/lib/audit-log";
 
 export async function GET() {
@@ -39,8 +40,11 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const receiptNumber = await generateSupplierReceiptNumber();
+
   const payment = await prisma.supplierPayment.create({
     data: {
+      receiptNumber,
       supplierId: parsed.data.supplierId,
       supplierLotId: parsed.data.supplierLotId || null,
       amount: parsed.data.amount,

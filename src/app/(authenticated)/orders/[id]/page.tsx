@@ -10,7 +10,10 @@ import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { OrderActions } from "@/components/orders/order-actions";
 import { FulfillForm } from "@/components/orders/fulfill-form";
+import { RecordOrderPayment } from "@/components/accounts/record-order-payment";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Receipt, TrendingUp } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -37,14 +40,22 @@ export default async function OrderDetailPage({
     <div className="pt-6">
       <PageHeader
         title={`Order ${order.orderNumber}`}
-        description={`Client: ${order.client.name}`}
+        description={`Invoice: ${order.invoiceNumber} | Client: ${order.client.name}`}
         backHref="/orders"
         action={
-          <OrderActions
-            orderId={order.id}
-            currentStatus={order.status}
-            canEdit={canEdit}
-          />
+          <div className="flex flex-wrap gap-2">
+            <Link href={`/orders/${order.id}/invoice`}>
+              <Button variant="outline" className="gap-2">
+                <Receipt className="h-4 w-4" />
+                Print Invoice
+              </Button>
+            </Link>
+            <OrderActions
+              orderId={order.id}
+              currentStatus={order.status}
+              canEdit={canEdit}
+            />
+          </div>
         }
       />
 
@@ -107,6 +118,10 @@ export default async function OrderDetailPage({
                         )
                       : "Not set"
                   }
+                />
+                <InfoField
+                  label="Payment Method"
+                  value={order.client.paymentMethod || "—"}
                 />
                 <InfoField
                   label="Payment Terms"
@@ -301,9 +316,71 @@ export default async function OrderDetailPage({
             </CardContent>
           </Card>
 
+          {order.totalProductionCost > 0 && (() => {
+            const grossProfit = order.totalValue - order.totalProductionCost;
+            const marginPercent =
+              order.totalValue > 0
+                ? (grossProfit / order.totalValue) * 100
+                : 0;
+            return (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4" />
+                    Production Cost
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Production Cost</span>
+                    <span className="font-medium text-red-600">
+                      {formatLKR(order.totalProductionCost)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Order Revenue</span>
+                    <span className="font-medium">
+                      {formatLKR(order.totalValue)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm border-t pt-2">
+                    <span className="font-medium">Gross Profit</span>
+                    <span
+                      className={`font-bold ${
+                        grossProfit >= 0 ? "text-green-600" : "text-red-600"
+                      }`}
+                    >
+                      {formatLKR(grossProfit)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Margin</span>
+                    <span
+                      className={`font-medium ${
+                        marginPercent >= 0 ? "text-green-600" : "text-red-600"
+                      }`}
+                    >
+                      {marginPercent.toFixed(1)}%
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })()}
+
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-lg">Payments</CardTitle>
+              {canEdit && (
+                <RecordOrderPayment
+                  clientId={order.client.id}
+                  clientName={order.client.name}
+                  orderId={order.id}
+                  orderNumber={order.orderNumber}
+                  invoiceNumber={order.invoiceNumber}
+                  outstandingBalance={order.outstandingBalance}
+                />
+              )}
             </CardHeader>
             <CardContent>
               {order.payments.length === 0 ? (
@@ -315,11 +392,19 @@ export default async function OrderDetailPage({
                   {order.payments.map((p) => (
                     <div
                       key={p.id}
-                      className="flex justify-between text-sm border-b pb-2"
+                      className="flex justify-between items-center text-sm border-b pb-2"
                     >
-                      <span className="text-gray-600">
-                        {new Date(p.paymentDate).toLocaleDateString("en-LK")}
-                      </span>
+                      <div>
+                        <Link
+                          href={`/payments/client/${p.id}/receipt`}
+                          className="font-mono text-xs text-emerald-700 hover:underline"
+                        >
+                          {p.receiptNumber}
+                        </Link>
+                        <p className="text-xs text-gray-500">
+                          {new Date(p.paymentDate).toLocaleDateString("en-LK")}
+                        </p>
+                      </div>
                       <span className="font-medium">{formatLKR(p.amount)}</span>
                     </div>
                   ))}
