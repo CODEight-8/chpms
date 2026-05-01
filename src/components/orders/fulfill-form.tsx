@@ -81,7 +81,8 @@ export function FulfillForm({
       allocations.reduce((sum, a) => {
         const batch = batches.find((b) => b.id === a.batchId);
         if (!batch) return sum;
-        const output = Number(batch.outputQuantity) || 1;
+        const output = Number(batch.outputQuantity);
+        if (!output || output <= 0) return sum;
         return sum + (a.quantity / output) * Number(batch.totalRawCost);
       }, 0),
     [allocations, batches]
@@ -223,9 +224,10 @@ export function FulfillForm({
                   {allocations.map((alloc) => {
                     const batch = getBatch(alloc.batchId);
                     if (!batch) return null;
-                    const output = Number(batch.outputQuantity) || 1;
-                    const allocCost =
-                      (alloc.quantity / output) * Number(batch.totalRawCost);
+                    const output = Number(batch.outputQuantity);
+                    const allocCost = output > 0
+                      ? (alloc.quantity / output) * Number(batch.totalRawCost)
+                      : 0;
                     return (
                       <div
                         key={alloc.batchId}

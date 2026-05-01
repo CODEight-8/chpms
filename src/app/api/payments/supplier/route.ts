@@ -40,6 +40,20 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Validate lot belongs to the supplier
+  if (parsed.data.supplierLotId) {
+    const lot = await prisma.supplierLot.findUnique({
+      where: { id: parsed.data.supplierLotId },
+      select: { id: true, supplierId: true },
+    });
+    if (!lot) {
+      return errorResponse("Lot not found", 404);
+    }
+    if (lot.supplierId !== parsed.data.supplierId) {
+      return errorResponse("Lot does not belong to the specified supplier");
+    }
+  }
+
   const receiptNumber = await generateSupplierReceiptNumber();
 
   const payment = await prisma.supplierPayment.create({

@@ -196,6 +196,51 @@ export default async function OrderInvoicePage({
             </div>
           )}
 
+          {/* Payments Received */}
+          {order.payments.length > 0 && (
+            <div className="mb-6">
+              <h3 className="text-xs font-bold text-gray-700 uppercase mb-2">
+                Payments Received
+              </h3>
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-gray-300">
+                    <th className="text-left py-2 font-bold text-gray-700">
+                      Receipt #
+                    </th>
+                    <th className="text-left py-2 font-bold text-gray-700">
+                      Date
+                    </th>
+                    <th className="text-left py-2 font-bold text-gray-700">
+                      Method
+                    </th>
+                    <th className="text-left py-2 font-bold text-gray-700">
+                      Reference
+                    </th>
+                    <th className="text-right py-2 font-bold text-gray-700">
+                      Amount
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {order.payments.map((p) => (
+                    <tr key={p.id} className="border-b border-gray-200">
+                      <td className="py-2 font-mono">{p.receiptNumber}</td>
+                      <td className="py-2">
+                        {new Date(p.paymentDate).toLocaleDateString("en-LK")}
+                      </td>
+                      <td className="py-2">{p.paymentMethod}</td>
+                      <td className="py-2 text-gray-600">{p.reference || "—"}</td>
+                      <td className="py-2 text-right font-medium">
+                        {formatLKR(p.amount)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
           {/* Payment Summary */}
           <div className="mb-8 text-sm">
             <div className="flex justify-between py-1">

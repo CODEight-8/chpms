@@ -97,7 +97,8 @@ export async function getOrderDetail(id: string) {
     (sum, item) =>
       sum +
       item.fulfillments.reduce((fSum, f) => {
-        const output = Number(f.productionBatch.outputQuantity) || 1;
+        const output = Number(f.productionBatch.outputQuantity);
+        if (!output || output <= 0) return fSum;
         return (
           fSum +
           (Number(f.quantityFulfilled) / output) *

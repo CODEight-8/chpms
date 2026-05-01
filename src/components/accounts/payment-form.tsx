@@ -57,6 +57,7 @@ export function PaymentForm({ type }: PaymentFormProps) {
       .catch(() => toast.error("Failed to load"));
   }, [open, type]);
 
+  const label = type === "supplier" ? "Supplier" : "Client";
   const selectedEntity = entities.find((e) => e.id === entityId);
   const outstanding =
     type === "supplier"
@@ -116,7 +117,6 @@ export function PaymentForm({ type }: PaymentFormProps) {
   }
 
   const today = new Date().toISOString().split("T")[0];
-  const label = type === "supplier" ? "Supplier" : "Client";
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

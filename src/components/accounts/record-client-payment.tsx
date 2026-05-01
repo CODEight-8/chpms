@@ -59,7 +59,7 @@ export function RecordClientPayment({
     const form = new FormData(e.currentTarget);
     const data = {
       clientId,
-      orderId: selectedOrderId || undefined,
+      orderId: selectedOrderId && selectedOrderId !== "none" ? selectedOrderId : undefined,
       amount: parseFloat(form.get("amount") as string),
       paymentDate: form.get("paymentDate") as string,
       paymentMethod: method,
@@ -91,7 +91,7 @@ export function RecordClientPayment({
   }
 
   const today = new Date().toISOString().split("T")[0];
-  const selectedOrder = orders?.find((o) => o.id === selectedOrderId);
+  const selectedOrder = selectedOrderId && selectedOrderId !== "none" ? orders?.find((o) => o.id === selectedOrderId) : undefined;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -114,7 +114,7 @@ export function RecordClientPayment({
                   <SelectValue placeholder="Select order (optional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No specific order</SelectItem>
+                  <SelectItem value="none">No specific order</SelectItem>
                   {orders.map((order) => (
                     <SelectItem key={order.id} value={order.id}>
                       {order.invoiceNumber} — Outstanding:{" "}
@@ -159,7 +159,12 @@ export function RecordClientPayment({
             </div>
             <div className="space-y-2">
               <Label htmlFor="reference">Reference #</Label>
-              <Input id="reference" name="reference" />
+              <Input
+                key={selectedOrder?.invoiceNumber || "no-order"}
+                id="reference"
+                name="reference"
+                defaultValue={selectedOrder?.invoiceNumber || ""}
+              />
             </div>
           </div>
 

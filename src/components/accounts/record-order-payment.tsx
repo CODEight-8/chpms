@@ -146,7 +146,7 @@ export function RecordOrderPayment({
             </div>
             <div className="space-y-2">
               <Label htmlFor="reference">Reference #</Label>
-              <Input id="reference" name="reference" />
+              <Input id="reference" name="reference" defaultValue={invoiceNumber} />
             </div>
           </div>
 

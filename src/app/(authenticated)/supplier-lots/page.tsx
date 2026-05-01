@@ -22,7 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Package, ClipboardCheck, CheckCircle, XCircle } from "lucide-react";
+import { Plus, Package, ClipboardCheck, CheckCircle, XCircle, ShieldCheck } from "lucide-react";
 
 export default async function SupplierLotsPage({
   searchParams,
@@ -57,11 +57,16 @@ export default async function SupplierLotsPage({
       />
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
         <SummaryCard
           title="In Audit"
           value={counts.AUDIT}
           icon={ClipboardCheck}
+        />
+        <SummaryCard
+          title="Approved"
+          value={counts.APPROVED}
+          icon={ShieldCheck}
         />
         <SummaryCard
           title="Good to Go"

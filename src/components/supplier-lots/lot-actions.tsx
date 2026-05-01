@@ -11,7 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
-import { CheckCircle, Trash2, XCircle } from "lucide-react";
+import { CheckCircle, ShieldCheck, Trash2, XCircle } from "lucide-react";
 import { toast } from "sonner";
 
 interface LotActionsProps {
@@ -138,15 +138,59 @@ export function LotActions({
         </div>
 
         <ConfirmDialog
-          title="Mark as Good to Go?"
-          description="This lot will become available for production batches. Make sure the quality grade and aging are acceptable before proceeding."
-          confirmLabel="Mark Good to Go"
-          onConfirm={() => transitionStatus("GOOD_TO_GO")}
+          title="Approve this lot?"
+          description="Approving the lot confirms the quality grade and moves it to the next step. Only Owner or Manager can approve."
+          confirmLabel="Approve Lot"
+          onConfirm={() => transitionStatus("APPROVED")}
           disabled={loading || !currentGrade || currentGrade === "REJECT"}
         >
           <Button
-            className="bg-emerald-700 hover:bg-emerald-800 gap-2"
+            className="bg-blue-700 hover:bg-blue-800 gap-2"
             disabled={loading || !currentGrade || currentGrade === "REJECT"}
+            aria-label="Approve this lot"
+          >
+            <ShieldCheck className="h-4 w-4" />
+            Approve
+          </Button>
+        </ConfirmDialog>
+
+        <ConfirmDialog
+          title="Reject this lot?"
+          description="This action cannot be undone. The lot will be permanently marked as rejected and cannot be used in production."
+          confirmLabel="Reject Lot"
+          variant="destructive"
+          onConfirm={() => transitionStatus("REJECTED")}
+          disabled={loading}
+        >
+          <Button
+            variant="outline"
+            className="text-red-600 border-red-200 hover:bg-red-50 gap-2"
+            disabled={loading}
+            aria-label="Reject this lot"
+          >
+            <XCircle className="h-4 w-4" />
+            Reject
+          </Button>
+        </ConfirmDialog>
+
+        {deleteAction}
+      </div>
+    );
+  }
+
+  if (currentStatus === "APPROVED") {
+    return (
+      <div className="flex flex-wrap items-center gap-3">
+        <ConfirmDialog
+          title="Mark as Good to Go?"
+          description="This lot will become available for production batches. Confirm the lot has finished aging and is ready for use."
+          confirmLabel="Mark Good to Go"
+          onConfirm={() => transitionStatus("GOOD_TO_GO")}
+          disabled={loading}
+        >
+          <Button
+            className="bg-emerald-700 hover:bg-emerald-800 gap-2"
+            disabled={loading}
             aria-label="Mark lot as good to go for production"
           >
             <CheckCircle className="h-4 w-4" />

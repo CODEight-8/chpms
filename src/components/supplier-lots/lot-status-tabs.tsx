@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 const STATUS_TABS = [
   { value: "", label: "All" },
   { value: "AUDIT", label: "Audit" },
+  { value: "APPROVED", label: "Approved" },
   { value: "GOOD_TO_GO", label: "Good to Go" },
   { value: "ALLOCATED", label: "Allocated" },
   { value: "CONSUMED", label: "Consumed" },

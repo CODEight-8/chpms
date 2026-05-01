@@ -288,6 +288,10 @@ export default async function SupplierLotDetailPage({
                         </Link>
                         <p className="text-xs text-gray-500">
                           {new Date(p.paymentDate).toLocaleDateString("en-LK")}
+                          {" · "}
+                          <span className="text-gray-400">
+                            Against {lot.invoiceNumber}
+                          </span>
                         </p>
                       </div>
                       <span className="font-medium">{formatLKR(p.amount)}</span>

@@ -62,7 +62,7 @@ export async function getClientPayments(filters?: PaymentFilters) {
     where,
     include: {
       client: { select: { id: true, name: true } },
-      order: { select: { orderNumber: true } },
+      order: { select: { orderNumber: true, invoiceNumber: true } },
     },
     orderBy: { paymentDate: "desc" },
   });

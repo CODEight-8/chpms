@@ -1,36 +1,68 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# CHPMS - Coconut Husk Processing Management System
 
-## Getting Started
+A full-stack inventory, production, and accounting management system for coconut husk chip processing facilities. Built with Next.js 14, Prisma, PostgreSQL, and Docker.
 
-First, run the development server:
+## Quick Start
+
+### Prerequisites
+
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) 4.30+ (includes Compose v2)
+- [Git](https://git-scm.com/) 2.39+
+- [Node.js](https://nodejs.org/) 20.x (for local dev only)
+
+### Run with Docker (Recommended)
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# 1. Clone the repo
+git clone https://github.com/CODEight-8/chpms.git
+cd chpms
+
+# 2. Create your environment file
+cp .env.example .env
+
+# 3. Edit .env with your values:
+#    - DB_PASSWORD: use a strong password
+#    - NEXTAUTH_SECRET: run `openssl rand -base64 32` to generate
+#    - OWNER_EMAIL / OWNER_PASSWORD: your admin login credentials
+
+# 4. Build and start
+docker compose up -d --build
+
+# 5. Open http://localhost:3000 and log in
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+First startup takes ~2-3 minutes (building image, running migrations, seeding database).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Verify
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+curl http://localhost:3000/api/health
+# Expected: {"status":"ok","db":"connected","mode":"live"}
+```
 
-## Learn More
+### Stop
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+docker compose down        # stop containers (data persists)
+docker compose down -v     # stop and delete all data
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Platform Notes
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| Platform | Notes |
+|----------|-------|
+| **macOS** | No special configuration needed |
+| **Linux** | Add your user to the docker group: `sudo usermod -aG docker $USER` then re-login |
+| **Windows** | Use WSL2 or Git Bash. Set `git config --global core.autocrlf input` |
 
-## Deploy on Vercel
+## Documentation
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- **[SETUP.md](./SETUP.md)** - Detailed setup, configuration, and troubleshooting guide
+- **[CHPMS-SYSTEM-DOCUMENTATION.md](./CHPMS-SYSTEM-DOCUMENTATION.md)** - System architecture and design
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Tech Stack
+
+- **Frontend:** Next.js 14 (App Router), React 18, Tailwind CSS, shadcn/ui
+- **Backend:** Next.js API Routes, Prisma ORM, PostgreSQL 16
+- **Auth:** NextAuth.js with credential provider, role-based access (Owner/Manager/Production)
+- **Infra:** Docker Compose, PM2 process manager, automated daily backups

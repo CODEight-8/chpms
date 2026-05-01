@@ -46,7 +46,7 @@ export async function getDashboardData() {
       orderBy: { expectedDelivery: "asc" },
     }),
 
-    // Close-to-overdue: expected delivery within next 3 days
+    // Close-to-overdue: expected delivery within next 7 days
     prisma.order.findMany({
       where: {
         expectedDelivery: { gte: today, lte: oneWeekFromNow },

@@ -76,7 +76,7 @@ export default async function AccountsPage({
     receipt: p.receiptNumber,
     date: new Date(p.paymentDate).toLocaleDateString("en-LK"),
     client: p.client.name,
-    order: p.order?.orderNumber || "",
+    order: p.order ? `${p.order.orderNumber} / ${p.order.invoiceNumber}` : "",
     method: p.paymentMethod,
     reference: p.reference || "",
     amount: Number(p.amount).toFixed(2),
@@ -241,7 +241,7 @@ export default async function AccountsPage({
                     { key: "receipt", header: "Receipt #" },
                     { key: "date", header: "Date" },
                     { key: "client", header: "Client" },
-                    { key: "order", header: "Order #" },
+                    { key: "order", header: "Order / Invoice" },
                     { key: "method", header: "Method" },
                     { key: "reference", header: "Reference" },
                     { key: "amount", header: "Amount (LKR)" },
@@ -262,7 +262,7 @@ export default async function AccountsPage({
                       <TableHead>Receipt #</TableHead>
                       <TableHead>Date</TableHead>
                       <TableHead>Client</TableHead>
-                      <TableHead>Order #</TableHead>
+                      <TableHead>Order / Invoice</TableHead>
                       <TableHead>Method</TableHead>
                       <TableHead className="text-right">Amount</TableHead>
                     </TableRow>
@@ -294,7 +294,9 @@ export default async function AccountsPage({
                           )}
                         </TableCell>
                         <TableCell className="font-mono text-xs text-gray-500">
-                          {p.order?.orderNumber || "\u2014"}
+                          {p.order
+                            ? `${p.order.orderNumber} / ${p.order.invoiceNumber}`
+                            : "\u2014"}
                         </TableCell>
                         <TableCell>{p.paymentMethod}</TableCell>
                         <TableCell className="text-right font-medium text-green-600">

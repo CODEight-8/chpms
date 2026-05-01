@@ -25,6 +25,22 @@ export async function POST(request: NextRequest) {
     return errorResponse(parsed.error.issues[0].message);
   }
 
+  // Validate client exists and is active
+  const client = await prisma.client.findUnique({
+    where: { id: parsed.data.clientId },
+    select: { id: true, isActive: true },
+  });
+
+  if (!client) {
+    return errorResponse("Client not found", 404);
+  }
+
+  if (!client.isActive) {
+    return errorResponse(
+      "Cannot record a payment for an inactive client. Reactivate the client first."
+    );
+  }
+
   // Validate order belongs to the specified client
   if (parsed.data.orderId) {
     const order = await prisma.order.findUnique({

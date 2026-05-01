@@ -61,9 +61,9 @@ export function ClientForm({ defaultValues }: ClientFormProps) {
   const initialPaymentMethod = isClientPaymentMethod(defaultValues?.paymentMethod)
     ? defaultValues.paymentMethod
     : "";
-  const initialPaymentTerms = isClientPaymentTerm(defaultValues?.paymentTerms)
+  const initialPaymentTerms: string = isClientPaymentTerm(defaultValues?.paymentTerms)
     ? defaultValues.paymentTerms
-    : "";
+    : "Due on Receipt";
   const initialFields = {
     name: defaultValues?.name || "",
     companyName: defaultValues?.companyName || "",
@@ -300,7 +300,6 @@ export function ClientForm({ defaultValues }: ClientFormProps) {
                 )}
                 required
               >
-                <option value="">Select</option>
                 {CLIENT_PAYMENT_TERMS.map((term) => (
                   <option key={term} value={term}>
                     {term}

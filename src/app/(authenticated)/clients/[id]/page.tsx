@@ -304,7 +304,7 @@ export default async function ClientDetailPage({
                     <TableRow>
                       <TableHead>Receipt #</TableHead>
                       <TableHead>Date</TableHead>
-                      <TableHead>Order</TableHead>
+                      <TableHead>Order / Invoice</TableHead>
                       <TableHead>Method</TableHead>
                       <TableHead className="text-right">Amount</TableHead>
                     </TableRow>
@@ -325,8 +325,12 @@ export default async function ClientDetailPage({
                         </TableCell>
                         <TableCell className="font-mono text-xs text-gray-500">
                           {p.orderId
-                            ? client.orders.find((o) => o.id === p.orderId)
-                                ?.orderNumber || "—"
+                            ? (() => {
+                                const order = client.orders.find((o) => o.id === p.orderId);
+                                return order
+                                  ? `${order.orderNumber} / ${order.invoiceNumber}`
+                                  : "—";
+                              })()
                             : "—"}
                         </TableCell>
                         <TableCell>{p.paymentMethod}</TableCell>

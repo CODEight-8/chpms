@@ -61,7 +61,7 @@ export function RecordSupplierPayment({
     const form = new FormData(e.currentTarget);
     const data = {
       supplierId,
-      supplierLotId: selectedLotId || undefined,
+      supplierLotId: selectedLotId && selectedLotId !== "none" ? selectedLotId : undefined,
       amount: parseFloat(form.get("amount") as string),
       paymentDate: form.get("paymentDate") as string,
       paymentMethod: method,
@@ -93,7 +93,7 @@ export function RecordSupplierPayment({
   }
 
   const today = new Date().toISOString().split("T")[0];
-  const selectedLot = lots?.find((l) => l.id === selectedLotId);
+  const selectedLot = selectedLotId && selectedLotId !== "none" ? lots?.find((l) => l.id === selectedLotId) : undefined;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -116,7 +116,7 @@ export function RecordSupplierPayment({
                   <SelectValue placeholder="Select lot (optional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No specific lot</SelectItem>
+                  <SelectItem value="none">No specific lot</SelectItem>
                   {lots.map((lot) => (
                     <SelectItem key={lot.id} value={lot.id}>
                       {lot.invoiceNumber} — Outstanding:{" "}
@@ -161,7 +161,12 @@ export function RecordSupplierPayment({
             </div>
             <div className="space-y-2">
               <Label htmlFor="reference">Reference #</Label>
-              <Input id="reference" name="reference" />
+              <Input
+                key={selectedLot?.invoiceNumber || "no-lot"}
+                id="reference"
+                name="reference"
+                defaultValue={selectedLot?.invoiceNumber || ""}
+              />
             </div>
           </div>
 
