@@ -114,10 +114,27 @@ export default async function SupplierDetailPage({
       )}
 
       <Tabs defaultValue="lots" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="lots">Lot History</TabsTrigger>
-          <TabsTrigger value="payments">Payments</TabsTrigger>
-          {canEdit && <TabsTrigger value="details">Edit Details</TabsTrigger>}
+        <TabsList className="bg-emerald-50 text-emerald-700">
+          <TabsTrigger
+            value="lots"
+            className="data-[state=active]:bg-emerald-700 data-[state=active]:text-white"
+          >
+            Lot History
+          </TabsTrigger>
+          <TabsTrigger
+            value="payments"
+            className="data-[state=active]:bg-emerald-700 data-[state=active]:text-white"
+          >
+            Payments
+          </TabsTrigger>
+          {canEdit && (
+            <TabsTrigger
+              value="details"
+              className="data-[state=active]:bg-emerald-700 data-[state=active]:text-white"
+            >
+              Edit Details
+            </TabsTrigger>
+          )}
         </TabsList>
 
         {/* Lot History */}

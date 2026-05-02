@@ -88,10 +88,27 @@ export default async function ClientDetailPage({
       )}
 
       <Tabs defaultValue="orders" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="orders">Orders</TabsTrigger>
-          <TabsTrigger value="payments">Payments</TabsTrigger>
-          {canEdit && <TabsTrigger value="details">Edit Details</TabsTrigger>}
+        <TabsList className="bg-emerald-50 text-emerald-700">
+          <TabsTrigger
+            value="orders"
+            className="data-[state=active]:bg-emerald-700 data-[state=active]:text-white"
+          >
+            Orders
+          </TabsTrigger>
+          <TabsTrigger
+            value="payments"
+            className="data-[state=active]:bg-emerald-700 data-[state=active]:text-white"
+          >
+            Payments
+          </TabsTrigger>
+          {canEdit && (
+            <TabsTrigger
+              value="details"
+              className="data-[state=active]:bg-emerald-700 data-[state=active]:text-white"
+            >
+              Edit Details
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="orders">

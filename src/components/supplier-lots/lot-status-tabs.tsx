@@ -35,7 +35,7 @@ export function LotStatusTabs({ counts }: LotStatusTabsProps) {
   const totalCount = Object.values(counts).reduce((a, b) => a + b, 0);
 
   return (
-    <div className="grid grid-cols-3 sm:flex sm:flex-wrap gap-1 rounded-lg bg-muted p-1">
+    <div className="grid gap-1 grid-cols-2 p-2 md:grid-cols-3 xl:flex xl:flex-wrap">
       {STATUS_TABS.map((tab) => {
         const count = tab.value ? counts[tab.value] || 0 : totalCount;
         const isActive = currentStatus === tab.value;
@@ -43,19 +43,22 @@ export function LotStatusTabs({ counts }: LotStatusTabsProps) {
         return (
           <button
             key={tab.value}
+            type="button"
             onClick={() => handleTabClick(tab.value)}
             className={cn(
-              "rounded-md px-2 py-1.5 text-xs sm:text-sm sm:px-3 font-medium transition-colors text-center",
+              "flex min-h-9 items-center justify-between gap-1 rounded-lg border px-2 py-0.5 text-left text-sm font-medium transition-colors",
               isActive
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
+                ? "border-emerald-700 bg-emerald-700 text-white shadow-sm"
+                : "border-emerald-100 bg-white text-emerald-800 hover:border-emerald-300 hover:bg-emerald-100"
             )}
           >
-            {tab.label}
+            <span>{tab.label}</span>
             <span
               className={cn(
-                "ml-1.5 text-xs",
-                isActive ? "text-foreground" : "text-muted-foreground"
+                "rounded-full px-2 py-0.5 text-[11px] font-semibold",
+                isActive
+                  ? "bg-white/20 text-white"
+                  : "bg-emerald-100 text-emerald-800"
               )}
             >
               {count}
