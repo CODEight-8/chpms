@@ -67,7 +67,7 @@ export function SystemStatus() {
       <div className="min-w-0">
         <p className="text-xs font-medium text-emerald-100">{label}</p>
         {detail && (
-          <p className="text-[10px] text-emerald-300 truncate">{detail}</p>
+          <p className="text-[10px] sm:text-xs text-emerald-300 truncate">{detail}</p>
         )}
       </div>
     </div>

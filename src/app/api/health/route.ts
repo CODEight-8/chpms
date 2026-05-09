@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { PrismaClient } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
@@ -11,7 +13,7 @@ export async function GET() {
   try {
     const p = new PrismaClient();
     try {
-      await p.$queryRawUnsafe("SELECT 1");
+      await p.$queryRaw`SELECT 1`;
       dbStatus = "connected";
 
       try {
@@ -29,11 +31,20 @@ export async function GET() {
     dbStatus = "disconnected";
   }
 
-  return NextResponse.json({
+  // Public health check: only status and db connectivity are exposed without auth.
+  // System mode, version, and backup info require authentication to prevent
+  // information disclosure to unauthenticated users.
+  const response: Record<string, unknown> = {
     status: dbStatus === "connected" ? "ok" : "degraded",
-    mode,
     db: dbStatus,
-    lastBackupAt,
-    version: "1.0.0",
-  });
+  };
+
+  const session = await getServerSession(authOptions);
+  if (session?.user) {
+    response.mode = mode;
+    response.version = "1.0.0";
+    response.lastBackupAt = lastBackupAt;
+  }
+
+  return NextResponse.json(response);
 }

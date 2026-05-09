@@ -1,17 +1,41 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Printer } from "lucide-react";
+import { ArrowLeft, Printer } from "lucide-react";
 
-export function PrintLayout({ children }: { children: React.ReactNode }) {
+export function PrintLayout({
+  children,
+  backHref,
+}: {
+  children: React.ReactNode;
+  backHref?: string;
+}) {
+  const router = useRouter();
+
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      router.back();
+      return;
+    }
+
+    if (backHref) {
+      router.push(backHref);
+    }
+  };
+
   return (
     <div>
-      <div className="print:hidden mb-4 flex justify-end">
+      <div className="print:hidden mb-4 flex items-center justify-between gap-3">
         <Button
-          onClick={() => window.print()}
           variant="outline"
           className="gap-2"
+          onClick={handleBack}
         >
+          <ArrowLeft className="h-4 w-4" />
+          Back
+        </Button>
+        <Button onClick={() => window.print()} variant="outline" className="gap-2">
           <Printer className="h-4 w-4" />
           Print / Save PDF
         </Button>

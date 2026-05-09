@@ -27,9 +27,9 @@ const PERMISSIONS: Record<UserRole, Record<Module, Permission[]>> = {
     suppliers: ["view", "create", "edit", "delete"],
     "supplier-lots": ["view", "create", "edit", "delete"],
     production: ["view", "create", "edit"],
-    clients: ["view", "create", "edit", "delete"],
+    clients: [],
     orders: ["view", "create", "edit", "delete"],
-    accounts: ["view", "create", "edit", "delete"],
+    accounts: [],
     dashboard: ["view"],
     users: [],
   },
@@ -59,6 +59,6 @@ export function canAccessModule(role: UserRole, module: Module): boolean {
 
 export function getAccessibleModules(role: UserRole): Module[] {
   return (Object.keys(PERMISSIONS[role]) as Module[]).filter(
-    (mod) => PERMISSIONS[role][mod].length > 0
+    (mod) => canAccessModule(role, mod)
   );
 }

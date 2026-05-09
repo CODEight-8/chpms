@@ -12,11 +12,13 @@ interface OutstandingEntity {
 interface OutstandingAlertsProps {
   suppliers: OutstandingEntity[];
   clients: OutstandingEntity[];
+  linkClients?: boolean;
 }
 
 export function OutstandingAlerts({
   suppliers,
   clients,
+  linkClients = true,
 }: OutstandingAlertsProps) {
   if (suppliers.length === 0 && clients.length === 0) return null;
 
@@ -73,12 +75,16 @@ export function OutstandingAlerts({
                   key={c.id}
                   className="flex items-center justify-between text-sm"
                 >
-                  <Link
-                    href={`/clients/${c.id}`}
-                    className="text-blue-700 hover:underline truncate mr-2"
-                  >
-                    {c.name}
-                  </Link>
+                  {linkClients ? (
+                    <Link
+                      href={`/clients/${c.id}`}
+                      className="text-blue-700 hover:underline truncate mr-2"
+                    >
+                      {c.name}
+                    </Link>
+                  ) : (
+                    <span className="text-blue-700 truncate mr-2">{c.name}</span>
+                  )}
                   <span className="font-medium text-blue-800 whitespace-nowrap">
                     {formatLKR(c.outstanding)}
                   </span>

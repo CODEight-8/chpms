@@ -30,11 +30,11 @@ export async function PATCH(
     );
   }
 
-  // If marking as GOOD_TO_GO, quality grade must be set and not REJECT
-  if (newStatus === "GOOD_TO_GO") {
+  // To approve a lot, quality grade must be set and not REJECT
+  if (newStatus === "APPROVED") {
     if (!lot.qualityGrade || lot.qualityGrade === "REJECT") {
       return errorResponse(
-        "Quality grade must be A, B, or C to mark as Good to Go"
+        "Quality grade must be A, B, or C to approve this lot"
       );
     }
   }

@@ -1,14 +1,17 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { hasPermission } from "@/lib/permissions";
+import { canAccessModule, hasPermission } from "@/lib/permissions";
 import { UserRole } from "@prisma/client";
 import { formatLKR } from "@/lib/currency";
 import { getClientsWithStats } from "@/lib/queries/clients";
 import { PageHeader } from "@/components/shared/page-header";
 import { SearchInput } from "@/components/shared/search-input";
+import { StatusFilter } from "@/components/shared/status-filter";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -22,19 +25,28 @@ import { Plus, Users } from "lucide-react";
 export default async function ClientsPage({
   searchParams,
 }: {
-  searchParams: { search?: string };
+  searchParams: { search?: string; active?: string };
 }) {
   const session = await getServerSession(authOptions);
   const role = session!.user.role as UserRole;
+  if (!canAccessModule(role, "clients")) {
+    redirect("/dashboard");
+  }
   const canCreate = hasPermission(role, "clients", "create");
+  const activeFilter =
+    searchParams.active === "all"
+      ? undefined
+      : searchParams.active === "false"
+        ? false
+        : true;
 
   const clients = await getClientsWithStats({
-    active: true,
+    active: activeFilter,
     search: searchParams.search,
   });
 
   return (
-    <div>
+    <div className="pt-6">
       <PageHeader
         title="Clients"
         description="Manage client accounts and orders"
@@ -50,8 +62,9 @@ export default async function ClientsPage({
         }
       />
 
-      <div className="mb-4">
+      <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <SearchInput placeholder="Search clients by name, company, or phone..." />
+        <StatusFilter />
       </div>
 
       {clients.length === 0 ? (
@@ -61,6 +74,10 @@ export default async function ClientsPage({
           description={
             searchParams.search
               ? "Try a different search term"
+              : searchParams.active === "false"
+                ? "No inactive clients found"
+                : searchParams.active === undefined || searchParams.active === "true"
+                  ? "No active clients found"
               : "Add your first client to start managing orders"
           }
           action={
@@ -84,6 +101,7 @@ export default async function ClientsPage({
                 <TableHead className="text-center">Orders</TableHead>
                 <TableHead className="text-right">Revenue</TableHead>
                 <TableHead className="text-right">Outstanding</TableHead>
+                <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -119,6 +137,18 @@ export default async function ClientsPage({
                     ) : (
                       <span className="text-gray-500">\u2014</span>
                     )}
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant="outline"
+                      className={
+                        client.isActive
+                          ? "bg-green-50 text-green-700 border-green-200"
+                          : "bg-gray-50 text-gray-500 border-gray-200"
+                      }
+                    >
+                      {client.isActive ? "Active" : "Inactive"}
+                    </Badge>
                   </TableCell>
                 </TableRow>
               ))}

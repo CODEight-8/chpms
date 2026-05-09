@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { orderSchema } from "@/lib/validators";
 import { requireAuth, errorResponse, jsonResponse } from "@/lib/api-helpers";
-import { generateOrderNumber } from "@/lib/id-generators";
+import { generateOrderNumber, generateOrderInvoiceNumber } from "@/lib/id-generators";
 import { getOrdersWithDetails, getOrderStatusCounts } from "@/lib/queries/orders";
 import { OrderStatus } from "@prisma/client";
 import { logAuditEvent } from "@/lib/audit-log";
@@ -50,11 +50,31 @@ export async function POST(request: NextRequest) {
     return errorResponse("Client not found or inactive", 404);
   }
 
+  // Validate all products exist and are active
+  const productIds = Array.from(new Set(items.map((item) => item.productId)));
+  const products = await prisma.product.findMany({
+    where: { id: { in: productIds } },
+    select: { id: true, isActive: true, name: true },
+  });
+  if (products.length !== productIds.length) {
+    const foundIds = new Set(products.map((p) => p.id));
+    const missing = productIds.find((id) => !foundIds.has(id));
+    return errorResponse(`Product ${missing} not found`, 404);
+  }
+  const inactiveProduct = products.find((p) => !p.isActive);
+  if (inactiveProduct) {
+    return errorResponse(
+      `Product "${inactiveProduct.name}" is inactive and cannot be ordered`
+    );
+  }
+
   const orderNumber = await generateOrderNumber();
+  const invoiceNumber = generateOrderInvoiceNumber(orderNumber);
 
   const order = await prisma.order.create({
     data: {
       orderNumber,
+      invoiceNumber,
       clientId,
       orderDate: new Date(orderDate),
       expectedDelivery: expectedDelivery ? new Date(expectedDelivery) : null,

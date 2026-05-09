@@ -2,7 +2,7 @@
 set -e
 
 echo "Running database migrations..."
-npx prisma db push --skip-generate
+npx prisma db push --skip-generate --accept-data-loss
 
 # Only seed on first run (owner account + default product)
 mkdir -p /app/data

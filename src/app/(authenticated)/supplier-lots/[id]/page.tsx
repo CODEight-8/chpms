@@ -21,6 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { RecordLotPayment } from "@/components/accounts/record-lot-payment";
 import { FileText, Receipt } from "lucide-react";
 
 export default async function SupplierLotDetailPage({
@@ -31,12 +32,20 @@ export default async function SupplierLotDetailPage({
   const session = await getServerSession(authOptions);
   const role = session!.user.role as UserRole;
   const canEdit = hasPermission(role, "supplier-lots", "edit");
+  const canDelete = hasPermission(role, "supplier-lots", "delete");
 
   const lot = await getLotDetail(params.id);
   if (!lot) notFound();
 
+  const deleteBlockReason =
+    lot.productionBatchLots.length > 0
+      ? "This lot cannot be deleted because it has already been used in production."
+      : lot.payments.length > 0
+        ? "This lot cannot be deleted because supplier payments are linked to it."
+        : null;
+
   return (
-    <div>
+    <div className="pt-6">
       <PageHeader
         title={`Lot ${lot.lotNumber}`}
         description={`Invoice: ${lot.invoiceNumber}`}
@@ -66,6 +75,8 @@ export default async function SupplierLotDetailPage({
           currentStatus={lot.status}
           currentGrade={lot.qualityGrade}
           canEdit={canEdit}
+          canDelete={canDelete}
+          deleteBlockReason={deleteBlockReason}
         />
       </div>
 
@@ -77,7 +88,7 @@ export default async function SupplierLotDetailPage({
               <CardTitle className="text-lg">Lot Details</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <InfoField label="Lot Number" value={lot.lotNumber} />
                 <InfoField label="Invoice Number" value={lot.invoiceNumber} />
                 <InfoField
@@ -200,10 +211,61 @@ export default async function SupplierLotDetailPage({
             </CardContent>
           </Card>
 
+          {/* Payment Summary */}
+          {(() => {
+            const totalPaid = lot.payments.reduce(
+              (sum, p) => sum + Number(p.amount),
+              0
+            );
+            const outstanding = Number(lot.totalCost) - totalPaid;
+            return (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Payment Summary</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Invoice Total</span>
+                    <span className="font-medium">{formatLKR(lot.totalCost)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Total Paid</span>
+                    <span className="font-medium text-green-600">
+                      {formatLKR(totalPaid)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm border-t pt-2">
+                    <span className="font-medium">Outstanding</span>
+                    <span
+                      className={`font-bold ${
+                        outstanding > 0 ? "text-orange-600" : "text-green-600"
+                      }`}
+                    >
+                      {formatLKR(Math.max(0, outstanding))}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })()}
+
           {/* Payments Card */}
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-lg">Payments</CardTitle>
+              {canEdit && (
+                <RecordLotPayment
+                  supplierId={lot.supplier.id}
+                  supplierName={lot.supplier.name}
+                  supplierLotId={lot.id}
+                  lotNumber={lot.lotNumber}
+                  invoiceNumber={lot.invoiceNumber}
+                  outstandingBalance={
+                    Number(lot.totalCost) -
+                    lot.payments.reduce((sum, p) => sum + Number(p.amount), 0)
+                  }
+                />
+              )}
             </CardHeader>
             <CardContent>
               {lot.payments.length === 0 ? (
@@ -215,11 +277,23 @@ export default async function SupplierLotDetailPage({
                   {lot.payments.map((p) => (
                     <div
                       key={p.id}
-                      className="flex justify-between text-sm border-b pb-2"
+                      className="flex justify-between items-center text-sm border-b pb-2"
                     >
-                      <span className="text-gray-600">
-                        {new Date(p.paymentDate).toLocaleDateString("en-LK")}
-                      </span>
+                      <div>
+                        <Link
+                          href={`/payments/supplier/${p.id}/receipt`}
+                          className="font-mono text-xs text-emerald-700 hover:underline"
+                        >
+                          {p.receiptNumber}
+                        </Link>
+                        <p className="text-xs text-gray-500">
+                          {new Date(p.paymentDate).toLocaleDateString("en-LK")}
+                          {" · "}
+                          <span className="text-gray-400">
+                            Against {lot.invoiceNumber}
+                          </span>
+                        </p>
+                      </div>
                       <span className="font-medium">{formatLKR(p.amount)}</span>
                     </div>
                   ))}

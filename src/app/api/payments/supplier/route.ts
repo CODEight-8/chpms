@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { supplierPaymentSchema } from "@/lib/validators";
 import { requireAuth, errorResponse, jsonResponse } from "@/lib/api-helpers";
 import { getSupplierPayments } from "@/lib/queries/accounts";
+import { generateSupplierReceiptNumber } from "@/lib/id-generators";
 import { logAuditEvent } from "@/lib/audit-log";
 
 export async function GET() {
@@ -24,8 +25,40 @@ export async function POST(request: NextRequest) {
     return errorResponse(parsed.error.issues[0].message);
   }
 
+  const supplier = await prisma.supplier.findUnique({
+    where: { id: parsed.data.supplierId },
+    select: { id: true, isActive: true },
+  });
+
+  if (!supplier) {
+    return errorResponse("Supplier not found", 404);
+  }
+
+  if (!supplier.isActive) {
+    return errorResponse(
+      "Cannot record a payment for an inactive supplier. Reactivate the supplier first."
+    );
+  }
+
+  // Validate lot belongs to the supplier
+  if (parsed.data.supplierLotId) {
+    const lot = await prisma.supplierLot.findUnique({
+      where: { id: parsed.data.supplierLotId },
+      select: { id: true, supplierId: true },
+    });
+    if (!lot) {
+      return errorResponse("Lot not found", 404);
+    }
+    if (lot.supplierId !== parsed.data.supplierId) {
+      return errorResponse("Lot does not belong to the specified supplier");
+    }
+  }
+
+  const receiptNumber = await generateSupplierReceiptNumber();
+
   const payment = await prisma.supplierPayment.create({
     data: {
+      receiptNumber,
       supplierId: parsed.data.supplierId,
       supplierLotId: parsed.data.supplierLotId || null,
       amount: parsed.data.amount,

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { hasPermission } from "@/lib/permissions";
+import { canAccessModule, hasPermission } from "@/lib/permissions";
 import { UserRole } from "@prisma/client";
 import { formatLKR } from "@/lib/currency";
 import {
@@ -42,6 +42,7 @@ export default async function AccountsPage({
   const session = await getServerSession(authOptions);
   const role = session!.user.role as UserRole;
   const canCreate = hasPermission(role, "accounts", "create");
+  const canViewClients = canAccessModule(role, "clients");
 
   const filters = {
     search: searchParams.search,
@@ -61,6 +62,7 @@ export default async function AccountsPage({
 
   // Flatten for CSV export
   const supplierCsvData = supplierPayments.map((p) => ({
+    receipt: p.receiptNumber,
     date: new Date(p.paymentDate).toLocaleDateString("en-LK"),
     supplier: p.supplier.name,
     lot: p.supplierLot ? `${p.supplierLot.lotNumber} / ${p.supplierLot.invoiceNumber}` : "",
@@ -71,9 +73,10 @@ export default async function AccountsPage({
   }));
 
   const clientCsvData = clientPayments.map((p) => ({
+    receipt: p.receiptNumber,
     date: new Date(p.paymentDate).toLocaleDateString("en-LK"),
     client: p.client.name,
-    order: p.order?.orderNumber || "",
+    order: p.order ? `${p.order.orderNumber} / ${p.order.invoiceNumber}` : "",
     method: p.paymentMethod,
     reference: p.reference || "",
     amount: Number(p.amount).toFixed(2),
@@ -81,14 +84,14 @@ export default async function AccountsPage({
   }));
 
   return (
-    <div>
+    <div className="pt-6">
       <PageHeader
         title="Accounts"
         description="Payment tracking \u2014 Money Out (suppliers) & Money In (clients)"
       />
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <SummaryCard
           title="Total Payable"
           value={formatLKR(summary.totalPayable)}
@@ -117,6 +120,7 @@ export default async function AccountsPage({
       <OutstandingAlerts
         suppliers={outstandingSuppliers}
         clients={outstandingClients}
+        linkClients={canViewClients}
       />
 
       {/* Filters */}
@@ -124,12 +128,12 @@ export default async function AccountsPage({
 
       {/* Payment Tabs */}
       <Tabs defaultValue="out" className="space-y-4">
-        <div className="flex items-center justify-between">
-          <TabsList>
-            <TabsTrigger value="out">
+        <div className="space-y-3">
+          <TabsList className="w-full sm:w-auto">
+            <TabsTrigger value="out" className="flex-1 sm:flex-none">
               Money Out ({supplierPayments.length})
             </TabsTrigger>
-            <TabsTrigger value="in">
+            <TabsTrigger value="in" className="flex-1 sm:flex-none">
               Money In ({clientPayments.length})
             </TabsTrigger>
           </TabsList>
@@ -153,6 +157,7 @@ export default async function AccountsPage({
                   data={supplierCsvData}
                   filename="supplier-payments"
                   columns={[
+                    { key: "receipt", header: "Receipt #" },
                     { key: "date", header: "Date" },
                     { key: "supplier", header: "Supplier" },
                     { key: "lot", header: "Lot / Invoice" },
@@ -173,18 +178,25 @@ export default async function AccountsPage({
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead>Receipt #</TableHead>
                       <TableHead>Date</TableHead>
                       <TableHead>Supplier</TableHead>
                       <TableHead>Lot / Invoice</TableHead>
                       <TableHead>Method</TableHead>
-                      <TableHead>Reference</TableHead>
                       <TableHead className="text-right">Amount</TableHead>
-                      <TableHead>Notes</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {supplierPayments.map((p) => (
                       <TableRow key={p.id}>
+                        <TableCell>
+                          <Link
+                            href={`/payments/supplier/${p.id}/receipt`}
+                            className="font-mono text-xs text-emerald-700 hover:underline"
+                          >
+                            {p.receiptNumber}
+                          </Link>
+                        </TableCell>
                         <TableCell>
                           {new Date(p.paymentDate).toLocaleDateString("en-LK")}
                         </TableCell>
@@ -202,14 +214,8 @@ export default async function AccountsPage({
                             : "\u2014"}
                         </TableCell>
                         <TableCell>{p.paymentMethod}</TableCell>
-                        <TableCell className="text-gray-600">
-                          {p.reference || "\u2014"}
-                        </TableCell>
                         <TableCell className="text-right font-medium text-red-600">
                           {formatLKR(p.amount)}
-                        </TableCell>
-                        <TableCell className="text-gray-500 text-sm max-w-32 truncate">
-                          {p.notes || "\u2014"}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -232,9 +238,10 @@ export default async function AccountsPage({
                   data={clientCsvData}
                   filename="client-payments"
                   columns={[
+                    { key: "receipt", header: "Receipt #" },
                     { key: "date", header: "Date" },
                     { key: "client", header: "Client" },
-                    { key: "order", header: "Order #" },
+                    { key: "order", header: "Order / Invoice" },
                     { key: "method", header: "Method" },
                     { key: "reference", header: "Reference" },
                     { key: "amount", header: "Amount (LKR)" },
@@ -252,41 +259,48 @@ export default async function AccountsPage({
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead>Receipt #</TableHead>
                       <TableHead>Date</TableHead>
                       <TableHead>Client</TableHead>
-                      <TableHead>Order #</TableHead>
+                      <TableHead>Order / Invoice</TableHead>
                       <TableHead>Method</TableHead>
-                      <TableHead>Reference</TableHead>
                       <TableHead className="text-right">Amount</TableHead>
-                      <TableHead>Notes</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {clientPayments.map((p) => (
                       <TableRow key={p.id}>
                         <TableCell>
+                          <Link
+                            href={`/payments/client/${p.id}/receipt`}
+                            className="font-mono text-xs text-emerald-700 hover:underline"
+                          >
+                            {p.receiptNumber}
+                          </Link>
+                        </TableCell>
+                        <TableCell>
                           {new Date(p.paymentDate).toLocaleDateString("en-LK")}
                         </TableCell>
                         <TableCell>
-                          <Link
-                            href={`/clients/${p.client.id}`}
-                            className="text-emerald-700 hover:underline"
-                          >
-                            {p.client.name}
-                          </Link>
+                          {canViewClients ? (
+                            <Link
+                              href={`/clients/${p.client.id}`}
+                              className="text-emerald-700 hover:underline"
+                            >
+                              {p.client.name}
+                            </Link>
+                          ) : (
+                            <span className="text-gray-700">{p.client.name}</span>
+                          )}
                         </TableCell>
                         <TableCell className="font-mono text-xs text-gray-500">
-                          {p.order?.orderNumber || "\u2014"}
+                          {p.order
+                            ? `${p.order.orderNumber} / ${p.order.invoiceNumber}`
+                            : "\u2014"}
                         </TableCell>
                         <TableCell>{p.paymentMethod}</TableCell>
-                        <TableCell className="text-gray-600">
-                          {p.reference || "\u2014"}
-                        </TableCell>
                         <TableCell className="text-right font-medium text-green-600">
                           {formatLKR(p.amount)}
-                        </TableCell>
-                        <TableCell className="text-gray-500 text-sm max-w-32 truncate">
-                          {p.notes || "\u2014"}
                         </TableCell>
                       </TableRow>
                     ))}

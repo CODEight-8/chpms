@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useFieldErrors } from "@/lib/use-field-errors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,27 +24,44 @@ import {
 import { toast } from "sonner";
 import { Plus } from "lucide-react";
 
+interface LotOption {
+  id: string;
+  lotNumber: string;
+  invoiceNumber: string;
+  outstanding: number;
+}
+
 interface RecordSupplierPaymentProps {
   supplierId: string;
   supplierName: string;
+  lots?: LotOption[];
 }
 
 export function RecordSupplierPayment({
   supplierId,
   supplierName,
+  lots,
 }: RecordSupplierPaymentProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const { validate } = useFieldErrors();
   const [method, setMethod] = useState("CASH");
+  const [selectedLotId, setSelectedLotId] = useState("");
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+
+    if (!validate(e.currentTarget)) {
+      return;
+    }
+
     setLoading(true);
 
     const form = new FormData(e.currentTarget);
     const data = {
       supplierId,
+      supplierLotId: selectedLotId && selectedLotId !== "none" ? selectedLotId : undefined,
       amount: parseFloat(form.get("amount") as string),
       paymentDate: form.get("paymentDate") as string,
       paymentMethod: method,
@@ -65,6 +83,7 @@ export function RecordSupplierPayment({
 
       toast.success("Payment recorded");
       setOpen(false);
+      setSelectedLotId("");
       router.refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong");
@@ -74,6 +93,7 @@ export function RecordSupplierPayment({
   }
 
   const today = new Date().toISOString().split("T")[0];
+  const selectedLot = selectedLotId && selectedLotId !== "none" ? lots?.find((l) => l.id === selectedLotId) : undefined;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -87,7 +107,35 @@ export function RecordSupplierPayment({
         <DialogHeader>
           <DialogTitle>Record Payment to {supplierName}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} noValidate className="space-y-4">
+          {lots && lots.length > 0 && (
+            <div className="space-y-2">
+              <Label>Link to Lot (Invoice)</Label>
+              <Select value={selectedLotId} onValueChange={setSelectedLotId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select lot (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No specific lot</SelectItem>
+                  {lots.map((lot) => (
+                    <SelectItem key={lot.id} value={lot.id}>
+                      {lot.invoiceNumber} — Outstanding:{" "}
+                      {lot.outstanding.toLocaleString("en-LK", {
+                        style: "currency",
+                        currency: "LKR",
+                      })}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {selectedLot && (
+                <p className="text-xs text-orange-600">
+                  Outstanding: LKR {selectedLot.outstanding.toLocaleString()}
+                </p>
+              )}
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="amount">Amount (LKR) *</Label>
@@ -113,7 +161,12 @@ export function RecordSupplierPayment({
             </div>
             <div className="space-y-2">
               <Label htmlFor="reference">Reference #</Label>
-              <Input id="reference" name="reference" />
+              <Input
+                key={selectedLot?.invoiceNumber || "no-lot"}
+                id="reference"
+                name="reference"
+                defaultValue={selectedLot?.invoiceNumber || ""}
+              />
             </div>
           </div>
 
@@ -123,7 +176,7 @@ export function RecordSupplierPayment({
           </div>
 
           <Button type="submit" className="w-full bg-emerald-700 hover:bg-emerald-800" disabled={loading}>
-            {loading ? "Saving..." : "Record Payment"}
+            {loading ? "Recording..." : "Record Payment"}
           </Button>
         </form>
       </DialogContent>

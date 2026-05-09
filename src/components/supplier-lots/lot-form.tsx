@@ -2,9 +2,11 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { useFieldErrors } from "@/lib/use-field-errors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -24,9 +26,13 @@ interface Supplier {
 export function LotForm() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const { errors, validate, clearError } = useFieldErrors();
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loadingSuppliers, setLoadingSuppliers] = useState(true);
   const [supplierId, setSupplierId] = useState("");
+  const [harvestDate, setHarvestDate] = useState("");
+  const today = new Date().toISOString().split("T")[0];
+  const [dateReceived, setDateReceived] = useState(today);
   const [huskCount, setHuskCount] = useState<number>(0);
   const [perHuskRate, setPerHuskRate] = useState<number>(0);
   const [qualityGrade, setQualityGrade] = useState<string>("");
@@ -44,19 +50,37 @@ export function LotForm() {
       .finally(() => setLoadingSuppliers(false));
   }, []);
 
+  const isSubmitDisabled =
+    loading ||
+    loadingSuppliers ||
+    !supplierId ||
+    !harvestDate ||
+    !dateReceived ||
+    huskCount <= 0 ||
+    perHuskRate <= 0;
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+
+    if (!validate(e.currentTarget)) {
+      return;
+    }
+
+    if (!supplierId) {
+      toast.error("Supplier is required.");
+      return;
+    }
+
     setLoading(true);
 
-    const form = new FormData(e.currentTarget);
     const data = {
       supplierId,
-      harvestDate: form.get("harvestDate") as string,
-      dateReceived: form.get("dateReceived") as string,
+      harvestDate,
+      dateReceived,
       huskCount,
       perHuskRate,
       qualityGrade: qualityGrade || undefined,
-      notes: (form.get("notes") as string) || undefined,
+      notes: (new FormData(e.currentTarget).get("notes") as string) || undefined,
     };
 
     try {
@@ -82,12 +106,10 @@ export function LotForm() {
     }
   }
 
-  const today = new Date().toISOString().split("T")[0];
-
   return (
     <Card>
       <CardContent className="pt-6">
-        <form onSubmit={handleSubmit} className="space-y-5 max-w-lg">
+        <form onSubmit={handleSubmit} noValidate className="space-y-5 max-w-2xl mx-auto">
           <div className="space-y-2">
             <Label>Supplier *</Label>
             <Select value={supplierId} onValueChange={setSupplierId} required disabled={loadingSuppliers}>
@@ -104,7 +126,7 @@ export function LotForm() {
             </Select>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="harvestDate">Harvest Date *</Label>
               <Input
@@ -112,8 +134,12 @@ export function LotForm() {
                 name="harvestDate"
                 type="date"
                 max={today}
+                value={harvestDate}
+                onChange={(e) => { clearError("harvestDate"); setHarvestDate(e.target.value); }}
+                className={cn(errors.harvestDate && "border-red-500")}
                 required
               />
+              {errors.harvestDate && <p className="text-xs text-red-600">{errors.harvestDate}</p>}
             </div>
             <div className="space-y-2">
               <Label htmlFor="dateReceived">Date Received *</Label>
@@ -121,38 +147,47 @@ export function LotForm() {
                 id="dateReceived"
                 name="dateReceived"
                 type="date"
-                defaultValue={today}
+                value={dateReceived}
+                onChange={(e) => { clearError("dateReceived"); setDateReceived(e.target.value); }}
+                className={cn(errors.dateReceived && "border-red-500")}
                 max={today}
                 required
               />
+              {errors.dateReceived && <p className="text-xs text-red-600">{errors.dateReceived}</p>}
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="huskCount">Husk Count *</Label>
               <Input
                 id="huskCount"
+                name="huskCount"
                 type="number"
                 min={1}
                 value={huskCount || ""}
-                onChange={(e) => setHuskCount(parseInt(e.target.value) || 0)}
+                onChange={(e) => { clearError("huskCount"); setHuskCount(parseInt(e.target.value) || 0); }}
+                className={cn(errors.huskCount && "border-red-500")}
+                onWheel={(e) => e.currentTarget.blur()}
                 required
               />
+              {errors.huskCount && <p className="text-xs text-red-600">{errors.huskCount}</p>}
             </div>
             <div className="space-y-2">
               <Label htmlFor="perHuskRate">Per-Husk Rate (LKR) *</Label>
               <Input
                 id="perHuskRate"
+                name="perHuskRate"
                 type="number"
                 min={0.01}
                 step={0.01}
                 value={perHuskRate || ""}
-                onChange={(e) =>
-                  setPerHuskRate(parseFloat(e.target.value) || 0)
-                }
+                onChange={(e) => { clearError("perHuskRate"); setPerHuskRate(parseFloat(e.target.value) || 0); }}
+                className={cn(errors.perHuskRate && "border-red-500")}
+                onWheel={(e) => e.currentTarget.blur()}
                 required
               />
+              {errors.perHuskRate && <p className="text-xs text-red-600">{errors.perHuskRate}</p>}
             </div>
           </div>
 
@@ -208,7 +243,7 @@ export function LotForm() {
             <Button
               type="submit"
               className="bg-emerald-700 hover:bg-emerald-800"
-              disabled={loading || !supplierId}
+              disabled={isSubmitDisabled}
             >
               {loading ? "Creating..." : "Create Supplier Lot"}
             </Button>

@@ -1,7 +1,8 @@
 import { LotStatus, BatchStatus, OrderStatus } from "@prisma/client";
 
 const LOT_TRANSITIONS: Record<LotStatus, LotStatus[]> = {
-  AUDIT: [LotStatus.GOOD_TO_GO, LotStatus.REJECTED],
+  AUDIT: [LotStatus.APPROVED, LotStatus.REJECTED],
+  APPROVED: [LotStatus.GOOD_TO_GO, LotStatus.REJECTED],
   GOOD_TO_GO: [LotStatus.ALLOCATED],
   ALLOCATED: [LotStatus.CONSUMED, LotStatus.GOOD_TO_GO],
   CONSUMED: [],
@@ -15,7 +16,6 @@ const BATCH_TRANSITIONS: Record<BatchStatus, BatchStatus[]> = {
 };
 
 const ORDER_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
-  PENDING: [OrderStatus.CONFIRMED, OrderStatus.CANCELLED],
   CONFIRMED: [OrderStatus.FULFILLED, OrderStatus.CANCELLED],
   FULFILLED: [OrderStatus.DISPATCHED, OrderStatus.CANCELLED],
   DISPATCHED: [],

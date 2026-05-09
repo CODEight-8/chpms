@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { hasPermission } from "@/lib/permissions";
+import { canAccessModule, hasPermission } from "@/lib/permissions";
 import { UserRole, OrderStatus } from "@prisma/client";
 import { formatLKR } from "@/lib/currency";
 import { getOrdersWithDetails, getOrderStatusCounts } from "@/lib/queries/orders";
@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { SummaryCard } from "@/components/shared/summary-card";
 import { EmptyState } from "@/components/shared/empty-state";
 import { StatusBadge } from "@/components/shared/status-badge";
+import { OrderStatusTabs } from "@/components/orders/order-status-tabs";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -19,7 +20,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { SearchInput } from "@/components/shared/search-input";
-import { Plus, ShoppingCart, CheckCircle, Truck, Clock } from "lucide-react";
+import { Plus, ShoppingCart, CheckCircle, Truck, AlertTriangle } from "lucide-react";
 
 export default async function OrdersPage({
   searchParams,
@@ -29,6 +30,7 @@ export default async function OrdersPage({
   const session = await getServerSession(authOptions);
   const role = session!.user.role as UserRole;
   const canCreate = hasPermission(role, "orders", "create");
+  const canViewClients = canAccessModule(role, "clients");
 
   const statusFilter = searchParams.status as OrderStatus | undefined;
   const [orders, counts] = await Promise.all([
@@ -37,7 +39,7 @@ export default async function OrdersPage({
   ]);
 
   return (
-    <div>
+    <div className="pt-6">
       <PageHeader
         title="Orders"
         description="Client orders and fulfillment tracking"
@@ -53,22 +55,23 @@ export default async function OrdersPage({
         }
       />
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <SummaryCard title="Pending" value={counts.PENDING} icon={Clock} />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <SummaryCard
           title="Confirmed"
-          value={counts.CONFIRMED}
+          value={counts.CONFIRMED || 0}
           icon={CheckCircle}
         />
         <SummaryCard
           title="Fulfilled"
-          value={counts.FULFILLED}
+          value={counts.FULFILLED || 0}
           icon={ShoppingCart}
         />
-        <SummaryCard title="Dispatched" value={counts.DISPATCHED} icon={Truck} />
+        <SummaryCard title="Dispatched" value={counts.DISPATCHED || 0} icon={Truck} />
+        <SummaryCard title="Cancelled" value={counts.CANCELLED || 0} icon={AlertTriangle} />
       </div>
 
-      <div className="mb-4">
+      <div className="mb-4 flex flex-col gap-3">
+        <OrderStatusTabs counts={counts} />
         <SearchInput placeholder="Search by order #, client name..." />
       </div>
 
@@ -76,7 +79,13 @@ export default async function OrdersPage({
         <EmptyState
           icon={ShoppingCart}
           title="No orders found"
-          description="Create your first order to start tracking"
+          description={
+            searchParams.search
+              ? "Try a different search term"
+              : statusFilter
+                ? `No ${statusFilter.toLowerCase()} orders found`
+                : "Create your first order to start tracking"
+          }
           action={
             canCreate ? (
               <Link href="/orders/new">
@@ -113,12 +122,16 @@ export default async function OrdersPage({
                     </Link>
                   </TableCell>
                   <TableCell>
-                    <Link
-                      href={`/clients/${order.client.id}`}
-                      className="text-gray-700 hover:underline"
-                    >
-                      {order.client.name}
-                    </Link>
+                    {canViewClients ? (
+                      <Link
+                        href={`/clients/${order.client.id}`}
+                        className="text-gray-700 hover:underline"
+                      >
+                        {order.client.name}
+                      </Link>
+                    ) : (
+                      <span className="text-gray-700">{order.client.name}</span>
+                    )}
                   </TableCell>
                   <TableCell className="text-gray-600">
                     {new Date(order.orderDate).toLocaleDateString("en-LK")}
@@ -126,14 +139,21 @@ export default async function OrdersPage({
                   <TableCell className="text-gray-600">
                     {order.expectedDelivery
                       ? new Date(order.expectedDelivery).toLocaleDateString("en-LK")
-                      : "—"}
+                      : "\u2014"}
                   </TableCell>
                   <TableCell className="text-center">{order.itemCount}</TableCell>
                   <TableCell className="text-right font-medium">
                     {formatLKR(order.totalValue)}
                   </TableCell>
                   <TableCell>
-                    <StatusBadge status={order.status} />
+                    <StatusBadge
+                      status={
+                        order.status === "CONFIRMED" &&
+                        order.items.some((i) => Number(i.quantityFulfilled) > 0)
+                          ? "PARTIALLY_FULFILLED"
+                          : order.status
+                      }
+                    />
                   </TableCell>
                 </TableRow>
               ))}

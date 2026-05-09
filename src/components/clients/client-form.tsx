@@ -2,8 +2,17 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  CLIENT_PAYMENT_METHODS,
+  CLIENT_PAYMENT_TERMS,
+  isClientPaymentMethod,
+  isClientPaymentTerm,
+} from "@/lib/client-payment-terms";
+import { PHONE_ALLOWED_REGEX } from "@/lib/validators";
+import { useFieldErrors } from "@/lib/use-field-errors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
@@ -17,27 +26,92 @@ interface ClientFormProps {
     phone: string | null;
     email: string | null;
     address: string | null;
+    paymentMethod: string | null;
     paymentTerms: string | null;
+    remarks: string | null;
   };
+}
+
+function stripNonLetters(value: string) {
+  return value.replace(/[^A-Za-z ]/g, "");
+}
+
+async function getErrorMessage(response: Response, fallback: string) {
+  const contentType = response.headers.get("content-type") || "";
+
+  if (contentType.includes("application/json")) {
+    try {
+      const payload = (await response.json()) as { error?: string };
+      if (payload.error) {
+        return payload.error;
+      }
+    } catch {
+      return fallback;
+    }
+  }
+
+  return fallback;
 }
 
 export function ClientForm({ defaultValues }: ClientFormProps) {
   const router = useRouter();
   const isEdit = !!defaultValues?.id;
   const [loading, setLoading] = useState(false);
+  const { errors, validate, clearError } = useFieldErrors();
+  const initialPaymentMethod = isClientPaymentMethod(defaultValues?.paymentMethod)
+    ? defaultValues.paymentMethod
+    : "";
+  const initialPaymentTerms: string = isClientPaymentTerm(defaultValues?.paymentTerms)
+    ? defaultValues.paymentTerms
+    : "Due on Receipt";
+  const initialFields = {
+    name: defaultValues?.name || "",
+    companyName: defaultValues?.companyName || "",
+    phone: defaultValues?.phone || "",
+    email: defaultValues?.email || "",
+    address: defaultValues?.address || "",
+    paymentMethod: initialPaymentMethod,
+    paymentTerms: initialPaymentTerms,
+    remarks: defaultValues?.remarks || "",
+  };
+  const [fields, setFields] = useState(initialFields);
+  const phonePattern = PHONE_ALLOWED_REGEX.source;
+  const hasChanges =
+    fields.companyName.trim() !== initialFields.companyName.trim() ||
+    fields.phone.trim() !== initialFields.phone.trim() ||
+    fields.email.trim() !== initialFields.email.trim() ||
+    fields.address.trim() !== initialFields.address.trim() ||
+    fields.paymentMethod.trim() !== initialFields.paymentMethod.trim() ||
+    fields.paymentTerms.trim() !== initialFields.paymentTerms.trim() ||
+    fields.remarks.trim() !== initialFields.remarks.trim();
+  const isSubmitDisabled =
+    loading ||
+    !fields.name.trim() ||
+    !fields.companyName.trim() ||
+    !fields.phone.trim() ||
+    !fields.email.trim() ||
+    !fields.paymentMethod.trim() ||
+    !fields.paymentTerms.trim() ||
+    (isEdit && !hasChanges);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+
+    if (!validate(e.currentTarget)) {
+      return;
+    }
+
     setLoading(true);
 
-    const form = new FormData(e.currentTarget);
     const data = {
-      name: form.get("name") as string,
-      companyName: (form.get("companyName") as string) || undefined,
-      phone: (form.get("phone") as string) || undefined,
-      email: (form.get("email") as string) || undefined,
-      address: (form.get("address") as string) || undefined,
-      paymentTerms: (form.get("paymentTerms") as string) || undefined,
+      name: fields.name.trim(),
+      companyName: fields.companyName.trim() || undefined,
+      phone: fields.phone.trim() || undefined,
+      email: fields.email.trim() || undefined,
+      address: fields.address.trim() || undefined,
+      paymentMethod: fields.paymentMethod.trim() || undefined,
+      paymentTerms: fields.paymentTerms.trim() || undefined,
+      remarks: fields.remarks.trim() || "",
     };
 
     try {
@@ -51,8 +125,7 @@ export function ClientForm({ defaultValues }: ClientFormProps) {
       });
 
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "Failed to save client");
+        throw new Error(await getErrorMessage(res, "Failed to save client"));
       }
 
       toast.success(isEdit ? "Client updated" : "Client created");
@@ -68,48 +141,98 @@ export function ClientForm({ defaultValues }: ClientFormProps) {
   return (
     <Card>
       <CardContent className="pt-6">
-        <form onSubmit={handleSubmit} className="space-y-4 max-w-lg">
+        <form onSubmit={handleSubmit} noValidate className="space-y-4 max-w-2xl mx-auto">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="name">Client Name *</Label>
               <Input
                 id="name"
                 name="name"
-                defaultValue={defaultValues?.name || ""}
+                value={fields.name}
+                onChange={(e) => {
+                  clearError("name");
+                  setFields((current) => ({
+                    ...current,
+                    name: stripNonLetters(e.target.value),
+                  }));
+                }}
+                className={cn(errors.name && "border-red-500")}
                 maxLength={200}
+                disabled={isEdit}
                 required
               />
+              {errors.name && <p className="text-xs text-red-600">{errors.name}</p>}
+              <p className="text-xs text-gray-500">
+                {isEdit
+                  ? "Client name is locked after creation and cannot be changed."
+                  : "Choose carefully. Client name must be unique, contain letters only, and cannot be changed after creation."}
+              </p>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="companyName">Company Name</Label>
+              <Label htmlFor="companyName">Company Name *</Label>
               <Input
                 id="companyName"
                 name="companyName"
-                defaultValue={defaultValues?.companyName || ""}
+                value={fields.companyName}
+                onChange={(e) => {
+                  clearError("companyName");
+                  setFields((current) => ({
+                    ...current,
+                    companyName: e.target.value,
+                  }));
+                }}
+                className={cn(errors.companyName && "border-red-500")}
                 maxLength={200}
+                required
               />
+              {errors.companyName && <p className="text-xs text-red-600">{errors.companyName}</p>}
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="phone">Phone</Label>
+              <Label htmlFor="phone">Phone *</Label>
               <Input
                 id="phone"
                 name="phone"
-                defaultValue={defaultValues?.phone || ""}
+                type="tel"
+                placeholder="+94771234567 or 0771234567"
+                value={fields.phone}
+                onChange={(e) => {
+                  clearError("phone");
+                  setFields((current) => ({
+                    ...current,
+                    phone: e.target.value,
+                  }));
+                }}
+                className={cn(errors.phone && "border-red-500")}
                 maxLength={50}
+                pattern={phonePattern}
+                title="Phone number can contain only digits, spaces, +, parentheses, and hyphens."
+                required
               />
+              {errors.phone && <p className="text-xs text-red-600">{errors.phone}</p>}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">Email *</Label>
               <Input
                 id="email"
                 name="email"
                 type="email"
-                defaultValue={defaultValues?.email || ""}
+                placeholder="client@example.com"
+                value={fields.email}
+                onChange={(e) => {
+                  clearError("email");
+                  setFields((current) => ({
+                    ...current,
+                    email: e.target.value,
+                  }));
+                }}
+                className={cn(errors.email && "border-red-500")}
                 maxLength={200}
+                required
               />
+              {errors.email && <p className="text-xs text-red-600">{errors.email}</p>}
             </div>
           </div>
 
@@ -118,20 +241,89 @@ export function ClientForm({ defaultValues }: ClientFormProps) {
             <Textarea
               id="address"
               name="address"
-              defaultValue={defaultValues?.address || ""}
+              value={fields.address}
+              onChange={(e) =>
+                setFields((current) => ({
+                  ...current,
+                  address: e.target.value,
+                }))
+              }
               rows={2}
               maxLength={500}
             />
           </div>
 
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="paymentMethod">Payment Method *</Label>
+              <select
+                id="paymentMethod"
+                name="paymentMethod"
+                value={fields.paymentMethod}
+                onChange={(e) => {
+                  clearError("paymentMethod");
+                  setFields((current) => ({
+                    ...current,
+                    paymentMethod: e.target.value,
+                  }));
+                }}
+                className={cn(
+                  "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+                  errors.paymentMethod && "border-red-500"
+                )}
+                required
+              >
+                <option value="">Select</option>
+                {CLIENT_PAYMENT_METHODS.map((method) => (
+                  <option key={method} value={method}>
+                    {method}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="paymentTerms">Payment Terms *</Label>
+              <select
+                id="paymentTerms"
+                name="paymentTerms"
+                value={fields.paymentTerms}
+                onChange={(e) => {
+                  clearError("paymentTerms");
+                  setFields((current) => ({
+                    ...current,
+                    paymentTerms: e.target.value,
+                  }));
+                }}
+                className={cn(
+                  "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+                  errors.paymentTerms && "border-red-500"
+                )}
+                required
+              >
+                {CLIENT_PAYMENT_TERMS.map((term) => (
+                  <option key={term} value={term}>
+                    {term}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
           <div className="space-y-2">
-            <Label htmlFor="paymentTerms">Payment Terms</Label>
-            <Input
-              id="paymentTerms"
-              name="paymentTerms"
-              defaultValue={defaultValues?.paymentTerms || ""}
-              placeholder="e.g. Net 30, COD"
-              maxLength={500}
+            <Label htmlFor="remarks">Remarks</Label>
+            <Textarea
+              id="remarks"
+              name="remarks"
+              placeholder="Any notes about this client..."
+              value={fields.remarks}
+              onChange={(e) =>
+                setFields((current) => ({
+                  ...current,
+                  remarks: e.target.value,
+                }))
+              }
+              rows={3}
+              maxLength={2000}
             />
           </div>
 
@@ -139,9 +331,9 @@ export function ClientForm({ defaultValues }: ClientFormProps) {
             <Button
               type="submit"
               className="bg-emerald-700 hover:bg-emerald-800"
-              disabled={loading}
+              disabled={isSubmitDisabled}
             >
-              {loading ? "Saving..." : isEdit ? "Update Client" : "Create Client"}
+              {loading ? (isEdit ? "Saving..." : "Creating...") : isEdit ? "Update Client" : "Create Client"}
             </Button>
             <Button type="button" variant="outline" onClick={() => router.back()}>
               Cancel

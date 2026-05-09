@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
-import { XCircle, Truck, ClipboardCheck } from "lucide-react";
+import { XCircle, Truck } from "lucide-react";
 import { toast } from "sonner";
 
 interface OrderActionsProps {
@@ -34,37 +34,6 @@ export function OrderActions({
 
   return (
     <div className="flex flex-wrap gap-2">
-      {currentStatus === "PENDING" && (
-        <>
-          <ConfirmDialog
-            title="Confirm this order?"
-            description="This will move the order to Confirmed status. The order can then be fulfilled with production batches."
-            confirmLabel="Confirm Order"
-            onConfirm={() => transitionStatus("CONFIRMED")}
-          >
-            <Button className="bg-blue-600 hover:bg-blue-700 gap-2">
-              <ClipboardCheck className="h-4 w-4" />
-              Confirm Order
-            </Button>
-          </ConfirmDialog>
-          <ConfirmDialog
-            title="Cancel this order?"
-            description="This action cannot be undone. The order will be permanently marked as cancelled."
-            confirmLabel="Cancel Order"
-            variant="destructive"
-            onConfirm={() => transitionStatus("CANCELLED")}
-          >
-            <Button
-              variant="outline"
-              className="text-red-600 border-red-200 hover:bg-red-50 gap-2"
-            >
-              <XCircle className="h-4 w-4" />
-              Cancel
-            </Button>
-          </ConfirmDialog>
-        </>
-      )}
-
       {currentStatus === "CONFIRMED" && (
         <ConfirmDialog
           title="Cancel this confirmed order?"

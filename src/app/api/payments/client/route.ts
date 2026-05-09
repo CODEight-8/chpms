@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { clientPaymentSchema } from "@/lib/validators";
 import { requireAuth, errorResponse, jsonResponse } from "@/lib/api-helpers";
 import { getClientPayments } from "@/lib/queries/accounts";
+import { generateClientReceiptNumber } from "@/lib/id-generators";
 import { logAuditEvent } from "@/lib/audit-log";
 
 export async function GET() {
@@ -24,8 +25,41 @@ export async function POST(request: NextRequest) {
     return errorResponse(parsed.error.issues[0].message);
   }
 
+  // Validate client exists and is active
+  const client = await prisma.client.findUnique({
+    where: { id: parsed.data.clientId },
+    select: { id: true, isActive: true },
+  });
+
+  if (!client) {
+    return errorResponse("Client not found", 404);
+  }
+
+  if (!client.isActive) {
+    return errorResponse(
+      "Cannot record a payment for an inactive client. Reactivate the client first."
+    );
+  }
+
+  // Validate order belongs to the specified client
+  if (parsed.data.orderId) {
+    const order = await prisma.order.findUnique({
+      where: { id: parsed.data.orderId },
+      select: { id: true, clientId: true },
+    });
+    if (!order) {
+      return errorResponse("Order not found", 404);
+    }
+    if (order.clientId !== parsed.data.clientId) {
+      return errorResponse("Order does not belong to the specified client");
+    }
+  }
+
+  const receiptNumber = await generateClientReceiptNumber();
+
   const payment = await prisma.clientPayment.create({
     data: {
+      receiptNumber,
       clientId: parsed.data.clientId,
       orderId: parsed.data.orderId || null,
       amount: parsed.data.amount,

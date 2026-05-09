@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { useFieldErrors } from "@/lib/use-field-errors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -48,10 +49,12 @@ interface SelectedLot {
 export function BatchForm() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const { validate } = useFieldErrors();
   const [product, setProduct] = useState<Product | null>(null);
   const [chipSize, setChipSize] = useState("");
   const [availableLots, setAvailableLots] = useState<AvailableLot[]>([]);
   const [selectedLots, setSelectedLots] = useState<SelectedLot[]>([]);
+  const [lotToAdd, setLotToAdd] = useState("");
 
   useEffect(() => {
     Promise.all([
@@ -99,7 +102,10 @@ export function BatchForm() {
 
   function addLot(lotId: string) {
     const lot = availableLots.find((l) => l.id === lotId);
-    if (!lot) return;
+    if (!lot) {
+      setLotToAdd("");
+      return;
+    }
 
     setSelectedLots((prev) => [
       ...prev,
@@ -113,6 +119,7 @@ export function BatchForm() {
         quantityUsed: lot.availableHusks,
       },
     ]);
+    setLotToAdd("");
   }
 
   function removeLot(lotId: string) {
@@ -131,7 +138,23 @@ export function BatchForm() {
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!product || !chipSize || selectedLots.length === 0) return;
+
+    if (!validate(e.currentTarget)) {
+      return;
+    }
+
+    if (!product) {
+      toast.error("Product is still loading.");
+      return;
+    }
+    if (!chipSize) {
+      toast.error("Target chip size is required.");
+      return;
+    }
+    if (selectedLots.length === 0) {
+      toast.error("Select at least one supplier lot.");
+      return;
+    }
 
     setLoading(true);
     const form = new FormData(e.currentTarget);
@@ -170,7 +193,7 @@ export function BatchForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} noValidate className="space-y-6 max-w-2xl mx-auto">
       {/* Product Info & Chip Size */}
       <Card>
         <CardContent className="pt-6 space-y-4">
@@ -219,7 +242,10 @@ export function BatchForm() {
         <CardContent className="space-y-4">
           {unselectedLots.length > 0 && (
             <div className="flex items-center gap-2">
-              <Select onValueChange={addLot}>
+              <Select value={lotToAdd} onValueChange={(value) => {
+                setLotToAdd(value);
+                addLot(value);
+              }}>
                 <SelectTrigger className="flex-1" aria-label="Select a supplier lot to add">
                   <SelectValue placeholder="Add a supplier lot..." />
                 </SelectTrigger>
@@ -263,7 +289,7 @@ export function BatchForm() {
                       type="button"
                       variant="outline"
                       size="icon"
-                      className="h-8 w-8"
+                      className="h-9 w-9"
                       onClick={() =>
                         updateQuantity(lot.lotId, lot.quantityUsed - 10)
                       }
@@ -279,13 +305,14 @@ export function BatchForm() {
                       onChange={(e) =>
                         updateQuantity(lot.lotId, parseInt(e.target.value) || 1)
                       }
-                      className="w-24 text-center h-8"
+                      onWheel={(e) => e.currentTarget.blur()}
+                      className="w-24 text-center h-9"
                     />
                     <Button
                       type="button"
                       variant="outline"
                       size="icon"
-                      className="h-8 w-8"
+                      className="h-9 w-9"
                       onClick={() =>
                         updateQuantity(lot.lotId, lot.quantityUsed + 10)
                       }
@@ -300,7 +327,7 @@ export function BatchForm() {
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 text-red-500 hover:text-red-700"
+                    className="h-9 w-9 text-red-500 hover:text-red-700"
                     onClick={() => removeLot(lot.lotId)}
                     aria-label={`Remove lot ${lot.lotNumber}`}
                   >

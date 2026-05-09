@@ -30,6 +30,20 @@ export async function POST(request: NextRequest) {
     return errorResponse(parsed.error.issues[0].message);
   }
 
+  const existingClient = await prisma.client.findFirst({
+    where: {
+      name: {
+        equals: parsed.data.name.trim(),
+        mode: "insensitive",
+      },
+    },
+    select: { id: true },
+  });
+
+  if (existingClient) {
+    return errorResponse("Client name already exists. Use a different client name.", 409);
+  }
+
   const client = await prisma.client.create({
     data: parsed.data,
   });

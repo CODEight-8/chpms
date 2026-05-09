@@ -19,31 +19,43 @@ import { toast } from "sonner";
 interface BatchActionsProps {
   batchId: string;
   currentStatus: string;
-  productUnit: string;
+  totalInputHusks: number;
   canEdit: boolean;
 }
 
 export function BatchActions({
   batchId,
   currentStatus,
-  productUnit,
+  totalInputHusks,
   canEdit,
 }: BatchActionsProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [completeOpen, setCompleteOpen] = useState(false);
-  const [outputQuantity, setOutputQuantity] = useState<number>(0);
-  const [outputUnit, setOutputUnit] = useState(productUnit);
-  const [qualityScore, setQualityScore] = useState<number>(0);
+  const [outputQuantity, setOutputQuantity] = useState("");
+  const [qualityScore, setQualityScore] = useState("");
+  const parsedOutputQuantity = Number.parseFloat(outputQuantity);
+  const parsedQualityScore = Number.parseFloat(qualityScore);
+  const hasValidOutputQuantity =
+    Number.isFinite(parsedOutputQuantity) &&
+    parsedOutputQuantity > 0 &&
+    parsedOutputQuantity <= totalInputHusks;
+  const hasValidQualityScore =
+    Number.isFinite(parsedQualityScore) &&
+    parsedQualityScore >= 0 &&
+    parsedQualityScore <= 100;
 
   async function handleComplete() {
-    if (outputQuantity <= 0) return;
+    if (!hasValidOutputQuantity || !hasValidQualityScore) return;
     setLoading(true);
     try {
       const res = await fetch(`/api/production-batches/${batchId}/complete`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ outputQuantity, outputUnit, qualityScore }),
+        body: JSON.stringify({
+          outputQuantity: parsedOutputQuantity,
+          qualityScore: parsedQualityScore,
+        }),
       });
       if (!res.ok) throw new Error((await res.json()).error);
       toast.success("Batch marked as completed");
@@ -98,26 +110,19 @@ export function BatchActions({
           </DialogHeader>
           <div className="space-y-4 pt-2">
             <div className="space-y-2">
-              <Label>Output Quantity *</Label>
+              <Label>Output Quantity (Kg) *</Label>
               <Input
                 type="number"
                 min={0.01}
+                max={totalInputHusks}
                 step={0.01}
-                value={outputQuantity || ""}
-                onChange={(e) =>
-                  setOutputQuantity(parseFloat(e.target.value) || 0)
-                }
+                value={outputQuantity}
+                onChange={(e) => setOutputQuantity(e.target.value)}
                 placeholder="e.g. 450"
               />
-            </div>
-            <div className="space-y-2">
-              <Label>Output Unit *</Label>
-              <Input
-                value={outputUnit}
-                onChange={(e) => setOutputUnit(e.target.value)}
-                placeholder="e.g. kg"
-                maxLength={50}
-              />
+              <p className="text-xs text-gray-500">
+                Maximum allowed: {totalInputHusks.toLocaleString()} kg
+              </p>
             </div>
             <div className="space-y-2">
               <Label>Quality Score (% correct size) *</Label>
@@ -126,18 +131,20 @@ export function BatchActions({
                 min={0}
                 max={100}
                 step={0.1}
-                value={qualityScore || ""}
-                onChange={(e) =>
-                  setQualityScore(parseFloat(e.target.value) || 0)
-                }
+                value={qualityScore}
+                onChange={(e) => setQualityScore(e.target.value)}
                 placeholder="e.g. 85"
               />
               <p className="text-xs text-gray-500">
-                {qualityScore >= 75
+                {!qualityScore
+                  ? "Enter a value from 0 to 100"
+                  : parsedQualityScore > 100
+                    ? "Quality score cannot be more than 100"
+                    : hasValidQualityScore && parsedQualityScore >= 75
                   ? "Grade: GOOD"
-                  : qualityScore >= 10
+                  : hasValidQualityScore && parsedQualityScore >= 10
                     ? "Grade: AVERAGE"
-                    : qualityScore > 0
+                    : hasValidQualityScore
                       ? "Grade: REJECT"
                       : "Percentage of chips matching the target size"}
               </p>
@@ -145,7 +152,9 @@ export function BatchActions({
             <Button
               onClick={handleComplete}
               className="w-full bg-emerald-700 hover:bg-emerald-800"
-              disabled={loading || outputQuantity <= 0 || !outputUnit || qualityScore < 0}
+              disabled={
+                loading || !hasValidOutputQuantity || !hasValidQualityScore
+              }
             >
               {loading ? "Completing..." : "Confirm Complete"}
             </Button>

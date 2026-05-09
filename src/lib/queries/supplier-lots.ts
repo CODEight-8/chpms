@@ -86,6 +86,7 @@ export async function getLotStatusCounts() {
 
   const result: Record<string, number> = {
     AUDIT: 0,
+    APPROVED: 0,
     GOOD_TO_GO: 0,
     ALLOCATED: 0,
     CONSUMED: 0,

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useFieldErrors } from "@/lib/use-field-errors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -41,6 +42,7 @@ export function PaymentForm({ type }: PaymentFormProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const { validate } = useFieldErrors();
   const [entities, setEntities] = useState<Entity[]>([]);
   const [entityId, setEntityId] = useState("");
   const [method, setMethod] = useState("CASH");
@@ -55,6 +57,7 @@ export function PaymentForm({ type }: PaymentFormProps) {
       .catch(() => toast.error("Failed to load"));
   }, [open, type]);
 
+  const label = type === "supplier" ? "Supplier" : "Client";
   const selectedEntity = entities.find((e) => e.id === entityId);
   const outstanding =
     type === "supplier"
@@ -63,6 +66,16 @@ export function PaymentForm({ type }: PaymentFormProps) {
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+
+    if (!validate(e.currentTarget)) {
+      return;
+    }
+
+    if (!entityId) {
+      toast.error(`${label} is required.`);
+      return;
+    }
+
     setLoading(true);
 
     const form = new FormData(e.currentTarget);
@@ -104,14 +117,13 @@ export function PaymentForm({ type }: PaymentFormProps) {
   }
 
   const today = new Date().toISOString().split("T")[0];
-  const label = type === "supplier" ? "Supplier" : "Client";
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="bg-emerald-700 hover:bg-emerald-800 gap-2">
+        <Button className="bg-emerald-700 hover:bg-emerald-800 gap-2" size="sm">
           <Plus className="h-4 w-4" />
-          Record {type === "supplier" ? "Payment Out" : "Payment In"}
+          <span className="hidden sm:inline">Record</span> {type === "supplier" ? "Payment Out" : "Payment In"}
         </Button>
       </DialogTrigger>
       <DialogContent>
@@ -120,12 +132,12 @@ export function PaymentForm({ type }: PaymentFormProps) {
             Record {type === "supplier" ? "Supplier Payment" : "Client Payment"}
           </DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} noValidate className="space-y-4">
           <div className="space-y-2">
             <Label>{label} *</Label>
-            <Select value={entityId} onValueChange={setEntityId} required>
+            <Select value={entityId} onValueChange={setEntityId} required disabled={entities.length === 0 && !entityId}>
               <SelectTrigger>
-                <SelectValue placeholder={`Select ${label.toLowerCase()}`} />
+                <SelectValue placeholder={entities.length === 0 ? "Loading..." : `Select ${label.toLowerCase()}`} />
               </SelectTrigger>
               <SelectContent>
                 {entities.map((e) => (
@@ -216,7 +228,7 @@ export function PaymentForm({ type }: PaymentFormProps) {
             className="w-full bg-emerald-700 hover:bg-emerald-800"
             disabled={loading || !entityId}
           >
-            {loading ? "Saving..." : "Record Payment"}
+            {loading ? "Recording..." : "Record Payment"}
           </Button>
         </form>
       </DialogContent>

@@ -1,13 +1,17 @@
 import { prisma } from "@/lib/prisma";
 
 export async function getDashboardData() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const oneWeekFromNow = new Date(today);
+  oneWeekFromNow.setDate(oneWeekFromNow.getDate() + 7);
+
   const [
     lotStatusCounts,
     batchStatusCounts,
-    orderStatusCounts,
-    supplierStats,
-    clientStats,
-    financialSummary,
+    overdueOrders,
+    closeToOverdueOrders,
     recentLots,
     recentBatches,
   ] = await Promise.all([
@@ -23,54 +27,43 @@ export async function getDashboardData() {
       _count: { id: true },
     }),
 
-    // Order status counts
-    prisma.order.groupBy({
-      by: ["status"],
-      _count: { id: true },
-    }),
-
-    // Top suppliers by volume
-    prisma.supplier.findMany({
-      where: { isActive: true },
+    // Overdue orders: expected delivery passed, still not dispatched/cancelled
+    prisma.order.findMany({
+      where: {
+        expectedDelivery: { lt: today },
+        status: { in: ["CONFIRMED", "FULFILLED"] },
+      },
       include: {
-        lots: {
+        client: { select: { id: true, name: true } },
+        items: {
           select: {
-            huskCount: true,
-            qualityGrade: true,
-            totalCost: true,
+            quantityOrdered: true,
+            quantityFulfilled: true,
+            product: { select: { name: true } },
           },
         },
       },
-      orderBy: { name: "asc" },
-      take: 10,
+      orderBy: { expectedDelivery: "asc" },
     }),
 
-    // Top clients by order value
-    prisma.client.findMany({
-      where: { isActive: true },
+    // Close-to-overdue: expected delivery within next 7 days
+    prisma.order.findMany({
+      where: {
+        expectedDelivery: { gte: today, lte: oneWeekFromNow },
+        status: { in: ["CONFIRMED", "FULFILLED"] },
+      },
       include: {
-        orders: {
-          where: { status: { not: "CANCELLED" } },
-          include: {
-            items: {
-              select: { quantityOrdered: true, unitPrice: true },
-            },
+        client: { select: { id: true, name: true } },
+        items: {
+          select: {
+            quantityOrdered: true,
+            quantityFulfilled: true,
+            product: { select: { name: true } },
           },
         },
-        payments: {
-          select: { amount: true },
-        },
       },
-      orderBy: { name: "asc" },
-      take: 10,
+      orderBy: { expectedDelivery: "asc" },
     }),
-
-    // Financial totals
-    Promise.all([
-      prisma.supplierLot.aggregate({ _sum: { totalCost: true } }),
-      prisma.supplierPayment.aggregate({ _sum: { amount: true } }),
-      prisma.clientPayment.aggregate({ _sum: { amount: true } }),
-    ]),
 
     // Recent lots
     prisma.supplierLot.findMany({
@@ -99,94 +92,17 @@ export async function getDashboardData() {
   const batchCounts: Record<string, number> = {};
   for (const c of batchStatusCounts) batchCounts[c.status] = c._count.id;
 
-  // Process order counts
-  const orderCounts: Record<string, number> = {};
-  for (const c of orderStatusCounts) orderCounts[c.status] = c._count.id;
-
-  // Process supplier rankings
-  const supplierRankings = supplierStats
-    .map((s) => {
-      const totalLots = s.lots.length;
-      const totalHusks = s.lots.reduce((sum, l) => sum + l.huskCount, 0);
-      const rejections = s.lots.filter(
-        (l) => l.qualityGrade === "REJECT"
-      ).length;
-
-      return {
-        id: s.id,
-        name: s.name,
-        totalLots,
-        totalHusks,
-        rejectionRate: totalLots > 0 ? (rejections / totalLots) * 100 : 0,
-        totalSpend: s.lots.reduce((sum, l) => sum + Number(l.totalCost), 0),
-      };
-    })
-    .sort((a, b) => b.totalHusks - a.totalHusks);
-
-  // Process client rankings
-  const clientRankings = clientStats
-    .map((c) => {
-      const totalRevenue = c.orders.reduce(
-        (sum, o) =>
-          sum +
-          o.items.reduce(
-            (s, i) => s + Number(i.quantityOrdered) * Number(i.unitPrice),
-            0
-          ),
-        0
-      );
-      const totalPaid = c.payments.reduce(
-        (sum, p) => sum + Number(p.amount),
-        0
-      );
-
-      return {
-        id: c.id,
-        name: c.name,
-        totalOrders: c.orders.length,
-        totalRevenue,
-        totalPaid,
-        outstanding: totalRevenue - totalPaid,
-      };
-    })
-    .sort((a, b) => b.totalRevenue - a.totalRevenue);
-
-  // Financial
-  const [lotCostAgg, supplierPaidAgg, clientPaidAgg] = financialSummary;
-  const totalProcurement = Number(lotCostAgg._sum.totalCost || 0);
-  const totalPaidSuppliers = Number(supplierPaidAgg._sum.amount || 0);
-  const totalReceived = Number(clientPaidAgg._sum.amount || 0);
-
-  // Calculate total order value for receivable
-  const orderItemsAll = await prisma.orderItem.findMany({
-    where: { order: { status: { not: "CANCELLED" } } },
-    select: { quantityOrdered: true, unitPrice: true },
-  });
-  const totalReceivable = orderItemsAll.reduce(
-    (sum, i) => sum + Number(i.quantityOrdered) * Number(i.unitPrice),
-    0
-  );
-
   return {
     kpis: {
       lotsInAudit: lotCounts["AUDIT"] || 0,
       lotsGoodToGo: lotCounts["GOOD_TO_GO"] || 0,
       batchesInProgress: batchCounts["IN_PROGRESS"] || 0,
       batchesCompleted: batchCounts["COMPLETED"] || 0,
-      pendingOrders: orderCounts["PENDING"] || 0,
-      confirmedOrders: orderCounts["CONFIRMED"] || 0,
+      overdueOrders: overdueOrders.length,
+      closeToOverdueOrders: closeToOverdueOrders.length,
     },
-    financial: {
-      totalProcurement,
-      totalPaidSuppliers,
-      outstandingPayable: totalProcurement - totalPaidSuppliers,
-      totalRevenue: totalReceivable,
-      totalReceived,
-      outstandingReceivable: totalReceivable - totalReceived,
-      grossProfit: totalReceived - totalPaidSuppliers,
-    },
-    supplierRankings,
-    clientRankings,
+    overdueOrders,
+    closeToOverdueOrders,
     recentLots,
     recentBatches,
   };

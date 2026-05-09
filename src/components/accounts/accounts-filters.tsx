@@ -48,7 +48,7 @@ export function AccountsFilters() {
             placeholder="Name, reference, invoice..."
             defaultValue={searchParams.get("search") || ""}
             onChange={(e) => updateParam("search", e.target.value)}
-            className="pl-8 h-9 w-48"
+            className="pl-8 h-9 w-full sm:w-48"
           />
         </div>
       </div>
@@ -59,7 +59,7 @@ export function AccountsFilters() {
           value={searchParams.get("method") || "all"}
           onValueChange={(v) => updateParam("method", v)}
         >
-          <SelectTrigger className="h-9 w-36">
+          <SelectTrigger className="h-9 w-full sm:w-36">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -77,7 +77,7 @@ export function AccountsFilters() {
           type="date"
           defaultValue={searchParams.get("dateFrom") || ""}
           onChange={(e) => updateParam("dateFrom", e.target.value)}
-          className="h-9 w-36"
+          className="h-9 w-full sm:w-36"
         />
       </div>
 
@@ -87,7 +87,7 @@ export function AccountsFilters() {
           type="date"
           defaultValue={searchParams.get("dateTo") || ""}
           onChange={(e) => updateParam("dateTo", e.target.value)}
-          className="h-9 w-36"
+          className="h-9 w-full sm:w-36"
         />
       </div>
 
