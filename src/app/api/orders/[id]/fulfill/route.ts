@@ -28,6 +28,29 @@ export async function POST(
     return errorResponse(parsed.error.issues[0].message);
   }
 
+  const batchIds = Array.from(
+    new Set(parsed.data.fulfillments.map((f) => f.productionBatchId))
+  );
+
+  const batches = await prisma.productionBatch.findMany({
+    where: { id: { in: batchIds } },
+  });
+
+  const batchUsage = await prisma.orderFulfillment.groupBy({
+    by: ["productionBatchId"],
+    where: { productionBatchId: { in: batchIds } },
+    _sum: { quantityFulfilled: true },
+  });
+
+  const usedQuantityByBatch = new Map(
+    batchUsage.map((usage) => [
+      usage.productionBatchId,
+      Number(usage._sum.quantityFulfilled ?? 0),
+    ])
+  );
+
+  const requestedQuantityByBatch = new Map<string, number>();
+
   // Validate each fulfillment
   for (const f of parsed.data.fulfillments) {
     const item = order.items.find((i) => i.id === f.orderItemId);
@@ -35,25 +58,50 @@ export async function POST(
       return errorResponse(`Order item ${f.orderItemId} not found`);
     }
 
-    const batch = await prisma.productionBatch.findUnique({
-      where: { id: f.productionBatchId },
-    });
+    const batch = batches.find((b) => b.id === f.productionBatchId);
     if (!batch || batch.status !== "COMPLETED") {
       return errorResponse("Production batch must be completed for fulfillment");
     }
 
-    // Validate chip size match
+    if (!batch.outputQuantity) {
+      return errorResponse(
+        `Production batch ${batch.batchNumber} must have output quantity before fulfillment`
+      );
+    }
+
+    if (item.productId !== batch.productId) {
+      return errorResponse(
+        `Production batch ${batch.batchNumber} is for a different product than order item ${item.id}`
+      );
+    }
+
     if (item.chipSize && batch.chipSize && item.chipSize !== batch.chipSize) {
       return errorResponse(
         `Chip size mismatch: order requires ${item.chipSize} but batch ${batch.batchNumber} is ${batch.chipSize}`
       );
     }
 
-    const remaining =
+    const remainingItemQuantity =
       Number(item.quantityOrdered) - Number(item.quantityFulfilled);
-    if (f.quantityFulfilled > remaining) {
+    if (f.quantityFulfilled > remainingItemQuantity) {
       return errorResponse(
-        `Cannot fulfill ${f.quantityFulfilled} — only ${remaining} remaining for this item`
+        `Cannot fulfill ${f.quantityFulfilled} — only ${remainingItemQuantity} remaining for this item`
+      );
+    }
+
+    const existingUsed = usedQuantityByBatch.get(batch.id) ?? 0;
+    const requestedSoFar = requestedQuantityByBatch.get(batch.id) ?? 0;
+    const newRequestedTotal = requestedSoFar + f.quantityFulfilled;
+    requestedQuantityByBatch.set(batch.id, newRequestedTotal);
+
+    const batchRemaining =
+      Number(batch.outputQuantity) - existingUsed - newRequestedTotal;
+
+    if (batchRemaining < 0) {
+      return errorResponse(
+        `Production batch ${batch.batchNumber} does not have enough output remaining. Requested ${newRequestedTotal} but only ${
+          Number(batch.outputQuantity) - existingUsed
+        } is available.`
       );
     }
   }

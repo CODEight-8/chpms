@@ -31,6 +31,7 @@ interface CompletedBatch {
   outputQuantity: string;
   outputUnit: string;
   totalRawCost: string;
+  availableQuantity: number;
 }
 
 interface BatchAllocation {
@@ -67,7 +68,7 @@ export function FulfillForm({
   }, [open, chipSize]);
 
   const totalAvailable = useMemo(
-    () => batches.reduce((sum, b) => sum + Number(b.outputQuantity), 0),
+    () => batches.reduce((sum, b) => sum + Number(b.availableQuantity ?? 0), 0),
     [batches]
   );
 
@@ -96,7 +97,7 @@ export function FulfillForm({
     const batch = batches.find((b) => b.id === batchId);
     if (!batch) return;
 
-    const batchAvailable = Number(batch.outputQuantity);
+    const batchAvailable = Number(batch.availableQuantity ?? batch.outputQuantity);
     const stillNeeded = remaining - totalAllocated;
     const qty = Math.min(batchAvailable, Math.max(stillNeeded, 0));
 
@@ -122,7 +123,8 @@ export function FulfillForm({
 
     const invalidAlloc = allocations.find((a) => {
       const batch = getBatch(a.batchId);
-      return !batch || a.quantity <= 0 || a.quantity > Number(batch.outputQuantity);
+      const maxAllowed = Number(batch?.availableQuantity ?? batch?.outputQuantity ?? 0);
+      return !batch || a.quantity <= 0 || a.quantity > maxAllowed;
     });
     if (invalidAlloc) {
       toast.error("Invalid quantity for one or more batches");
@@ -244,7 +246,7 @@ export function FulfillForm({
                           </p>
                           <p className="text-xs text-gray-500">
                             {Number(batch.outputQuantity).toLocaleString()}{" "}
-                            {batch.outputUnit} available
+                            {batch.outputUnit} remaining
                             <span className="ml-2 text-orange-600 font-medium">
                               Cost: {formatLKR(allocCost)}
                             </span>
@@ -254,7 +256,7 @@ export function FulfillForm({
                           <Input
                             type="number"
                             min={0.01}
-                            max={Number(batch.outputQuantity)}
+                            max={Number(batch.availableQuantity ?? batch.outputQuantity)}
                             step={0.01}
                             value={alloc.quantity || ""}
                             onChange={(e) =>
@@ -313,7 +315,7 @@ export function FulfillForm({
               )}
 
               {/* Add batch selector */}
-              {availableBatches.length > 0 && totalAllocated < remaining && (
+              {availableBatches.filter((b) => Number(b.availableQuantity ?? 0) > 0).length > 0 && totalAllocated < remaining && (
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-gray-700">
                     {allocations.length === 0
@@ -321,11 +323,13 @@ export function FulfillForm({
                       : "Add Another Batch"}
                   </p>
                   <div className="space-y-1 max-h-40 overflow-y-auto border rounded-lg">
-                    {availableBatches.map((b) => {
-                      const costPerUnit =
-                        Number(b.outputQuantity) > 0
-                          ? Number(b.totalRawCost) / Number(b.outputQuantity)
-                          : 0;
+                    {availableBatches
+                      .filter((b) => Number(b.availableQuantity ?? 0) > 0)
+                      .map((b) => {
+                        const costPerUnit =
+                          Number(b.outputQuantity) > 0
+                            ? Number(b.totalRawCost) / Number(b.outputQuantity)
+                            : 0;
                       return (
                         <button
                           key={b.id}
@@ -348,8 +352,8 @@ export function FulfillForm({
                               {formatLKR(costPerUnit)}/{b.outputUnit}
                             </span>
                             <span className="text-xs text-gray-500">
-                              {Number(b.outputQuantity).toLocaleString()}{" "}
-                              {b.outputUnit}
+                              {Number(b.availableQuantity).toLocaleString()}{" "}
+                              {b.outputUnit} remaining
                             </span>
                             <Plus className="h-3.5 w-3.5 text-emerald-600" />
                           </div>
