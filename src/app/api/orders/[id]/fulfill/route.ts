@@ -50,6 +50,8 @@ export async function POST(
   );
 
   const requestedQuantityByBatch = new Map<string, number>();
+  // FIX 1: Track order items globally within the request exactly like batches
+  const requestedQuantityByOrderItem = new Map<string, number>();
 
   // Validate each fulfillment
   for (const f of parsed.data.fulfillments) {
@@ -83,9 +85,17 @@ export async function POST(
 
     const remainingItemQuantity =
       Number(item.quantityOrdered) - Number(item.quantityFulfilled);
-    if (f.quantityFulfilled > remainingItemQuantity) {
+      
+    // FIX 1 cont'd: Safely accumulate the item quantity within this payload
+    const existingItemRequested = requestedQuantityByOrderItem.get(item.id) ?? 0;
+    const newItemRequestedTotal = existingItemRequested + f.quantityFulfilled;
+    requestedQuantityByOrderItem.set(item.id, newItemRequestedTotal);
+
+    if (newItemRequestedTotal > remainingItemQuantity) {
       return errorResponse(
-        `Cannot fulfill ${f.quantityFulfilled} — only ${remainingItemQuantity} remaining for this item`
+        `Cannot fulfill ${f.quantityFulfilled} — only ${
+          remainingItemQuantity - existingItemRequested
+        } remaining for this item`
       );
     }
 
@@ -107,44 +117,84 @@ export async function POST(
   }
 
   // Create fulfillments in transaction
-  await prisma.$transaction(async (tx) => {
-    for (const f of parsed.data.fulfillments) {
-      await tx.orderFulfillment.create({
-        data: {
-          orderItemId: f.orderItemId,
-          productionBatchId: f.productionBatchId,
-          quantityFulfilled: f.quantityFulfilled,
-        },
-      });
+  try {
+    await prisma.$transaction(async (tx) => {
+      // FIX 2: Protect against Race Conditions via Row-level Database Locking
+      // Re-saving the batches triggers PostgreSQL to lock these rows FOR UPDATE. 
+      // If concurrent requests execute simultaneously, the second request will wait here cleanly.
+      for (const batchId of batchIds) {
+        await tx.productionBatch.update({
+          where: { id: batchId },
+          data: { updatedAt: new Date() } 
+        });
+      }
 
-      // Update fulfilled quantity on order item
-      await tx.orderItem.update({
-        where: { id: f.orderItemId },
-        data: {
-          quantityFulfilled: {
-            increment: f.quantityFulfilled,
+      // Now that we have the lock, recalculate the batch usages inside the transaction
+      const safeBatchUsage = await tx.orderFulfillment.groupBy({
+        by: ["productionBatchId"],
+        where: { productionBatchId: { in: batchIds } },
+        _sum: { quantityFulfilled: true },
+      });
+      const safeUsedByBatch = new Map(
+        safeBatchUsage.map((u) => [u.productionBatchId, Number(u._sum.quantityFulfilled ?? 0)])
+      );
+      const safeRequestedByBatch = new Map<string, number>();
+
+      for (const f of parsed.data.fulfillments) {
+        // Enforce the batch limit perfectly internally
+        const batch = batches.find((b) => b.id === f.productionBatchId)!;
+        const currentUsed = safeUsedByBatch.get(batch.id) ?? 0;
+        const soFar = safeRequestedByBatch.get(batch.id) ?? 0;
+        const totalReq = soFar + f.quantityFulfilled;
+        safeRequestedByBatch.set(batch.id, totalReq);
+
+        if (Number(batch.outputQuantity) - currentUsed - totalReq < 0) {
+          throw new Error(`Production batch ${batch.batchNumber} ran out of available capacity during processing.`);
+        }
+        
+        await tx.orderFulfillment.create({
+          data: {
+            orderItemId: f.orderItemId,
+            productionBatchId: f.productionBatchId,
+            quantityFulfilled: f.quantityFulfilled,
           },
-        },
+        });
+
+        // Update fulfilled quantity on order item
+        const updatedItem = await tx.orderItem.update({
+          where: { id: f.orderItemId },
+          data: {
+            quantityFulfilled: {
+              increment: f.quantityFulfilled,
+            },
+          },
+        });
+
+        // The update returns the committed DB value. If we over-shot, auto rollback the whole transaction.
+        if (Number(updatedItem.quantityFulfilled) > Number(updatedItem.quantityOrdered)) {
+          throw new Error(`Order item limit exceeded for product. Request aborted.`);
+        }
+      }
+
+      // Check if all items are fully fulfilled based on locked database data
+      const updatedItems = await tx.orderItem.findMany({
+        where: { orderId: params.id },
       });
-    }
 
-    // Check if all items are fully fulfilled
-    const updatedItems = await tx.orderItem.findMany({
-      where: { orderId: params.id },
-    });
+      const allFulfilled = updatedItems.every(
+        (item) => Number(item.quantityFulfilled) >= Number(item.quantityOrdered)
+      );
 
-    const allFulfilled = updatedItems.every(
-      (item) =>
-        Number(item.quantityFulfilled) >= Number(item.quantityOrdered)
-    );
-
-    if (allFulfilled) {
-      await tx.order.update({
-        where: { id: params.id },
-        data: { status: "FULFILLED" },
-      });
-    }
-  });
+      if (allFulfilled) {
+        await tx.order.update({
+          where: { id: params.id },
+          data: { status: "FULFILLED" },
+        });
+      }
+    }); // end transaction
+  } catch (err: any) {
+    return errorResponse(err.message || "Failed to process fulfillment");
+  }
 
   logAuditEvent({
     user,

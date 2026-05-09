@@ -58,6 +58,15 @@ export async function POST(request: NextRequest) {
   // to prevent race conditions (concurrent requests double-allocating husks)
   try {
     const batch = await prisma.$transaction(async (tx) => {
+      // FIX 1: Lock the lot rows immediately before checking their limits
+      // This prevents concurrent requests from reading identical starting balances.
+      for (const lotEntry of lots) {
+        await tx.supplierLot.update({
+          where: { id: lotEntry.lotId },
+          data: { updatedAt: new Date() }
+        });
+      }
+
       // Validate lots and compute cost atomically
       let totalRawCost = 0;
       for (const lotEntry of lots) {
@@ -112,17 +121,25 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // Update each supplier lot: deduct husks and update status
+      // Update each supplier lot: deduct husks atomically to avoid Lost Updates
       for (const lotEntry of lots) {
-        const lot = await tx.supplierLot.findUnique({
+        const updatedLot = await tx.supplierLot.update({
           where: { id: lotEntry.lotId },
+          data: {
+            availableHusks: { decrement: lotEntry.quantityUsed }
+          },
         });
-        const newAvailable = lot!.availableHusks - lotEntry.quantityUsed;
+
+        // Post-decrement verification (if lock somehow yielded or limits broke)
+        if (updatedLot.availableHusks < 0) {
+          throw new Error(`Race condition detected: Lot ${updatedLot.lotNumber} over-allocated.`);
+        }
+
+        // Set status independently using the confirmed atomic result
         await tx.supplierLot.update({
           where: { id: lotEntry.lotId },
           data: {
-            availableHusks: newAvailable,
-            status: newAvailable === 0 ? "CONSUMED" : "ALLOCATED",
+            status: updatedLot.availableHusks === 0 ? "CONSUMED" : "ALLOCATED",
           },
         });
       }
