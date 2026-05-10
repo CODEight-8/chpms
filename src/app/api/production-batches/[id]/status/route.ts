@@ -30,6 +30,14 @@ export async function PATCH(
     );
   }
 
+  // Users cannot arbitrarily mark a batch as COMPLETED via the generic status endpoint 
+  // without registering the actual production output.
+  if (newStatus === "COMPLETED" && !batch.outputQuantity) {
+    return errorResponse(
+      "Cannot mark batch as COMPLETED without output metrics. Please use the specific /complete endpoint to register output quantities and quality."
+    );
+  }
+
   const updated = await prisma.productionBatch.update({
     where: { id: params.id },
     data: { status: newStatus },

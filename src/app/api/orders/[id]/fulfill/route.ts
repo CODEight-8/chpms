@@ -42,7 +42,7 @@ export async function POST(
           throw new Error(`Order item ${f.orderItemId} not found`);
         }
 
-        // Static fields (status/chipSize/batchNumber) for validation + error text.
+        // Static fields (status/chipSize/productId/batchNumber) for validation + error text.
         const batch = await tx.productionBatch.findUnique({
           where: { id: f.productionBatchId },
           select: {
@@ -50,10 +50,17 @@ export async function POST(
             status: true,
             chipSize: true,
             outputUnit: true,
+            productId: true,
           },
         });
         if (!batch || batch.status !== "COMPLETED") {
           throw new Error("Production batch must be completed for fulfillment");
+        }
+
+        if (item.productId !== batch.productId) {
+          throw new Error(
+            `Production batch ${batch.batchNumber} is for a different product than this order item`
+          );
         }
 
         if (item.chipSize && batch.chipSize && item.chipSize !== batch.chipSize) {
@@ -86,6 +93,9 @@ export async function POST(
 
         // Race-safe increment on order item: only matches if current
         // quantityFulfilled + new amount would not exceed quantityOrdered.
+        // This also handles within-payload duplicates: a second fulfillment
+        // for the same item in the same payload sees the first's increment
+        // (same transaction) and is rejected if it would overshoot.
         const ordered = Number(item.quantityOrdered);
         const itemUpdate = await tx.orderItem.updateMany({
           where: {

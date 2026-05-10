@@ -49,21 +49,32 @@ export async function getBatchesWithDetails(filters?: BatchFilters) {
         },
       },
       fulfillments: {
-        select: { id: true },
+        select: { quantityFulfilled: true },
       },
     },
     orderBy: { createdAt: "desc" },
   });
 
-  return batches.map((batch) => ({
-    ...batch,
-    totalInputHusks: batch.batchLots.reduce(
-      (sum, bl) => sum + bl.quantityUsed,
+  return batches.map((batch) => {
+    const fulfilledQuantity = batch.fulfillments.reduce(
+      (sum, f) => sum + Number(f.quantityFulfilled),
       0
-    ),
-    lotCount: batch.batchLots.length,
-    fulfillmentCount: batch.fulfillments.length,
-  }));
+    );
+    const output = Number(batch.outputQuantity || 0);
+    const availableQuantity = Math.max(output - fulfilledQuantity, 0);
+
+    return {
+      ...batch,
+      totalInputHusks: batch.batchLots.reduce(
+        (sum, bl) => sum + bl.quantityUsed,
+        0
+      ),
+      lotCount: batch.batchLots.length,
+      fulfillmentCount: batch.fulfillments.length,
+      fulfilledQuantity,
+      availableQuantity,
+    };
+  });
 }
 
 export async function getBatchDetail(id: string) {
