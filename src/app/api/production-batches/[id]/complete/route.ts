@@ -62,6 +62,7 @@ export async function PATCH(
       status: "COMPLETED",
       completedAt: new Date(),
       outputQuantity: parsed.data.outputQuantity,
+      availableOutput: parsed.data.outputQuantity,
       outputUnit: OUTPUT_UNIT,
       qualityScore: parsed.data.qualityScore,
       qualityGrade,
