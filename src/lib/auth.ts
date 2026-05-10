@@ -56,6 +56,19 @@ export const authOptions: AuthOptions = {
       }
       return session;
     },
+    async redirect({ url, baseUrl }) {
+      // Allow relative callback URLs — these are resolved by the browser
+      // against the current origin (host-aware: works for localhost, Tailscale,
+      // reverse proxies, etc.) instead of the hardcoded NEXTAUTH_URL.
+      if (url.startsWith("/")) return url;
+      // Allow same-origin absolute URLs.
+      try {
+        if (new URL(url).origin === baseUrl) return url;
+      } catch {
+        // fall through
+      }
+      return baseUrl;
+    },
   },
   pages: {
     signIn: "/login",

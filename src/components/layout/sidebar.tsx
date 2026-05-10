@@ -119,7 +119,10 @@ export function Sidebar({ user }: SidebarProps) {
           </div>
         </div>
         <button
-          onClick={() => signOut({ callbackUrl: "/login" })}
+          onClick={async () => {
+            await signOut({ redirect: false });
+            window.location.href = "/login";
+          }}
           className="flex items-center gap-2 w-full rounded-lg px-3 py-2 text-sm text-emerald-200 hover:bg-emerald-800 hover:text-white transition-colors"
         >
           <LogOut className="h-4 w-4" />
