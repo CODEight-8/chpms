@@ -57,14 +57,14 @@ export default async function AuditReportPage({
             </h3>
             <div className="grid grid-cols-2 gap-3 text-sm">
               <ReportField label="Name" value={lot.supplier.name} />
-              <ReportField label="Phone" value={formatSriLankaPhoneNumber(lot.supplier.phone) || "—"} />
+              <ReportField label="Phone" value={formatSriLankaPhoneNumber(lot.supplier.phone) || "-"} />
               <ReportField
                 label="Location"
-                value={lot.supplier.location || "—"}
+                value={lot.supplier.location || "-"}
               />
               <ReportField
-                label="Contact"
-                value={lot.supplier.contactPerson || "—"}
+                label="Contact person"
+                value={lot.supplier.contactPerson || "-"}
               />
             </div>
           </div>

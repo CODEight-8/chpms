@@ -87,7 +87,7 @@ export default async function AccountsPage({
     <div className="pt-6">
       <PageHeader
         title="Accounts"
-        description="Payment tracking \u2014 Money Out (suppliers) & Money In (clients)"
+        description="Payment tracking - Money Out (suppliers) & Money In (clients)"
       />
 
       {/* Summary Cards */}
@@ -211,7 +211,7 @@ export default async function AccountsPage({
                         <TableCell className="text-xs font-mono text-gray-500">
                           {p.supplierLot
                             ? `${p.supplierLot.lotNumber} / ${p.supplierLot.invoiceNumber}`
-                            : "\u2014"}
+                            : "-"}
                         </TableCell>
                         <TableCell>{p.paymentMethod}</TableCell>
                         <TableCell className="text-right font-medium text-red-600">
@@ -296,7 +296,7 @@ export default async function AccountsPage({
                         <TableCell className="font-mono text-xs text-gray-500">
                           {p.order
                             ? `${p.order.orderNumber} / ${p.order.invoiceNumber}`
-                            : "\u2014"}
+                            : "-"}
                         </TableCell>
                         <TableCell>{p.paymentMethod}</TableCell>
                         <TableCell className="text-right font-medium text-green-600">

@@ -231,7 +231,7 @@ export default async function OrderInvoicePage({
                         {new Date(p.paymentDate).toLocaleDateString("en-LK")}
                       </td>
                       <td className="py-2">{p.paymentMethod}</td>
-                      <td className="py-2 text-gray-600">{p.reference || "—"}</td>
+                      <td className="py-2 text-gray-600">{p.reference || "-"}</td>
                       <td className="py-2 text-right font-medium">
                         {formatLKR(p.amount)}
                       </td>

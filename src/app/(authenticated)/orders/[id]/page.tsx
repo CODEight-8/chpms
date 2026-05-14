@@ -121,11 +121,11 @@ export default async function OrderDetailPage({
                 />
                 <InfoField
                   label="Payment Method"
-                  value={order.client.paymentMethod || "—"}
+                  value={order.client.paymentMethod || "-"}
                 />
                 <InfoField
                   label="Payment Terms"
-                  value={order.client.paymentTerms || "—"}
+                  value={order.client.paymentTerms || "-"}
                 />
               </div>
               {order.notes && (

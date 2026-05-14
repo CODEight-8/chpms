@@ -377,7 +377,7 @@ export default async function SupplierDetailPage({
                                 const lot = supplier.lots.find((l) => l.id === payment.supplierLotId);
                                 return lot
                                   ? `${lot.lotNumber} / ${lot.invoiceNumber}`
-                                  : "—";
+                                  : "-";
                               })()
                             : "General"}
                         </TableCell>

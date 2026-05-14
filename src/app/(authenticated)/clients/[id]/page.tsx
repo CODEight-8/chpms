@@ -346,9 +346,9 @@ export default async function ClientDetailPage({
                                 const order = client.orders.find((o) => o.id === p.orderId);
                                 return order
                                   ? `${order.orderNumber} / ${order.invoiceNumber}`
-                                  : "—";
+                                  : "-";
                               })()
-                            : "—"}
+                            : "-"}
                         </TableCell>
                         <TableCell>{p.paymentMethod}</TableCell>
                         <TableCell className="text-right font-medium">

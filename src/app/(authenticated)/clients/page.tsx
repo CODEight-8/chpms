@@ -117,10 +117,10 @@ export default async function ClientsPage({
                     </Link>
                   </TableCell>
                   <TableCell className="text-gray-600">
-                    {client.companyName || "\u2014"}
+                    {client.companyName || "-"}
                   </TableCell>
                   <TableCell className="text-gray-600">
-                    {formatSriLankaPhoneNumber(client.phone) || "\u2014"}
+                    {formatSriLankaPhoneNumber(client.phone) || "-"}
                   </TableCell>
                   <TableCell className="text-center">
                     {client.totalOrders}
@@ -128,7 +128,7 @@ export default async function ClientsPage({
                   <TableCell className="text-right font-medium">
                     {client.totalRevenue > 0
                       ? formatLKR(client.totalRevenue)
-                      : "\u2014"}
+                      : "-"}
                   </TableCell>
                   <TableCell className="text-right font-medium">
                     {client.outstandingBalance > 0 ? (
@@ -136,7 +136,7 @@ export default async function ClientsPage({
                         {formatLKR(client.outstandingBalance)}
                       </span>
                     ) : (
-                      <span className="text-gray-500">\u2014</span>
+                      <span className="text-gray-500">-</span>
                     )}
                   </TableCell>
                   <TableCell>

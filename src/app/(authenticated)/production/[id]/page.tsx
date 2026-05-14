@@ -79,7 +79,7 @@ export default async function ProductionBatchDetailPage({
                 <InfoField label="Product" value={batch.product.name} />
                 <InfoField
                   label="Target Chip Size"
-                  value={batch.chipSize || "—"}
+                  value={batch.chipSize || "-"}
                 />
                 <InfoField
                   label="Started"
@@ -108,7 +108,7 @@ export default async function ProductionBatchDetailPage({
                       value={
                         batch.completedAt
                           ? new Date(batch.completedAt).toLocaleDateString("en-LK")
-                          : "—"
+                          : "-"
                       }
                     />
                     {batch.qualityScore !== null && batch.qualityScore !== undefined && (

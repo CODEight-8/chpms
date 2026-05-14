@@ -116,10 +116,10 @@ export default async function SuppliersPage({
                     </Link>
                   </TableCell>
                   <TableCell className="text-gray-600">
-                    {formatSriLankaPhoneNumber(supplier.phone) || "—"}
+                    {formatSriLankaPhoneNumber(supplier.phone) || "-"}
                   </TableCell>
                   <TableCell className="text-gray-600">
-                    {supplier.location || "—"}
+                    {supplier.location || "-"}
                   </TableCell>
                   <TableCell className="text-center">
                     {supplier.totalLots}

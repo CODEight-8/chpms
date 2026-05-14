@@ -133,7 +133,7 @@ export default async function ProductionPage({
                     </Link>
                   </TableCell>
                   <TableCell className="text-gray-600">
-                    {batch.chipSize || "—"}
+                    {batch.chipSize || "-"}
                   </TableCell>
                   <TableCell className="text-center">
                     {batch.totalInputHusks.toLocaleString()}
@@ -141,7 +141,7 @@ export default async function ProductionPage({
                   <TableCell className="text-right">
                     {batch.outputQuantity
                       ? `${Number(batch.outputQuantity).toLocaleString()} ${batch.outputUnit || ""}`
-                      : "—"}
+                      : "-"}
                   </TableCell>
                   <TableCell>
                     {batch.qualityGrade ? (
@@ -158,7 +158,7 @@ export default async function ProductionPage({
                         {batch.qualityGrade}
                       </Badge>
                     ) : (
-                      "—"
+                      "-"
                     )}
                   </TableCell>
                   <TableCell className="text-right font-medium">

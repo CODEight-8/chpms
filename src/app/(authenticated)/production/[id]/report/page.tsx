@@ -108,7 +108,7 @@ export default async function ProductionReportPage({
                 <p className="text-2xl font-bold text-emerald-700">
                   {batch.outputQuantity
                     ? Number(batch.outputQuantity).toLocaleString()
-                    : "—"}
+                    : "-"}
                 </p>
                 <p className="text-xs text-gray-500">
                   {batch.outputUnit || "pending"}
@@ -155,7 +155,7 @@ export default async function ProductionReportPage({
                     <td className="py-2 text-center">
                       {bl.supplierLot.qualityGrade
                         ? gradeLabels[bl.supplierLot.qualityGrade]
-                        : "—"}
+                        : "-"}
                     </td>
                     <td className="py-2 text-center">
                       {calculateBatchAging(bl.supplierLot.harvestDate)}d
