@@ -42,16 +42,61 @@ export async function POST(request: NextRequest) {
   }
 
   // Validate order belongs to the specified client
+  let orderTotalRevenue = 0;
   if (parsed.data.orderId) {
     const order = await prisma.order.findUnique({
       where: { id: parsed.data.orderId },
-      select: { id: true, clientId: true },
+      select: { id: true, clientId: true, items: { select: { quantityOrdered: true, unitPrice: true } } },
     });
     if (!order) {
       return errorResponse("Order not found", 404);
     }
     if (order.clientId !== parsed.data.clientId) {
       return errorResponse("Order does not belong to the specified client");
+    }
+    // Calculate order total
+    orderTotalRevenue = order.items.reduce(
+      (sum, item) => sum + Number(item.quantityOrdered) * Number(item.unitPrice),
+      0
+    );
+    
+    // Check if payment exceeds order total by more than 10% (allow for rounding)
+    if (parsed.data.amount > orderTotalRevenue * 1.1) {
+      return errorResponse(
+        `Payment amount (${parsed.data.amount}) exceeds order total (${orderTotalRevenue}) by more than 10%. ` +
+        "Please verify the amount is correct. Contact admin to force override if necessary."
+      );
+    }
+  } else {
+    // For general client payments (not tied to specific order), check against all unpaid orders
+    const clientOrders = await prisma.order.findMany({
+      where: { clientId: parsed.data.clientId, status: { not: "CANCELLED" } },
+      include: { items: { select: { quantityOrdered: true, unitPrice: true } } },
+    });
+
+    const totalClientRevenue = clientOrders.reduce(
+      (sum, order) =>
+        sum +
+        order.items.reduce(
+          (orderSum, item) => orderSum + Number(item.quantityOrdered) * Number(item.unitPrice),
+          0
+        ),
+      0
+    );
+
+    const totalClientPaid = await prisma.clientPayment.aggregate({
+      where: { clientId: parsed.data.clientId },
+      _sum: { amount: true },
+    });
+
+    const alreadyPaid = Number(totalClientPaid._sum.amount || 0);
+
+    // Flag payment as suspicious if it causes overpayment >5%
+    if (alreadyPaid + parsed.data.amount > totalClientRevenue * 1.05) {
+      console.warn(
+        `[WARNING] Potential overpayment detected: Client ${parsed.data.clientId}, ` +
+        `existing payments: ${alreadyPaid}, new payment: ${parsed.data.amount}, total revenue: ${totalClientRevenue}`
+      );
     }
   }
 
