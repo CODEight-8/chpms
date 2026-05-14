@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { clientSchema } from "@/lib/validators";
+import { clientSchema, normalizeSriLankaPhoneNumber } from "@/lib/validators";
 import { requireAuth, errorResponse, jsonResponse } from "@/lib/api-helpers";
 import { getClientWithStats } from "@/lib/queries/clients";
 import { logAuditEvent } from "@/lib/audit-log";
@@ -39,9 +39,14 @@ export async function PUT(
     return errorResponse("Client name cannot be changed after creation.", 400);
   }
 
+  const normalizedPhone = normalizeSriLankaPhoneNumber(parsed.data.phone);
+
   const client = await prisma.client.update({
     where: { id: params.id },
-    data: parsed.data,
+    data: {
+      ...parsed.data,
+      phone: normalizedPhone || parsed.data.phone,
+    },
   });
 
   logAuditEvent({

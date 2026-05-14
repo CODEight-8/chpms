@@ -5,6 +5,7 @@ import { getSuppliersWithStats } from "@/lib/queries/suppliers";
 import { hasPermission } from "@/lib/permissions";
 import { UserRole } from "@prisma/client";
 import { formatLKR } from "@/lib/currency";
+import { formatSriLankaPhoneNumber } from "@/lib/utils";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { SearchInput } from "@/components/shared/search-input";
@@ -115,7 +116,7 @@ export default async function SuppliersPage({
                     </Link>
                   </TableCell>
                   <TableCell className="text-gray-600">
-                    {supplier.phone || "—"}
+                    {formatSriLankaPhoneNumber(supplier.phone) || "—"}
                   </TableCell>
                   <TableCell className="text-gray-600">
                     {supplier.location || "—"}

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { getSupplierPaymentDetail } from "@/lib/queries/accounts";
 import { formatLKR } from "@/lib/currency";
+import { formatSriLankaPhoneNumber } from "@/lib/utils";
 import { PrintLayout } from "@/components/shared/print-layout";
 
 export default async function SupplierReceiptPage({
@@ -73,7 +74,7 @@ export default async function SupplierReceiptPage({
               <p className="font-bold text-gray-900">{payment.supplier.name}</p>
               {payment.supplier.phone && (
                 <p className="text-sm text-gray-600">
-                  Phone: {payment.supplier.phone}
+                  Phone: {formatSriLankaPhoneNumber(payment.supplier.phone)}
                 </p>
               )}
               {payment.supplier.location && (

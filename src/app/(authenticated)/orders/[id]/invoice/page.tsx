@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { getOrderDetail } from "@/lib/queries/orders";
 import { formatLKR } from "@/lib/currency";
+import { formatSriLankaPhoneNumber } from "@/lib/utils";
 import { PrintLayout } from "@/components/shared/print-layout";
 
 export default async function OrderInvoicePage({
@@ -74,7 +75,7 @@ export default async function OrderInvoicePage({
               </p>
               {order.client.phone && (
                 <p className="text-sm text-gray-600">
-                  Phone: {order.client.phone}
+                  Phone: {formatSriLankaPhoneNumber(order.client.phone)}
                 </p>
               )}
               {order.client.email && (

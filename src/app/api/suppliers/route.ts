@@ -1,7 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { supplierSchema } from "@/lib/validators";
+import { supplierSchema, normalizeSriLankaPhoneNumber } from "@/lib/validators";
 import { requireAuth, errorResponse, jsonResponse } from "@/lib/api-helpers";
 import { getSuppliersWithStats } from "@/lib/queries/suppliers";
 import { logAuditEvent } from "@/lib/audit-log";
@@ -51,8 +51,11 @@ export async function POST(request: NextRequest) {
       bankName,
       branchName,
       accountNumber,
+      phone,
       ...supplierData
     } = parsed.data;
+
+    const normalizedPhone = phone ? normalizeSriLankaPhoneNumber(phone) : undefined;
 
     const existingSupplier = await prisma.supplier.findFirst({
       where: {
@@ -74,6 +77,7 @@ export async function POST(request: NextRequest) {
     const supplier = await prisma.supplier.create({
       data: {
         ...supplierData,
+        phone: normalizedPhone,
         bankName,
         branchName,
         accountNumber,

@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { canAccessModule, hasPermission } from "@/lib/permissions";
 import { UserRole } from "@prisma/client";
 import { formatLKR } from "@/lib/currency";
+import { formatSriLankaPhoneNumber } from "@/lib/utils";
 import { getClientsWithStats } from "@/lib/queries/clients";
 import { PageHeader } from "@/components/shared/page-header";
 import { SearchInput } from "@/components/shared/search-input";
@@ -119,7 +120,7 @@ export default async function ClientsPage({
                     {client.companyName || "\u2014"}
                   </TableCell>
                   <TableCell className="text-gray-600">
-                    {client.phone || "\u2014"}
+                    {formatSriLankaPhoneNumber(client.phone) || "\u2014"}
                   </TableCell>
                   <TableCell className="text-center">
                     {client.totalOrders}
