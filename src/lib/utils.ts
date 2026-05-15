@@ -8,18 +8,11 @@ export function cn(...inputs: ClassValue[]) {
 
 /**
  * Formats a Sri Lankan phone number for display
- * Converts +94771234567 or 0712345678 to +94 71 234 5678
+ * Converts +94771234567 or 0712345678 to +94771234567
  */
 export function formatSriLankaPhoneNumber(phone: string | null | undefined): string {
   if (!phone) return "";
 
   const normalized = normalizeSriLankaPhoneNumber(phone);
-  if (!normalized) return phone;
-
-  const digits = normalized.slice(3); // Remove +94
-  if (digits.length === 9) {
-    return `+94 ${digits.slice(0, 2)} ${digits.slice(2, 5)} ${digits.slice(5)}`;
-  }
-
-  return phone;
+  return normalized ?? phone;
 }
