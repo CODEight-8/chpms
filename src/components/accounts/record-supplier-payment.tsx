@@ -56,12 +56,17 @@ export function RecordSupplierPayment({
       return;
     }
 
+    if (!selectedLotId) {
+      toast.error("Link to Lot is required.");
+      return;
+    }
+
     setLoading(true);
 
     const form = new FormData(e.currentTarget);
     const data = {
       supplierId,
-      supplierLotId: selectedLotId && selectedLotId !== "none" ? selectedLotId : undefined,
+      supplierLotId: selectedLotId,
       amount: parseFloat(form.get("amount") as string),
       paymentDate: form.get("paymentDate") as string,
       paymentMethod: method,
@@ -93,7 +98,8 @@ export function RecordSupplierPayment({
   }
 
   const today = new Date().toISOString().split("T")[0];
-  const selectedLot = selectedLotId && selectedLotId !== "none" ? lots?.find((l) => l.id === selectedLotId) : undefined;
+  const hasLotOptions = Boolean(lots && lots.length > 0);
+  const selectedLot = selectedLotId ? lots?.find((l) => l.id === selectedLotId) : undefined;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -108,15 +114,20 @@ export function RecordSupplierPayment({
           <DialogTitle>Record Payment to {supplierName}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} noValidate className="space-y-4">
-          {lots && lots.length > 0 && (
+          {lots && (
             <div className="space-y-2">
-              <Label>Link to Lot (Invoice)</Label>
-              <Select value={selectedLotId} onValueChange={setSelectedLotId}>
+              <Label>Link to Lot (Invoice) *</Label>
+              <Select
+                value={selectedLotId}
+                onValueChange={setSelectedLotId}
+                disabled={!hasLotOptions}
+              >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select lot (optional)" />
+                  <SelectValue
+                    placeholder={hasLotOptions ? "Select lot" : "No outstanding lots"}
+                  />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">No specific lot</SelectItem>
                   {lots.map((lot) => (
                     <SelectItem key={lot.id} value={lot.id}>
                       {lot.invoiceNumber} — Outstanding:{" "}
@@ -128,6 +139,11 @@ export function RecordSupplierPayment({
                   ))}
                 </SelectContent>
               </Select>
+              {!hasLotOptions && (
+                <p className="text-xs text-gray-500">
+                  No outstanding lots available for payment.
+                </p>
+              )}
               {selectedLot && (
                 <p className="text-xs text-orange-600">
                   Outstanding: LKR {selectedLot.outstanding.toLocaleString()}
@@ -175,7 +191,11 @@ export function RecordSupplierPayment({
             <Textarea id="notes" name="notes" rows={2} />
           </div>
 
-          <Button type="submit" className="w-full bg-emerald-700 hover:bg-emerald-800" disabled={loading}>
+          <Button
+            type="submit"
+            className="w-full bg-emerald-700 hover:bg-emerald-800"
+            disabled={loading || !hasLotOptions || !selectedLotId}
+          >
             {loading ? "Recording..." : "Record Payment"}
           </Button>
         </form>
