@@ -6,6 +6,7 @@ interface SummaryCardProps {
   title: string;
   value: string | number;
   subtitle?: string;
+  tooltip?: string;
   icon: LucideIcon;
   className?: string;
 }
@@ -14,11 +15,12 @@ export function SummaryCard({
   title,
   value,
   subtitle,
+  tooltip,
   icon: Icon,
   className,
 }: SummaryCardProps) {
   return (
-    <Card className={cn("", className)}>
+    <Card className={cn(tooltip && "cursor-help", className)} title={tooltip}>
       <CardContent className="p-4 sm:p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">

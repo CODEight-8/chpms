@@ -80,11 +80,13 @@ export default async function ProductionPage({
         <SummaryCard
           title="Total Output"
           value={`${outputSummary.totalOutput.toLocaleString()} ${outputUnit}`}
+          tooltip="Total output produced by completed batches."
           icon={Package}
         />
         <SummaryCard
           title="Available Output"
           value={`${outputSummary.availableOutput.toLocaleString()} ${outputUnit}`}
+          tooltip="Completed output still available for orders."
           icon={PackageCheck}
         />
       </div>
