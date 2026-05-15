@@ -131,7 +131,6 @@ export async function getBatchStatusCounts() {
   const result: Record<string, number> = {
     IN_PROGRESS: 0,
     COMPLETED: 0,
-    DISPATCHED: 0,
   };
 
   for (const c of counts) {
@@ -139,6 +138,22 @@ export async function getBatchStatusCounts() {
   }
 
   return result;
+}
+
+export async function getBatchOutputSummary() {
+  const totals = await prisma.productionBatch.aggregate({
+    where: { status: "COMPLETED" },
+    _sum: {
+      outputQuantity: true,
+      availableOutput: true,
+    },
+  });
+
+  return {
+    totalOutput: Number(totals._sum.outputQuantity ?? 0),
+    availableOutput: Number(totals._sum.availableOutput ?? 0),
+    outputUnit: "kg",
+  };
 }
 
 export async function getAvailableLots() {

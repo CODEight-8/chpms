@@ -12,8 +12,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { ConfirmDialog } from "@/components/shared/confirm-dialog";
-import { CheckCircle, Truck } from "lucide-react";
+import { CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 
 interface BatchActionsProps {
@@ -64,26 +63,6 @@ export function BatchActions({
     } catch (err) {
       toast.error(
         err instanceof Error ? err.message : "Failed to complete batch"
-      );
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleDispatch() {
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/production-batches/${batchId}/status`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "DISPATCHED" }),
-      });
-      if (!res.ok) throw new Error((await res.json()).error);
-      toast.success("Batch marked as dispatched");
-      router.refresh();
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to dispatch batch"
       );
     } finally {
       setLoading(false);
@@ -161,28 +140,6 @@ export function BatchActions({
           </div>
         </DialogContent>
       </Dialog>
-    );
-  }
-
-  if (currentStatus === "COMPLETED") {
-    return (
-      <ConfirmDialog
-        title="Mark as Dispatched?"
-        description="This will mark the batch as dispatched. This action cannot be undone."
-        confirmLabel="Mark Dispatched"
-        onConfirm={handleDispatch}
-        disabled={loading}
-      >
-        <Button
-          variant="outline"
-          className="gap-2"
-          disabled={loading}
-          aria-label="Mark batch as dispatched"
-        >
-          <Truck className="h-4 w-4" />
-          {loading ? "Dispatching..." : "Mark Dispatched"}
-        </Button>
-      </ConfirmDialog>
     );
   }
 

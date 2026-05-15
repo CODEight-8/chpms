@@ -9,10 +9,9 @@ const LOT_TRANSITIONS: Record<LotStatus, LotStatus[]> = {
   REJECTED: [],
 };
 
-const BATCH_TRANSITIONS: Record<BatchStatus, BatchStatus[]> = {
+const BATCH_TRANSITIONS: Partial<Record<BatchStatus, BatchStatus[]>> = {
   IN_PROGRESS: [BatchStatus.COMPLETED],
-  COMPLETED: [BatchStatus.DISPATCHED],
-  DISPATCHED: [],
+  COMPLETED: [],
 };
 
 const ORDER_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {

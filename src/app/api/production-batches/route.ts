@@ -12,10 +12,18 @@ export async function GET(request: NextRequest) {
   if (error) return error;
 
   const { searchParams } = new URL(request.url);
-  const status = searchParams.get("status") as BatchStatus | null;
+  const statusParam = searchParams.get("status");
+  const status =
+    statusParam && Object.values(BatchStatus).includes(statusParam as BatchStatus)
+      ? (statusParam as BatchStatus)
+      : null;
   const search = searchParams.get("search") || undefined;
   const chipSize = searchParams.get("chipSize") || undefined;
   const countsOnly = searchParams.get("counts") === "true";
+
+  if (statusParam && !status) {
+    return errorResponse("Invalid status");
+  }
 
   if (countsOnly) {
     const counts = await getBatchStatusCounts();
