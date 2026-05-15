@@ -133,13 +133,15 @@ export async function getSupplierAnalytics() {
       const avgRate =
         s.lots.reduce((sum, l) => sum + Number(l.perHuskRate), 0) / totalLots;
       const totalPaid = s.payments.reduce((sum, p) => sum + Number(p.amount), 0);
+      const rawRejectionRate = (rejections / totalLots) * 100;
+      const rejectionRate = Math.min(Math.max(rawRejectionRate, 0), 100);
 
       return {
         id: s.id,
         name: s.name,
         totalLots,
         totalHusks,
-        rejectionRate: (rejections / totalLots) * 100,
+        rejectionRate,
         gradeA,
         gradeB,
         gradeC,
@@ -152,6 +154,44 @@ export async function getSupplierAnalytics() {
     })
     .filter(Boolean)
     .sort((a, b) => b!.totalHusks - a!.totalHusks) as NonNullable<ReturnType<typeof Object.create>>[];
+}
+
+/**
+ * Audit function to find problematic payments (overpayments, data anomalies)
+ * Returns clients with overpayments >5% for manual review
+ */
+export async function getAbnormalPaymentAlerts() {
+  const clientAnalytics = await getClientAnalytics();
+
+  return clientAnalytics
+    .filter((c) => c.isOverpaid)
+    .map((c) => ({
+      clientId: c.id,
+      clientName: c.name,
+      totalRevenue: c.totalRevenue,
+      totalPaid: c.totalPaid,
+      overpaymentAmount: c.totalPaid - c.totalRevenue,
+      // Null when there is no revenue to compare against (any payment to a
+      // client with zero revenue is by definition fully overpaid; expressing
+      // it as a percentage is meaningless).
+      percentageOverpaid:
+        c.totalRevenue > 0
+          ? ((c.totalPaid - c.totalRevenue) / c.totalRevenue) * 100
+          : null,
+      severity:
+        c.totalRevenue === 0
+          ? "CRITICAL"
+          : c.totalPaid > c.totalRevenue * 1.5
+            ? "CRITICAL"
+            : c.totalPaid > c.totalRevenue * 1.2
+              ? "HIGH"
+              : "MEDIUM",
+    }))
+    .sort(
+      (a, b) =>
+        (b.percentageOverpaid ?? Number.POSITIVE_INFINITY) -
+        (a.percentageOverpaid ?? Number.POSITIVE_INFINITY)
+    );
 }
 
 /**
@@ -189,8 +229,10 @@ export async function getClientAnalytics() {
       );
       const totalPaid = c.payments.reduce((sum, p) => sum + Number(p.amount), 0);
       const outstanding = totalRevenue - totalPaid;
-      const paymentReliability =
-        totalRevenue > 0 ? (totalPaid / totalRevenue) * 100 : 0;
+      const isOverpaid = totalPaid > totalRevenue * 1.05; // Flag if overpaid by >5%
+      const paymentReliability = totalRevenue > 0
+        ? Math.min((totalPaid / totalRevenue) * 100, 100) // Cap at 100%
+        : 0;
 
       // Calculate order frequency (orders per month since first order)
       const orderDates = c.orders.map((o) => new Date(o.orderDate).getTime());
@@ -210,6 +252,7 @@ export async function getClientAnalytics() {
         outstanding,
         paymentReliability,
         orderFrequency,
+        isOverpaid, // Flag for investigation
       };
     })
     .filter(Boolean)

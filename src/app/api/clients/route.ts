@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { clientSchema } from "@/lib/validators";
+import { clientSchema, normalizeSriLankaPhoneNumber } from "@/lib/validators";
 import { requireAuth, errorResponse, jsonResponse } from "@/lib/api-helpers";
 import { getClientsWithStats } from "@/lib/queries/clients";
 import { logAuditEvent } from "@/lib/audit-log";
@@ -44,8 +44,15 @@ export async function POST(request: NextRequest) {
     return errorResponse("Client name already exists. Use a different client name.", 409);
   }
 
+  // Validation guarantees the phone is a valid SL number, so normalization
+  // always succeeds. The non-null assertion documents that invariant.
+  const normalizedPhone = normalizeSriLankaPhoneNumber(parsed.data.phone)!;
+
   const client = await prisma.client.create({
-    data: parsed.data,
+    data: {
+      ...parsed.data,
+      phone: normalizedPhone,
+    },
   });
 
   logAuditEvent({

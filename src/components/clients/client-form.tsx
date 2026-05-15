@@ -9,6 +9,7 @@ import {
   isClientPaymentTerm,
 } from "@/lib/client-payment-terms";
 import { PHONE_ALLOWED_REGEX } from "@/lib/validators";
+import { formatSriLankaPhoneNumber } from "@/lib/utils";
 import { useFieldErrors } from "@/lib/use-field-errors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -67,7 +68,7 @@ export function ClientForm({ defaultValues }: ClientFormProps) {
   const initialFields = {
     name: defaultValues?.name || "",
     companyName: defaultValues?.companyName || "",
-    phone: defaultValues?.phone || "",
+    phone: defaultValues?.phone ? formatSriLankaPhoneNumber(defaultValues.phone) : "",
     email: defaultValues?.email || "",
     address: defaultValues?.address || "",
     paymentMethod: initialPaymentMethod,

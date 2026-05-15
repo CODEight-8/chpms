@@ -7,15 +7,32 @@ import { CLIENT_PAYMENT_METHODS, CLIENT_PAYMENT_TERMS } from "@/lib/client-payme
 
 export const PHONE_ALLOWED_REGEX = /^\+?[\d\s()-]+$/;
 
-//REUSABLE MOBILE NUMBER VALIDATOR
-export const validateMobileNumber = (phone: string): boolean => {
+export const normalizeSriLankaPhoneNumber = (phone: string): string | undefined => {
   const trimmed = phone.trim();
   if (!trimmed || !PHONE_ALLOWED_REGEX.test(trimmed)) {
-    return false;
+    return undefined;
   }
 
-  const digitsOnly = trimmed.replace(/\D/g, "");
-  return digitsOnly.length >= 10 && digitsOnly.length <= 15;
+  const cleaned = trimmed.replace(/[\s()-]/g, "");
+
+  if (cleaned.startsWith("+")) {
+    return /^\+94\d{9}$/.test(cleaned) ? cleaned : undefined;
+  }
+
+  if (/^0\d{9}$/.test(cleaned)) {
+    return "+94" + cleaned.slice(1);
+  }
+
+  if (/^94\d{9}$/.test(cleaned)) {
+    return "+" + cleaned;
+  }
+
+  return undefined;
+};
+
+//REUSABLE MOBILE NUMBER VALIDATOR
+export const validateMobileNumber = (phone: string): boolean => {
+  return Boolean(normalizeSriLankaPhoneNumber(phone));
 };
 
 export const phoneSchema = z
@@ -219,7 +236,7 @@ export const fulfillmentSchema = z.object({
 });
 
 export const paymentSchema = z.object({
-  amount: z.number().positive("Amount must be positive").max(100000000),
+  amount: z.number().positive("Amount must be positive").max(100000000, "Amount cannot exceed 100,000,000 LKR"),
   paymentDate: z.string().min(1, "Payment date is required"),
   paymentMethod: z.enum(["CASH", "BANK", "CHEQUE"]),
   reference: z.string().max(200).optional(),

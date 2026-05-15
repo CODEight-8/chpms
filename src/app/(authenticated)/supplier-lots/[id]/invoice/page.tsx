@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { getLotDetail } from "@/lib/queries/supplier-lots";
 import { formatLKR } from "@/lib/currency";
+import { formatSriLankaPhoneNumber } from "@/lib/utils";
 import { formatSupplierBankDetails } from "@/lib/bank-details";
 import { PrintLayout } from "@/components/shared/print-layout";
 
@@ -78,7 +79,7 @@ export default async function InvoicePage({
               <p className="font-bold text-gray-900">{lot.supplier.name}</p>
               {lot.supplier.phone && (
                 <p className="text-sm text-gray-600">
-                  Phone: {lot.supplier.phone}
+                  Phone: {formatSriLankaPhoneNumber(lot.supplier.phone)}
                 </p>
               )}
               {lot.supplier.location && (

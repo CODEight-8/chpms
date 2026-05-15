@@ -502,7 +502,7 @@ export default async function DashboardPage() {
                       <p className="text-xs text-gray-500">
                         {batch.product.name}
                         {batch.outputQuantity
-                          ? ` \u2014 ${Number(batch.outputQuantity)} ${batch.outputUnit}`
+                          ? ` - ${Number(batch.outputQuantity)} ${batch.outputUnit}`
                           : ""}
                       </p>
                     </div>

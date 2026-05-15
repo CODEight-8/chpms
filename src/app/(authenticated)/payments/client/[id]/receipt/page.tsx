@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { getClientPaymentDetail } from "@/lib/queries/accounts";
 import { formatLKR } from "@/lib/currency";
+import { formatSriLankaPhoneNumber } from "@/lib/utils";
 import { PrintLayout } from "@/components/shared/print-layout";
 
 export default async function ClientReceiptPage({
@@ -78,7 +79,7 @@ export default async function ClientReceiptPage({
               </p>
               {payment.client.phone && (
                 <p className="text-sm text-gray-600">
-                  Phone: {payment.client.phone}
+                  Phone: {formatSriLankaPhoneNumber(payment.client.phone)}
                 </p>
               )}
               {payment.client.email && (

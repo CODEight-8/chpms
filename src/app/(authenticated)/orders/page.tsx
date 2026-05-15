@@ -139,7 +139,7 @@ export default async function OrdersPage({
                   <TableCell className="text-gray-600">
                     {order.expectedDelivery
                       ? new Date(order.expectedDelivery).toLocaleDateString("en-LK")
-                      : "\u2014"}
+                      : "-"}
                   </TableCell>
                   <TableCell className="text-center">{order.itemCount}</TableCell>
                   <TableCell className="text-right font-medium">
