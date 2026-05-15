@@ -349,11 +349,12 @@ export function OrderForm() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Unit Price (LKR) *</Label>
+                    <Label>Unit Price (LKR per kg) *</Label>
                     <Input
                       type="number"
                       min={0.01}
                       step={0.01}
+                      placeholder="Price per kg"
                       value={item.unitPrice || ""}
                       onChange={(e) =>
                         updateItem(index, "unitPrice", parseFloat(e.target.value) || 0)
