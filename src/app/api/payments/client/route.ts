@@ -41,12 +41,17 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Validate order belongs to the specified client
-  let orderTotalRevenue = 0;
+  // Strict no-overpayment policy: sum prior payments and reject if this payment
+  // would push the running total over the cap (per-order if linked, otherwise
+  // against the client's total receivable across all non-cancelled orders).
   if (parsed.data.orderId) {
     const order = await prisma.order.findUnique({
       where: { id: parsed.data.orderId },
-      select: { id: true, clientId: true, items: { select: { quantityOrdered: true, unitPrice: true } } },
+      select: {
+        id: true,
+        clientId: true,
+        items: { select: { quantityOrdered: true, unitPrice: true } },
+      },
     });
     if (!order) {
       return errorResponse("Order not found", 404);
@@ -54,48 +59,56 @@ export async function POST(request: NextRequest) {
     if (order.clientId !== parsed.data.clientId) {
       return errorResponse("Order does not belong to the specified client");
     }
-    // Calculate order total
-    orderTotalRevenue = order.items.reduce(
+
+    const orderTotal = order.items.reduce(
       (sum, item) => sum + Number(item.quantityOrdered) * Number(item.unitPrice),
       0
     );
-    
-    // Check if payment exceeds order total by more than 10% (allow for rounding)
-    if (parsed.data.amount > orderTotalRevenue * 1.1) {
+    const priorPaid = await prisma.clientPayment.aggregate({
+      where: { orderId: parsed.data.orderId },
+      _sum: { amount: true },
+    });
+    const alreadyPaid = Number(priorPaid._sum.amount ?? 0);
+    const remaining = orderTotal - alreadyPaid;
+
+    if (parsed.data.amount > remaining) {
       return errorResponse(
-        `Payment amount (${parsed.data.amount}) exceeds order total (${orderTotalRevenue}) by more than 10%. ` +
-        "Please verify the amount is correct. Contact admin to force override if necessary."
+        `Overpayment blocked. Order total is ${orderTotal.toLocaleString("en-LK")} LKR, ` +
+          `already paid ${alreadyPaid.toLocaleString("en-LK")} LKR, ` +
+          `outstanding ${remaining.toLocaleString("en-LK")} LKR. ` +
+          `This payment of ${parsed.data.amount.toLocaleString("en-LK")} LKR would exceed the order total.`
       );
     }
   } else {
-    // For general client payments (not tied to specific order), check against all unpaid orders
+    // General client payment: cap at total receivable across all non-cancelled orders.
     const clientOrders = await prisma.order.findMany({
       where: { clientId: parsed.data.clientId, status: { not: "CANCELLED" } },
-      include: { items: { select: { quantityOrdered: true, unitPrice: true } } },
+      select: { items: { select: { quantityOrdered: true, unitPrice: true } } },
     });
-
-    const totalClientRevenue = clientOrders.reduce(
+    const totalReceivable = clientOrders.reduce(
       (sum, order) =>
         sum +
         order.items.reduce(
-          (orderSum, item) => orderSum + Number(item.quantityOrdered) * Number(item.unitPrice),
+          (orderSum, item) =>
+            orderSum + Number(item.quantityOrdered) * Number(item.unitPrice),
           0
         ),
       0
     );
-
-    const totalClientPaid = await prisma.clientPayment.aggregate({
+    const priorPaid = await prisma.clientPayment.aggregate({
       where: { clientId: parsed.data.clientId },
       _sum: { amount: true },
     });
+    const alreadyPaid = Number(priorPaid._sum.amount ?? 0);
+    const remaining = totalReceivable - alreadyPaid;
 
-    const alreadyPaid = Number(totalClientPaid._sum.amount || 0);
-
-    // Flag payment as suspicious if it causes overpayment >5%
-    if (alreadyPaid + parsed.data.amount > totalClientRevenue * 1.05) {
-      console.warn(
-        `[WARNING] Potential overpayment detected: Client ${parsed.data.clientId}, ` +
-        `existing payments: ${alreadyPaid}, new payment: ${parsed.data.amount}, total revenue: ${totalClientRevenue}`
+    if (parsed.data.amount > remaining) {
+      return errorResponse(
+        `Overpayment blocked. Total receivable is ${totalReceivable.toLocaleString("en-LK")} LKR, ` +
+          `already received ${alreadyPaid.toLocaleString("en-LK")} LKR, ` +
+          `outstanding ${remaining.toLocaleString("en-LK")} LKR. ` +
+          `This payment of ${parsed.data.amount.toLocaleString("en-LK")} LKR would exceed the receivable. ` +
+          `Link the payment to a specific order if applicable.`
       );
     }
   }

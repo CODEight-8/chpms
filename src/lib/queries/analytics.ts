@@ -171,15 +171,27 @@ export async function getAbnormalPaymentAlerts() {
       totalRevenue: c.totalRevenue,
       totalPaid: c.totalPaid,
       overpaymentAmount: c.totalPaid - c.totalRevenue,
-      percentageOverpaid: ((c.totalPaid - c.totalRevenue) / c.totalRevenue) * 100,
+      // Null when there is no revenue to compare against (any payment to a
+      // client with zero revenue is by definition fully overpaid; expressing
+      // it as a percentage is meaningless).
+      percentageOverpaid:
+        c.totalRevenue > 0
+          ? ((c.totalPaid - c.totalRevenue) / c.totalRevenue) * 100
+          : null,
       severity:
-        c.totalPaid > c.totalRevenue * 1.5
+        c.totalRevenue === 0
           ? "CRITICAL"
-          : c.totalPaid > c.totalRevenue * 1.2
-            ? "HIGH"
-            : "MEDIUM",
+          : c.totalPaid > c.totalRevenue * 1.5
+            ? "CRITICAL"
+            : c.totalPaid > c.totalRevenue * 1.2
+              ? "HIGH"
+              : "MEDIUM",
     }))
-    .sort((a, b) => b.percentageOverpaid - a.percentageOverpaid);
+    .sort(
+      (a, b) =>
+        (b.percentageOverpaid ?? Number.POSITIVE_INFINITY) -
+        (a.percentageOverpaid ?? Number.POSITIVE_INFINITY)
+    );
 }
 
 /**

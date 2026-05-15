@@ -3,17 +3,12 @@ import { getAbnormalPaymentAlerts } from "@/lib/queries/analytics";
 
 /**
  * GET /api/system/payment-audit
- * Retrieve list of clients with abnormal payments (overpayments, suspicious amounts)
- * OWNER only - for system diagnostics and audit purposes
+ * Retrieve list of clients with abnormal payments (overpayments, suspicious amounts).
+ * Gated by accounts:view, which the permission matrix grants to OWNER only.
  */
 export async function GET() {
-  const { user, error } = await requireAuth("users", "view");
+  const { user, error } = await requireAuth("accounts", "view");
   if (error || !user) return error!;
-
-  // Only OWNER can access payment audit data
-  if (user.role !== "OWNER") {
-    return errorResponse("Only system owners can access payment audit data", 403);
-  }
 
   try {
     const alerts = await getAbnormalPaymentAlerts();

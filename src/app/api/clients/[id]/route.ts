@@ -39,13 +39,15 @@ export async function PUT(
     return errorResponse("Client name cannot be changed after creation.", 400);
   }
 
-  const normalizedPhone = normalizeSriLankaPhoneNumber(parsed.data.phone);
+  // Validation guarantees the phone is a valid SL number, so normalization
+  // always succeeds. The non-null assertion documents that invariant.
+  const normalizedPhone = normalizeSriLankaPhoneNumber(parsed.data.phone)!;
 
   const client = await prisma.client.update({
     where: { id: params.id },
     data: {
       ...parsed.data,
-      phone: normalizedPhone || parsed.data.phone,
+      phone: normalizedPhone,
     },
   });
 

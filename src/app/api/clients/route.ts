@@ -44,12 +44,14 @@ export async function POST(request: NextRequest) {
     return errorResponse("Client name already exists. Use a different client name.", 409);
   }
 
-  const normalizedPhone = normalizeSriLankaPhoneNumber(parsed.data.phone);
+  // Validation guarantees the phone is a valid SL number, so normalization
+  // always succeeds. The non-null assertion documents that invariant.
+  const normalizedPhone = normalizeSriLankaPhoneNumber(parsed.data.phone)!;
 
   const client = await prisma.client.create({
     data: {
       ...parsed.data,
-      phone: normalizedPhone || parsed.data.phone,
+      phone: normalizedPhone,
     },
   });
 
