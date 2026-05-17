@@ -2,6 +2,29 @@
 set -e
 
 echo "Running database migrations..."
+
+# Pre-migration backfill: the BatchStatus enum no longer includes DISPATCHED.
+# Any existing rows in that state would block the enum alteration, so they are
+# migrated to COMPLETED first. Idempotent — safe to run when no such rows exist
+# and safe to run when the column type has already been altered.
+echo "Pre-migration: collapsing DISPATCHED batches into COMPLETED if needed..."
+node -e "
+const { PrismaClient } = require('@prisma/client');
+const p = new PrismaClient();
+p.\$executeRawUnsafe(
+  \"UPDATE production_batches SET status = 'COMPLETED'::\\\"BatchStatus\\\" WHERE status::text = 'DISPATCHED'\"
+).then((n) => { console.log('DISPATCHED -> COMPLETED rows updated:', n); return p.\$disconnect(); })
+ .catch((e) => {
+   // The enum value may already be gone (post-migration restart) — ignore.
+   if (/invalid input value for enum|does not exist/i.test(e.message)) {
+     console.log('DISPATCHED enum value not present; skipping pre-migration backfill.');
+     return p.\$disconnect();
+   }
+   console.error('DISPATCHED backfill failed:', e.message);
+   process.exit(1);
+ });
+"
+
 npx prisma db push --skip-generate --accept-data-loss
 
 # Idempotent backfill: initialize available_output for COMPLETED batches that
