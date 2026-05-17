@@ -108,6 +108,18 @@ export async function getBatchDetail(id: string) {
           },
         },
       },
+      // Misc transactions auto-created from this batch (currently just the
+      // additional-cost OUT entry, if any). Surfaced on the detail page.
+      miscTransactions: {
+        select: {
+          id: true,
+          receiptNumber: true,
+          direction: true,
+          amount: true,
+          transactionDate: true,
+        },
+        orderBy: { createdAt: "desc" },
+      },
     },
   });
 

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getClientPaymentDetail } from "@/lib/queries/accounts";
 import { formatLKR } from "@/lib/currency";
@@ -95,37 +96,83 @@ export default async function ClientReceiptPage({
             </div>
           </div>
 
-          {/* Payment Against */}
+          {/* Payment Against — single block for one allocation, table for many */}
           <div className="mb-6">
             <h3 className="text-sm font-bold text-gray-700 uppercase mb-2">
               Payment Against
             </h3>
             <div className="bg-blue-50 rounded-lg p-4">
-              {payment.order ? (
+              {payment.allocationSummaries.length === 1 ? (
                 <div className="space-y-1">
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Invoice</span>
-                    <span className="font-mono font-medium">
-                      {payment.order.invoiceNumber}
-                    </span>
+                    <Link
+                      href={`/orders/${payment.allocationSummaries[0].order.id}`}
+                      className="font-mono font-medium text-emerald-700 hover:underline print:text-gray-900 print:no-underline"
+                    >
+                      {payment.allocationSummaries[0].order.invoiceNumber}
+                    </Link>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Order Number</span>
                     <span className="font-mono font-medium">
-                      {payment.order.orderNumber}
+                      {payment.allocationSummaries[0].order.orderNumber}
                     </span>
                   </div>
                   <div className="flex justify-between text-sm border-t pt-1 mt-1">
                     <span className="text-gray-600">Order Total</span>
                     <span className="font-medium">
-                      {formatLKR(payment.orderTotal ?? 0)}
+                      {formatLKR(payment.allocationSummaries[0].orderTotal)}
                     </span>
                   </div>
                 </div>
               ) : (
-                <p className="text-sm text-gray-600">
-                  General payment from client (not linked to a specific order)
-                </p>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-blue-200">
+                      <th className="text-left py-1 text-xs font-bold text-gray-700">
+                        Invoice / Order
+                      </th>
+                      <th className="text-right py-1 text-xs font-bold text-gray-700">
+                        Order Total
+                      </th>
+                      <th className="text-right py-1 text-xs font-bold text-gray-700">
+                        Allocated
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {payment.allocationSummaries.map((a) => (
+                      <tr key={a.id} className="border-b border-blue-100">
+                        <td className="py-1.5 font-mono">
+                          <Link
+                            href={`/orders/${a.order.id}`}
+                            className="text-emerald-700 hover:underline print:text-gray-900 print:no-underline"
+                          >
+                            {a.order.invoiceNumber}
+                          </Link>{" "}
+                          <span className="text-gray-500">
+                            ({a.order.orderNumber})
+                          </span>
+                        </td>
+                        <td className="py-1.5 text-right text-gray-600">
+                          {formatLKR(a.orderTotal)}
+                        </td>
+                        <td className="py-1.5 text-right font-medium">
+                          {formatLKR(a.thisAllocation)}
+                        </td>
+                      </tr>
+                    ))}
+                    <tr>
+                      <td colSpan={2} className="py-1.5 text-right font-bold">
+                        Total
+                      </td>
+                      <td className="py-1.5 text-right font-bold text-emerald-900">
+                        {formatLKR(payment.amount)}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               )}
             </div>
           </div>
@@ -142,8 +189,8 @@ export default async function ClientReceiptPage({
             </div>
           </div>
 
-          {/* Balance Summary (if linked to order) */}
-          {payment.order && payment.orderTotal !== null && (
+          {/* Balance Summary */}
+          {payment.allocationSummaries.length === 1 ? (
             <div className="mb-6 text-sm border rounded-lg p-4">
               <h3 className="text-xs font-bold text-gray-700 uppercase mb-2">
                 Balance Summary
@@ -152,7 +199,7 @@ export default async function ClientReceiptPage({
                 <div className="flex justify-between">
                   <span className="text-gray-500">Invoice Total</span>
                   <span className="font-medium">
-                    {formatLKR(payment.orderTotal)}
+                    {formatLKR(payment.allocationSummaries[0].orderTotal)}
                   </span>
                 </div>
                 <div className="flex justify-between">
@@ -181,7 +228,51 @@ export default async function ClientReceiptPage({
                 </div>
               </div>
             </div>
-          )}
+          ) : payment.allocationSummaries.length > 1 ? (
+            <div className="mb-6 text-sm border rounded-lg p-4">
+              <h3 className="text-xs font-bold text-gray-700 uppercase mb-2">
+                Per-Order Balance After This Payment
+              </h3>
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-1 text-xs font-bold text-gray-500">
+                      Order
+                    </th>
+                    <th className="text-right py-1 text-xs font-bold text-gray-500">
+                      Total
+                    </th>
+                    <th className="text-right py-1 text-xs font-bold text-gray-500">
+                      Received to-date
+                    </th>
+                    <th className="text-right py-1 text-xs font-bold text-gray-500">
+                      Remaining
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {payment.allocationSummaries.map((a) => (
+                    <tr key={a.id} className="border-b">
+                      <td className="py-1 font-mono">{a.order.orderNumber}</td>
+                      <td className="py-1 text-right">{formatLKR(a.orderTotal)}</td>
+                      <td className="py-1 text-right text-green-600">
+                        {formatLKR(a.orderTotalPaid)}
+                      </td>
+                      <td
+                        className={`py-1 text-right font-medium ${
+                          a.orderRemaining > 0
+                            ? "text-orange-600"
+                            : "text-green-600"
+                        }`}
+                      >
+                        {formatLKR(Math.max(0, a.orderRemaining))}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
 
           {/* Reference & Notes */}
           {(payment.reference || payment.notes) && (

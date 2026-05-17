@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getSupplierPaymentDetail } from "@/lib/queries/accounts";
 import { formatLKR } from "@/lib/currency";
@@ -85,40 +86,84 @@ export default async function SupplierReceiptPage({
             </div>
           </div>
 
-          {/* Payment Against */}
+          {/* Payment Against — one section for single allocation, a table
+              for multi-allocation receipts. */}
           <div className="mb-6">
             <h3 className="text-sm font-bold text-gray-700 uppercase mb-2">
               Payment Against
             </h3>
             <div className="bg-blue-50 rounded-lg p-4">
-              {payment.supplierLot ? (
+              {payment.allocationSummaries.length === 1 ? (
                 <div className="space-y-1">
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Invoice</span>
-                    <span className="font-mono font-medium">
-                      {payment.supplierLot.invoiceNumber}
-                    </span>
+                    <Link
+                      href={`/supplier-lots/${payment.allocationSummaries[0].lot.id}`}
+                      className="font-mono font-medium text-emerald-700 hover:underline print:text-gray-900 print:no-underline"
+                    >
+                      {payment.allocationSummaries[0].lot.invoiceNumber}
+                    </Link>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Lot Number</span>
                     <span className="font-mono font-medium">
-                      {payment.supplierLot.lotNumber}
+                      {payment.allocationSummaries[0].lot.lotNumber}
                     </span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">
-                      Husks: {payment.supplierLot.huskCount.toLocaleString()} @{" "}
-                      {formatLKR(payment.supplierLot.perHuskRate)}
-                    </span>
+                    <span className="text-gray-600">Lot Total</span>
                     <span className="font-medium">
-                      {formatLKR(payment.supplierLot.totalCost)}
+                      {formatLKR(payment.allocationSummaries[0].lotTotal)}
                     </span>
                   </div>
                 </div>
               ) : (
-                <p className="text-sm text-gray-600">
-                  General payment to supplier (not linked to a specific lot)
-                </p>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-blue-200">
+                      <th className="text-left py-1 text-xs font-bold text-gray-700">
+                        Invoice / Lot
+                      </th>
+                      <th className="text-right py-1 text-xs font-bold text-gray-700">
+                        Lot Total
+                      </th>
+                      <th className="text-right py-1 text-xs font-bold text-gray-700">
+                        Allocated
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {payment.allocationSummaries.map((a) => (
+                      <tr key={a.id} className="border-b border-blue-100">
+                        <td className="py-1.5 font-mono">
+                          <Link
+                            href={`/supplier-lots/${a.lot.id}`}
+                            className="text-emerald-700 hover:underline print:text-gray-900 print:no-underline"
+                          >
+                            {a.lot.invoiceNumber}
+                          </Link>{" "}
+                          <span className="text-gray-500">
+                            ({a.lot.lotNumber})
+                          </span>
+                        </td>
+                        <td className="py-1.5 text-right text-gray-600">
+                          {formatLKR(a.lotTotal)}
+                        </td>
+                        <td className="py-1.5 text-right font-medium">
+                          {formatLKR(a.thisAllocation)}
+                        </td>
+                      </tr>
+                    ))}
+                    <tr>
+                      <td colSpan={2} className="py-1.5 text-right font-bold">
+                        Total
+                      </td>
+                      <td className="py-1.5 text-right font-bold text-emerald-900">
+                        {formatLKR(payment.amount)}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               )}
             </div>
           </div>
@@ -135,8 +180,9 @@ export default async function SupplierReceiptPage({
             </div>
           </div>
 
-          {/* Balance Summary (if linked to lot) */}
-          {payment.supplierLot && (
+          {/* Balance Summary — single-allocation: lot balance after this
+              payment. Multi-allocation: per-lot table of running balances. */}
+          {payment.allocationSummaries.length === 1 ? (
             <div className="mb-6 text-sm border rounded-lg p-4">
               <h3 className="text-xs font-bold text-gray-700 uppercase mb-2">
                 Balance Summary
@@ -145,7 +191,7 @@ export default async function SupplierReceiptPage({
                 <div className="flex justify-between">
                   <span className="text-gray-500">Invoice Total</span>
                   <span className="font-medium">
-                    {formatLKR(payment.supplierLot.totalCost)}
+                    {formatLKR(payment.allocationSummaries[0].lotTotal)}
                   </span>
                 </div>
                 <div className="flex justify-between">
@@ -174,7 +220,49 @@ export default async function SupplierReceiptPage({
                 </div>
               </div>
             </div>
-          )}
+          ) : payment.allocationSummaries.length > 1 ? (
+            <div className="mb-6 text-sm border rounded-lg p-4">
+              <h3 className="text-xs font-bold text-gray-700 uppercase mb-2">
+                Per-Lot Balance After This Payment
+              </h3>
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-1 text-xs font-bold text-gray-500">
+                      Lot
+                    </th>
+                    <th className="text-right py-1 text-xs font-bold text-gray-500">
+                      Total
+                    </th>
+                    <th className="text-right py-1 text-xs font-bold text-gray-500">
+                      Paid to-date
+                    </th>
+                    <th className="text-right py-1 text-xs font-bold text-gray-500">
+                      Remaining
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {payment.allocationSummaries.map((a) => (
+                    <tr key={a.id} className="border-b">
+                      <td className="py-1 font-mono">{a.lot.lotNumber}</td>
+                      <td className="py-1 text-right">{formatLKR(a.lotTotal)}</td>
+                      <td className="py-1 text-right text-green-600">
+                        {formatLKR(a.lotTotalPaid)}
+                      </td>
+                      <td
+                        className={`py-1 text-right font-medium ${
+                          a.lotRemaining > 0 ? "text-orange-600" : "text-green-600"
+                        }`}
+                      >
+                        {formatLKR(Math.max(0, a.lotRemaining))}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
 
           {/* Reference & Notes */}
           {(payment.reference || payment.notes) && (

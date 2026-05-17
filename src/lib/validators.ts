@@ -170,6 +170,13 @@ export const productionBatchSchema = z.object({
 export const completeBatchSchema = z.object({
   outputQuantity: z.number().positive("Output quantity must be positive").max(1000000),
   qualityScore: z.number().min(0, "Quality score must be 0-100").max(100, "Quality score must be 0-100"),
+  // Optional operating cost for this batch (labor, electricity, fuel, etc).
+  // When > 0 the API auto-creates a linked Misc Out transaction.
+  additionalCost: z
+    .number()
+    .nonnegative("Additional cost cannot be negative")
+    .max(100000000, "Additional cost cannot exceed 100,000,000 LKR")
+    .optional(),
 });
 
 export const clientSchema = z.object({
@@ -243,14 +250,56 @@ export const paymentSchema = z.object({
   notes: z.string().max(2000).optional(),
 });
 
+// Schema for a single line in a multi-invoice payment.
+export const supplierPaymentAllocationSchema = z.object({
+  supplierLotId: z.string().uuid("Invalid lot in allocation"),
+  amount: z
+    .number()
+    .positive("Allocation amount must be positive")
+    .max(100000000, "Allocation amount cannot exceed 100,000,000 LKR"),
+});
+
+export const clientPaymentAllocationSchema = z.object({
+  orderId: z.string().uuid("Invalid order in allocation"),
+  amount: z
+    .number()
+    .positive("Allocation amount must be positive")
+    .max(100000000, "Allocation amount cannot exceed 100,000,000 LKR"),
+});
+
+// New writes provide `allocations`. Legacy single-FK `supplierLotId` is still
+// accepted and translated into a one-row allocation server-side. At least one
+// of the two must be present — general (unallocated) payments are not allowed.
 export const supplierPaymentSchema = paymentSchema.extend({
   supplierId: z.string().uuid("Invalid supplier"),
   supplierLotId: z.string().uuid().optional(),
+  allocations: z.array(supplierPaymentAllocationSchema).optional(),
 });
 
 export const clientPaymentSchema = paymentSchema.extend({
   clientId: z.string().uuid("Invalid client"),
   orderId: z.string().uuid().optional(),
+  allocations: z.array(clientPaymentAllocationSchema).optional(),
+});
+
+export const miscTransactionSchema = z.object({
+  direction: z.enum(["IN", "OUT"]),
+  category: z
+    .string()
+    .min(1, "Category is required")
+    .max(100, "Category is too long"),
+  amount: z
+    .number()
+    .positive("Amount must be positive")
+    .max(100000000, "Amount cannot exceed 100,000,000 LKR"),
+  paymentMethod: z.enum(["CASH", "BANK", "CHEQUE"]),
+  transactionDate: z.string().min(1, "Date is required"),
+  description: z
+    .string()
+    .min(1, "Description is required")
+    .max(500, "Description is too long"),
+  reference: z.string().max(200).optional(),
+  notes: z.string().max(2000).optional(),
 });
 
 export const userSchema = z.object({

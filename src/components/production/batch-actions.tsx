@@ -33,8 +33,10 @@ export function BatchActions({
   const [completeOpen, setCompleteOpen] = useState(false);
   const [outputQuantity, setOutputQuantity] = useState("");
   const [qualityScore, setQualityScore] = useState("");
+  const [additionalCost, setAdditionalCost] = useState("");
   const parsedOutputQuantity = Number.parseFloat(outputQuantity);
   const parsedQualityScore = Number.parseFloat(qualityScore);
+  const parsedAdditionalCost = Number.parseFloat(additionalCost);
   const hasValidOutputQuantity =
     Number.isFinite(parsedOutputQuantity) &&
     parsedOutputQuantity > 0 &&
@@ -43,9 +45,16 @@ export function BatchActions({
     Number.isFinite(parsedQualityScore) &&
     parsedQualityScore >= 0 &&
     parsedQualityScore <= 100;
+  // Optional field. Empty / blank is treated as 0 and skipped on the server.
+  // Only blocks submit when the user typed a non-empty value that is invalid.
+  const additionalCostEmpty = additionalCost.trim() === "";
+  const hasValidAdditionalCost =
+    additionalCostEmpty ||
+    (Number.isFinite(parsedAdditionalCost) && parsedAdditionalCost >= 0);
 
   async function handleComplete() {
-    if (!hasValidOutputQuantity || !hasValidQualityScore) return;
+    if (!hasValidOutputQuantity || !hasValidQualityScore || !hasValidAdditionalCost)
+      return;
     setLoading(true);
     try {
       const res = await fetch(`/api/production-batches/${batchId}/complete`, {
@@ -54,11 +63,17 @@ export function BatchActions({
         body: JSON.stringify({
           outputQuantity: parsedOutputQuantity,
           qualityScore: parsedQualityScore,
+          ...(additionalCostEmpty
+            ? {}
+            : { additionalCost: parsedAdditionalCost }),
         }),
       });
       if (!res.ok) throw new Error((await res.json()).error);
       toast.success("Batch marked as completed");
       setCompleteOpen(false);
+      setOutputQuantity("");
+      setQualityScore("");
+      setAdditionalCost("");
       router.refresh();
     } catch (err) {
       toast.error(
@@ -128,11 +143,30 @@ export function BatchActions({
                       : "Percentage of chips matching the target size"}
               </p>
             </div>
+            <div className="space-y-2">
+              <Label>Additional Cost (LKR)</Label>
+              <Input
+                type="number"
+                min={0}
+                step={0.01}
+                value={additionalCost}
+                onChange={(e) => setAdditionalCost(e.target.value)}
+                placeholder="0"
+              />
+              <p className="text-xs text-gray-500">
+                Optional — labor, electricity, fuel, packaging, etc. spent on
+                this batch. Will be recorded as a Miscellaneous Out
+                transaction.
+              </p>
+            </div>
             <Button
               onClick={handleComplete}
               className="w-full bg-emerald-700 hover:bg-emerald-800"
               disabled={
-                loading || !hasValidOutputQuantity || !hasValidQualityScore
+                loading ||
+                !hasValidOutputQuantity ||
+                !hasValidQualityScore ||
+                !hasValidAdditionalCost
               }
             >
               {loading ? "Completing..." : "Confirm Complete"}

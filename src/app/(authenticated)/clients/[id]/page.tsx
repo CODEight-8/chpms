@@ -181,9 +181,12 @@ export default async function ClientDetailPage({
                   (s, i) => s + Number(i.quantityOrdered) * Number(i.unitPrice),
                   0
                 );
-                const paid = client.payments
-                  .filter((p) => p.orderId === order.id)
-                  .reduce((s, p) => s + Number(p.amount), 0);
+                // Source of truth: per-order allocations. Counts multi-order
+                // payments (legacy orderId null) correctly.
+                const paid = order.paymentAllocations.reduce(
+                  (s, a) => s + Number(a.amount),
+                  0
+                );
                 const outstanding = total - paid;
                 return { ...order, total, paid, outstanding };
               });
@@ -296,9 +299,10 @@ export default async function ClientDetailPage({
                           s + Number(i.quantityOrdered) * Number(i.unitPrice),
                         0
                       );
-                      const paid = client.payments
-                        .filter((p) => p.orderId === o.id)
-                        .reduce((s, p) => s + Number(p.amount), 0);
+                      const paid = o.paymentAllocations.reduce(
+                        (s, a) => s + Number(a.amount),
+                        0
+                      );
                       return {
                         id: o.id,
                         orderNumber: o.orderNumber,
@@ -341,14 +345,35 @@ export default async function ClientDetailPage({
                           {new Date(p.paymentDate).toLocaleDateString("en-LK")}
                         </TableCell>
                         <TableCell className="font-mono text-xs text-gray-500">
-                          {p.orderId
-                            ? (() => {
-                                const order = client.orders.find((o) => o.id === p.orderId);
-                                return order
-                                  ? `${order.orderNumber} / ${order.invoiceNumber}`
-                                  : "-";
-                              })()
-                            : "-"}
+                          {p.allocations.length > 0 ? (
+                            p.allocations.length === 1 ? (
+                              <Link
+                                href={`/orders/${p.allocations[0].order.id}`}
+                                className="hover:underline"
+                              >
+                                {p.allocations[0].order.orderNumber} /{" "}
+                                {p.allocations[0].order.invoiceNumber}
+                              </Link>
+                            ) : (
+                              <div className="flex flex-col gap-0.5">
+                                {p.allocations.map((a) => (
+                                  <Link
+                                    key={a.id}
+                                    href={`/orders/${a.order.id}`}
+                                    className="text-[11px] hover:underline"
+                                  >
+                                    {a.order.orderNumber} /{" "}
+                                    {a.order.invoiceNumber}{" "}
+                                    <span className="text-gray-400">
+                                      ({formatLKR(Number(a.amount))})
+                                    </span>
+                                  </Link>
+                                ))}
+                              </div>
+                            )
+                          ) : (
+                            <span className="text-gray-400">-</span>
+                          )}
                         </TableCell>
                         <TableCell>{p.paymentMethod}</TableCell>
                         <TableCell className="text-right font-medium">

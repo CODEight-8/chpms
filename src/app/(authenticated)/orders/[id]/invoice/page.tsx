@@ -197,8 +197,9 @@ export default async function OrderInvoicePage({
             </div>
           )}
 
-          {/* Payments Received */}
-          {order.payments.length > 0 && (
+          {/* Payments Received — sourced from allocations so multi-order
+              payments show their portion applied to THIS order only. */}
+          {order.paymentAllocations.length > 0 && (
             <div className="mb-6">
               <h3 className="text-xs font-bold text-gray-700 uppercase mb-2">
                 Payments Received
@@ -219,21 +220,27 @@ export default async function OrderInvoicePage({
                       Reference
                     </th>
                     <th className="text-right py-2 font-bold text-gray-700">
-                      Amount
+                      Applied
                     </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {order.payments.map((p) => (
-                    <tr key={p.id} className="border-b border-gray-200">
-                      <td className="py-2 font-mono">{p.receiptNumber}</td>
-                      <td className="py-2">
-                        {new Date(p.paymentDate).toLocaleDateString("en-LK")}
+                  {order.paymentAllocations.map((a) => (
+                    <tr key={a.id} className="border-b border-gray-200">
+                      <td className="py-2 font-mono">
+                        {a.clientPayment.receiptNumber}
                       </td>
-                      <td className="py-2">{p.paymentMethod}</td>
-                      <td className="py-2 text-gray-600">{p.reference || "-"}</td>
+                      <td className="py-2">
+                        {new Date(
+                          a.clientPayment.paymentDate
+                        ).toLocaleDateString("en-LK")}
+                      </td>
+                      <td className="py-2">{a.clientPayment.paymentMethod}</td>
+                      <td className="py-2 text-gray-600">
+                        {a.clientPayment.reference || "-"}
+                      </td>
                       <td className="py-2 text-right font-medium">
-                        {formatLKR(p.amount)}
+                        {formatLKR(Number(a.amount))}
                       </td>
                     </tr>
                   ))}

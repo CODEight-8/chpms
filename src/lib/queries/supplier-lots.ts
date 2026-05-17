@@ -64,17 +64,40 @@ export async function getLotDetail(id: string) {
           },
         },
       },
-      payments: {
-        orderBy: { paymentDate: "desc" },
+      // Allocations are the source of truth for "money paid against this lot".
+      // Each allocation links back to its parent SupplierPayment so we can
+      // surface the full payment context (receipt #, method, date, etc.) in
+      // the lot's payment-history table.
+      paymentAllocations: {
+        include: {
+          supplierPayment: {
+            select: {
+              id: true,
+              receiptNumber: true,
+              paymentDate: true,
+              paymentMethod: true,
+              reference: true,
+              amount: true,
+            },
+          },
+        },
+        orderBy: { supplierPayment: { paymentDate: "desc" } },
       },
     },
   });
 
   if (!lot) return null;
 
+  const totalPaid = lot.paymentAllocations.reduce(
+    (sum, a) => sum + Number(a.amount),
+    0
+  );
+
   return {
     ...lot,
     batchAging: calculateBatchAging(lot.harvestDate),
+    totalPaid,
+    outstandingBalance: Number(lot.totalCost) - totalPaid,
   };
 }
 
