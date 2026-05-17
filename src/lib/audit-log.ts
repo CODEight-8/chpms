@@ -18,6 +18,7 @@ type AuditEntityType =
   | "Client"
   | "SupplierPayment"
   | "ClientPayment"
+  | "MiscTransaction"
   | "User";
 
 interface AuditUser {

@@ -60,3 +60,14 @@ export async function generateClientReceiptNumber(): Promise<string> {
   const seq = String(count + 1).padStart(3, "0");
   return `${prefix}-${seq}`;
 }
+
+export async function generateMiscReceiptNumber(
+  direction: "IN" | "OUT"
+): Promise<string> {
+  const prefix = `MISC-${direction}-${todayPrefix()}`;
+  const count = await prisma.miscTransaction.count({
+    where: { receiptNumber: { startsWith: prefix } },
+  });
+  const seq = String(count + 1).padStart(3, "0");
+  return `${prefix}-${seq}`;
+}
