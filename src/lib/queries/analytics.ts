@@ -18,7 +18,7 @@ export async function getMonthlyThroughput() {
     prisma.productionBatch.findMany({
       where: {
         completedAt: { not: null, gte: sixMonthsAgo },
-        status: { in: ["COMPLETED", "DISPATCHED"] },
+        status: "COMPLETED",
       },
       select: { completedAt: true, outputQuantity: true },
     }),
@@ -59,11 +59,11 @@ export async function getMonthlyThroughput() {
 }
 
 /**
- * Profitability per completed/dispatched batch
+ * Profitability per completed batch
  */
 export async function getBatchProfitability() {
   const batches = await prisma.productionBatch.findMany({
-    where: { status: { in: ["COMPLETED", "DISPATCHED"] } },
+    where: { status: "COMPLETED" },
     include: {
       product: { select: { name: true } },
       fulfillments: {

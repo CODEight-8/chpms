@@ -14,7 +14,6 @@ const STATUS_TABS = [
   { value: "all", label: "All" },
   { value: "IN_PROGRESS", label: "In Progress" },
   { value: "COMPLETED", label: "Completed" },
-  { value: "DISPATCHED", label: "Dispatched" },
 ];
 
 interface BatchStatusTabsProps {

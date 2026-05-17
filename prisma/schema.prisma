@@ -36,7 +36,6 @@ enum QualityGrade {
 enum BatchStatus {
   IN_PROGRESS
   COMPLETED
-  DISPATCHED
 }
 
 enum BatchQualityGrade {

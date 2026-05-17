@@ -54,12 +54,17 @@ export function RecordClientPayment({
       return;
     }
 
+    if (!selectedOrderId) {
+      toast.error("Link to Order is required.");
+      return;
+    }
+
     setLoading(true);
 
     const form = new FormData(e.currentTarget);
     const data = {
       clientId,
-      orderId: selectedOrderId && selectedOrderId !== "none" ? selectedOrderId : undefined,
+      orderId: selectedOrderId,
       amount: parseFloat(form.get("amount") as string),
       paymentDate: form.get("paymentDate") as string,
       paymentMethod: method,
@@ -91,7 +96,8 @@ export function RecordClientPayment({
   }
 
   const today = new Date().toISOString().split("T")[0];
-  const selectedOrder = selectedOrderId && selectedOrderId !== "none" ? orders?.find((o) => o.id === selectedOrderId) : undefined;
+  const hasOrderOptions = Boolean(orders && orders.length > 0);
+  const selectedOrder = selectedOrderId ? orders?.find((o) => o.id === selectedOrderId) : undefined;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -106,15 +112,20 @@ export function RecordClientPayment({
           <DialogTitle>Record Payment from {clientName}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} noValidate className="space-y-4">
-          {orders && orders.length > 0 && (
+          {orders && (
             <div className="space-y-2">
-              <Label>Link to Order (Invoice)</Label>
-              <Select value={selectedOrderId} onValueChange={setSelectedOrderId}>
+              <Label>Link to Order (Invoice) *</Label>
+              <Select
+                value={selectedOrderId}
+                onValueChange={setSelectedOrderId}
+                disabled={!hasOrderOptions}
+              >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select order (optional)" />
+                  <SelectValue
+                    placeholder={hasOrderOptions ? "Select order" : "No outstanding orders"}
+                  />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">No specific order</SelectItem>
                   {orders.map((order) => (
                     <SelectItem key={order.id} value={order.id}>
                       {order.invoiceNumber} — Outstanding:{" "}
@@ -126,6 +137,11 @@ export function RecordClientPayment({
                   ))}
                 </SelectContent>
               </Select>
+              {!hasOrderOptions && (
+                <p className="text-xs text-gray-500">
+                  No outstanding orders available for payment.
+                </p>
+              )}
               {selectedOrder && (
                 <p className="text-xs text-orange-600">
                   Outstanding: LKR {selectedOrder.outstanding.toLocaleString()}
@@ -173,7 +189,11 @@ export function RecordClientPayment({
             <Textarea id="notes" name="notes" rows={2} />
           </div>
 
-          <Button type="submit" className="w-full bg-emerald-700 hover:bg-emerald-800" disabled={loading}>
+          <Button
+            type="submit"
+            className="w-full bg-emerald-700 hover:bg-emerald-800"
+            disabled={loading || !hasOrderOptions || !selectedOrderId}
+          >
             {loading ? "Recording..." : "Record Payment"}
           </Button>
         </form>

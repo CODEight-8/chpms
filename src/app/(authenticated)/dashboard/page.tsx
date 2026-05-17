@@ -105,11 +105,13 @@ export default async function DashboardPage() {
         <SummaryCard
           title="Overdue Orders"
           value={data.kpis.overdueOrders}
+          tooltip="Orders past expected delivery and not dispatched."
           icon={AlertTriangle}
         />
         <SummaryCard
           title="Due Soon"
           value={data.kpis.closeToOverdueOrders}
+          tooltip="Orders due within the next 7 days."
           icon={AlertCircle}
         />
       </div>

@@ -5,6 +5,7 @@ import { hasPermission } from "@/lib/permissions";
 import { UserRole, BatchStatus } from "@prisma/client";
 import { formatLKR } from "@/lib/currency";
 import {
+  getBatchOutputSummary,
   getBatchesWithDetails,
   getBatchStatusCounts,
 } from "@/lib/queries/production-batches";
@@ -24,7 +25,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Factory, CheckCircle, Truck } from "lucide-react";
+import { Plus, Factory, CheckCircle, Package, PackageCheck } from "lucide-react";
 
 export default async function ProductionPage({
   searchParams,
@@ -35,11 +36,17 @@ export default async function ProductionPage({
   const role = session!.user.role as UserRole;
   const canCreate = hasPermission(role, "production", "create");
 
-  const statusFilter = searchParams.status as BatchStatus | undefined;
-  const [batches, counts] = await Promise.all([
+  const statusFilter =
+    searchParams.status &&
+    Object.values(BatchStatus).includes(searchParams.status as BatchStatus)
+      ? (searchParams.status as BatchStatus)
+      : undefined;
+  const [batches, counts, outputSummary] = await Promise.all([
     getBatchesWithDetails({ status: statusFilter, search: searchParams.search }),
     getBatchStatusCounts(),
+    getBatchOutputSummary(),
   ]);
+  const outputUnit = outputSummary.outputUnit;
 
   return (
     <div className="pt-6">
@@ -59,7 +66,7 @@ export default async function ProductionPage({
       />
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 lg:grid-cols-4 mb-6">
         <SummaryCard
           title="In Progress"
           value={counts.IN_PROGRESS}
@@ -71,9 +78,16 @@ export default async function ProductionPage({
           icon={CheckCircle}
         />
         <SummaryCard
-          title="Dispatched"
-          value={counts.DISPATCHED}
-          icon={Truck}
+          title="Total Output"
+          value={`${outputSummary.totalOutput.toLocaleString()} ${outputUnit}`}
+          tooltip="Total output produced by completed batches."
+          icon={Package}
+        />
+        <SummaryCard
+          title="Available Output"
+          value={`${outputSummary.availableOutput.toLocaleString()} ${outputUnit}`}
+          tooltip="Completed output still available for orders."
+          icon={PackageCheck}
         />
       </div>
 

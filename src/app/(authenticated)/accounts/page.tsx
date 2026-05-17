@@ -96,22 +96,26 @@ export default async function AccountsPage({
           title="Total Payable"
           value={formatLKR(summary.totalPayable)}
           subtitle={`${formatLKR(summary.outstandingPayable)} outstanding`}
+          tooltip="Total supplier lot cost before payments."
           icon={ArrowUpRight}
         />
         <SummaryCard
           title="Total Receivable"
           value={formatLKR(summary.totalReceivable)}
           subtitle={`${formatLKR(summary.outstandingReceivable)} outstanding`}
+          tooltip="Total value of non-cancelled orders."
           icon={ArrowDownLeft}
         />
         <SummaryCard
           title="Paid to Suppliers"
           value={formatLKR(summary.totalPaidToSuppliers)}
+          tooltip="Total money paid out to suppliers."
           icon={Wallet}
         />
         <SummaryCard
           title="Net Cash Flow"
           value={formatLKR(summary.netBalance)}
+          tooltip="Client payments received minus supplier payments."
           icon={TrendingUp}
         />
       </div>
