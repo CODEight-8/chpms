@@ -28,7 +28,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ArrowDownLeft, ArrowUpRight, Wallet, TrendingUp } from "lucide-react";
+import {
+  ArrowDownLeft,
+  ArrowUpRight,
+  Wallet,
+  TrendingUp,
+  Coins,
+  Receipt,
+} from "lucide-react";
 
 type SupplierAllocation = {
   amount: unknown;
@@ -203,33 +210,55 @@ export default async function AccountsPage({
         description="Payments are recorded from each supplier or client profile. Miscellaneous in/out are recorded here."
       />
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      {/* Summary Cards — top row: outstanding business, bottom row: cash movement */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-3">
         <SummaryCard
           title="Total Payable"
           value={formatLKR(summary.totalPayable)}
           subtitle={`${formatLKR(summary.outstandingPayable)} outstanding`}
-          tooltip="Total supplier lot cost before payments."
+          tooltip="Total supplier lot cost; subtitle is what is still owed to suppliers."
           icon={ArrowUpRight}
         />
         <SummaryCard
           title="Total Receivable"
           value={formatLKR(summary.totalReceivable)}
           subtitle={`${formatLKR(summary.outstandingReceivable)} outstanding`}
-          tooltip="Total value of non-cancelled orders."
+          tooltip="Total value of non-cancelled orders; subtitle is what is still owed by clients."
           icon={ArrowDownLeft}
-        />
-        <SummaryCard
-          title="Paid to Suppliers"
-          value={formatLKR(summary.totalPaidToSuppliers)}
-          tooltip="Total money paid out to suppliers."
-          icon={Wallet}
         />
         <SummaryCard
           title="Net Cash Flow"
           value={formatLKR(summary.netBalance)}
-          tooltip="Client payments received minus supplier payments. Phase 5 will include misc transactions."
+          subtitle={`In ${formatLKR(summary.totalIn)} − Out ${formatLKR(summary.totalOut)}`}
+          tooltip="Total inflows (client payments + misc in) minus total outflows (supplier payments + misc out). Outstanding amounts are not included — they are not yet cash."
           icon={TrendingUp}
+        />
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+        <SummaryCard
+          title="Received (Clients)"
+          value={formatLKR(summary.totalReceivedFromClients)}
+          tooltip="Cash received from clients against their orders."
+          icon={Wallet}
+        />
+        <SummaryCard
+          title="Paid (Suppliers)"
+          value={formatLKR(summary.totalPaidToSuppliers)}
+          tooltip="Cash paid to suppliers against their lots."
+          icon={Wallet}
+        />
+        <SummaryCard
+          title="Misc In"
+          value={formatLKR(summary.totalMiscIn)}
+          tooltip="Owner capital, asset injections, refunds — every inflow that is not a client payment."
+          icon={Coins}
+        />
+        <SummaryCard
+          title="Misc Out"
+          value={formatLKR(summary.totalMiscOut)}
+          tooltip="Electricity, bills, food, daily operating expenses — every outflow that is not a supplier payment."
+          icon={Receipt}
         />
       </div>
 

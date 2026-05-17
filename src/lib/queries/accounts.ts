@@ -146,46 +146,60 @@ export async function getMiscTransactions(filters?: PaymentFilters & {
 }
 
 export async function getAccountsSummary() {
-  // Total payable (sum of all lot costs)
-  const totalPayable = await prisma.supplierLot.aggregate({
-    _sum: { totalCost: true },
-  });
+  const [
+    totalPayable,
+    totalPaidSuppliers,
+    orderItems,
+    totalReceivedClients,
+    miscByDirection,
+  ] = await Promise.all([
+    prisma.supplierLot.aggregate({ _sum: { totalCost: true } }),
+    prisma.supplierPayment.aggregate({ _sum: { amount: true } }),
+    prisma.orderItem.findMany({
+      where: { order: { status: { not: "CANCELLED" } } },
+      select: { quantityOrdered: true, unitPrice: true },
+    }),
+    prisma.clientPayment.aggregate({ _sum: { amount: true } }),
+    prisma.miscTransaction.groupBy({
+      by: ["direction"],
+      _sum: { amount: true },
+    }),
+  ]);
 
-  // Total paid to suppliers
-  const totalPaidSuppliers = await prisma.supplierPayment.aggregate({
-    _sum: { amount: true },
-  });
-
-  // Total receivable (sum of order values)
-  const orderItems = await prisma.orderItem.findMany({
-    where: {
-      order: { status: { not: "CANCELLED" } },
-    },
-    select: { quantityOrdered: true, unitPrice: true },
-  });
   const totalReceivable = orderItems.reduce(
     (sum, i) => sum + Number(i.quantityOrdered) * Number(i.unitPrice),
     0
   );
 
-  // Total received from clients
-  const totalReceivedClients = await prisma.clientPayment.aggregate({
-    _sum: { amount: true },
-  });
-
   const payable = Number(totalPayable._sum.totalCost || 0);
   const paidOut = Number(totalPaidSuppliers._sum.amount || 0);
-  const receivable = totalReceivable;
   const received = Number(totalReceivedClients._sum.amount || 0);
+
+  const miscIn = Number(
+    miscByDirection.find((m) => m.direction === "IN")?._sum.amount ?? 0
+  );
+  const miscOut = Number(
+    miscByDirection.find((m) => m.direction === "OUT")?._sum.amount ?? 0
+  );
+
+  const totalIn = received + miscIn;
+  const totalOut = paidOut + miscOut;
 
   return {
     totalPayable: payable,
     totalPaidToSuppliers: paidOut,
     outstandingPayable: payable - paidOut,
-    totalReceivable: receivable,
+    totalReceivable,
     totalReceivedFromClients: received,
-    outstandingReceivable: receivable - received,
-    netBalance: received - paidOut,
+    outstandingReceivable: totalReceivable - received,
+    totalMiscIn: miscIn,
+    totalMiscOut: miscOut,
+    totalIn,
+    totalOut,
+    // Net cash flow now folds in misc transactions: every inflow vs every
+    // outflow regardless of source. Outstanding receivable/payable are NOT
+    // included here — they're not yet cash.
+    netBalance: totalIn - totalOut,
   };
 }
 
