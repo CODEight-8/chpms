@@ -23,7 +23,17 @@ export async function getSupplierPayments(filters?: PaymentFilters) {
     where.OR = [
       { supplier: { name: { contains: filters.search, mode: "insensitive" } } },
       { reference: { contains: filters.search, mode: "insensitive" } },
+      { receiptNumber: { contains: filters.search, mode: "insensitive" } },
       { supplierLot: { invoiceNumber: { contains: filters.search, mode: "insensitive" } } },
+      {
+        allocations: {
+          some: {
+            supplierLot: {
+              invoiceNumber: { contains: filters.search, mode: "insensitive" },
+            },
+          },
+        },
+      },
     ];
   }
 
@@ -33,6 +43,13 @@ export async function getSupplierPayments(filters?: PaymentFilters) {
       supplier: { select: { id: true, name: true } },
       supplierLot: {
         select: { lotNumber: true, invoiceNumber: true },
+      },
+      allocations: {
+        include: {
+          supplierLot: {
+            select: { id: true, lotNumber: true, invoiceNumber: true },
+          },
+        },
       },
     },
     orderBy: { paymentDate: "desc" },
@@ -54,7 +71,31 @@ export async function getClientPayments(filters?: PaymentFilters) {
     where.OR = [
       { client: { name: { contains: filters.search, mode: "insensitive" } } },
       { reference: { contains: filters.search, mode: "insensitive" } },
+      { receiptNumber: { contains: filters.search, mode: "insensitive" } },
       { order: { orderNumber: { contains: filters.search, mode: "insensitive" } } },
+      { order: { invoiceNumber: { contains: filters.search, mode: "insensitive" } } },
+      {
+        allocations: {
+          some: {
+            order: {
+              OR: [
+                {
+                  orderNumber: {
+                    contains: filters.search,
+                    mode: "insensitive",
+                  },
+                },
+                {
+                  invoiceNumber: {
+                    contains: filters.search,
+                    mode: "insensitive",
+                  },
+                },
+              ],
+            },
+          },
+        },
+      },
     ];
   }
 
@@ -63,8 +104,44 @@ export async function getClientPayments(filters?: PaymentFilters) {
     include: {
       client: { select: { id: true, name: true } },
       order: { select: { orderNumber: true, invoiceNumber: true } },
+      allocations: {
+        include: {
+          order: {
+            select: { id: true, orderNumber: true, invoiceNumber: true },
+          },
+        },
+      },
     },
     orderBy: { paymentDate: "desc" },
+  });
+}
+
+export async function getMiscTransactions(filters?: PaymentFilters & {
+  direction?: "IN" | "OUT";
+}) {
+  const where: Prisma.MiscTransactionWhereInput = {};
+
+  if (filters?.direction) where.direction = filters.direction;
+  if (filters?.method) {
+    where.paymentMethod = filters.method as Prisma.EnumPaymentMethodFilter;
+  }
+  if (filters?.dateFrom || filters?.dateTo) {
+    where.transactionDate = {};
+    if (filters.dateFrom) where.transactionDate.gte = new Date(filters.dateFrom);
+    if (filters.dateTo) where.transactionDate.lte = new Date(filters.dateTo);
+  }
+  if (filters?.search) {
+    where.OR = [
+      { category: { contains: filters.search, mode: "insensitive" } },
+      { description: { contains: filters.search, mode: "insensitive" } },
+      { reference: { contains: filters.search, mode: "insensitive" } },
+      { receiptNumber: { contains: filters.search, mode: "insensitive" } },
+    ];
+  }
+
+  return prisma.miscTransaction.findMany({
+    where,
+    orderBy: [{ transactionDate: "desc" }, { createdAt: "desc" }],
   });
 }
 
