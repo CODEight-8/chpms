@@ -89,10 +89,22 @@ export async function getClientWithStats(id: string) {
               product: { select: { name: true, unit: true } },
             },
           },
+          // Per-order payment aggregation reads from allocations so multi-
+          // order payments (legacy orderId null) still count per-order.
+          paymentAllocations: { select: { amount: true } },
         },
         orderBy: { createdAt: "desc" },
       },
       payments: {
+        include: {
+          allocations: {
+            include: {
+              order: {
+                select: { id: true, orderNumber: true, invoiceNumber: true },
+              },
+            },
+          },
+        },
         orderBy: { paymentDate: "desc" },
       },
     },

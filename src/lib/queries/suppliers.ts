@@ -88,10 +88,23 @@ export async function getSupplierWithStats(id: string) {
       lots: {
         include: {
           supplier: { select: { name: true } },
+          // Per-lot payment aggregation reads from allocations so that
+          // multi-lot payments (which leave the legacy supplierLotId null)
+          // still count toward each lot's paid amount.
+          paymentAllocations: { select: { amount: true } },
         },
         orderBy: { createdAt: "desc" },
       },
       payments: {
+        include: {
+          allocations: {
+            include: {
+              supplierLot: {
+                select: { id: true, lotNumber: true, invoiceNumber: true },
+              },
+            },
+          },
+        },
         orderBy: { paymentDate: "desc" },
       },
     },

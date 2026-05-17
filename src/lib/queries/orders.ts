@@ -76,8 +76,23 @@ export async function getOrderDetail(id: string) {
           },
         },
       },
-      payments: {
-        orderBy: { paymentDate: "desc" },
+      // Allocations are the source of truth for "money received against this
+      // order". Each links back to its parent ClientPayment for the
+      // payment-history table on the order detail page.
+      paymentAllocations: {
+        include: {
+          clientPayment: {
+            select: {
+              id: true,
+              receiptNumber: true,
+              paymentDate: true,
+              paymentMethod: true,
+              reference: true,
+              amount: true,
+            },
+          },
+        },
+        orderBy: { clientPayment: { paymentDate: "desc" } },
       },
     },
   });
@@ -88,8 +103,8 @@ export async function getOrderDetail(id: string) {
     (sum, i) => sum + Number(i.quantityOrdered) * Number(i.unitPrice),
     0
   );
-  const totalPaid = order.payments.reduce(
-    (sum, p) => sum + Number(p.amount),
+  const totalPaid = order.paymentAllocations.reduce(
+    (sum, a) => sum + Number(a.amount),
     0
   );
 

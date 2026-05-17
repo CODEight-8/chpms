@@ -383,33 +383,40 @@ export default async function OrderDetailPage({
               )}
             </CardHeader>
             <CardContent>
-              {order.payments.length === 0 ? (
+              {order.paymentAllocations.length === 0 ? (
                 <p className="text-sm text-gray-500 text-center py-2">
                   No payments recorded
                 </p>
               ) : (
                 <div className="space-y-2">
-                  {order.payments.map((p) => (
+                  {order.paymentAllocations.map((a) => (
                     <div
-                      key={p.id}
+                      key={a.id}
                       className="flex justify-between items-center text-sm border-b pb-2"
                     >
                       <div>
                         <Link
-                          href={`/payments/client/${p.id}/receipt`}
+                          href={`/payments/client/${a.clientPayment.id}/receipt`}
                           className="font-mono text-xs text-emerald-700 hover:underline"
                         >
-                          {p.receiptNumber}
+                          {a.clientPayment.receiptNumber}
                         </Link>
                         <p className="text-xs text-gray-500">
-                          {new Date(p.paymentDate).toLocaleDateString("en-LK")}
+                          {new Date(
+                            a.clientPayment.paymentDate
+                          ).toLocaleDateString("en-LK")}
                           {" · "}
                           <span className="text-gray-400">
-                            Against {order.invoiceNumber}
+                            {a.clientPayment.paymentMethod}
+                            {Number(a.amount) !==
+                              Number(a.clientPayment.amount) &&
+                              ` · ${formatLKR(Number(a.clientPayment.amount))} total payment`}
                           </span>
                         </p>
                       </div>
-                      <span className="font-medium">{formatLKR(p.amount)}</span>
+                      <span className="font-medium">
+                        {formatLKR(Number(a.amount))}
+                      </span>
                     </div>
                   ))}
                 </div>

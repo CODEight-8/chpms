@@ -274,6 +274,7 @@ export async function getSupplierPaymentDetail(id: string) {
     where: { id },
     include: {
       supplier: true,
+      // Legacy single-FK lot kept for the single-allocation receipt layout.
       supplierLot: {
         select: {
           id: true,
@@ -284,35 +285,66 @@ export async function getSupplierPaymentDetail(id: string) {
           perHuskRate: true,
         },
       },
+      // Source of truth for "this payment was applied to these lots, in these
+      // amounts". Multi-lot payments render one row per allocation; single-lot
+      // payments still render as before (allocations has one row matching the
+      // legacy supplierLot).
+      allocations: {
+        include: {
+          supplierLot: {
+            select: {
+              id: true,
+              lotNumber: true,
+              invoiceNumber: true,
+              totalCost: true,
+            },
+          },
+        },
+      },
     },
   });
 
   if (!payment) return null;
 
-  // Get sibling payments on the same lot for balance calculation
-  let lotTotalPaid = 0;
-  let previouslyPaid = 0;
-  if (payment.supplierLotId) {
-    const siblingPayments = await prisma.supplierPayment.findMany({
-      where: { supplierLotId: payment.supplierLotId },
-      select: { id: true, amount: true, paymentDate: true },
-      orderBy: { paymentDate: "asc" },
-    });
-    for (const p of siblingPayments) {
-      lotTotalPaid += Number(p.amount);
-      if (p.id !== payment.id && p.paymentDate <= payment.paymentDate) {
-        previouslyPaid += Number(p.amount);
-      }
-    }
-  }
+  // Per-lot balance summary across every allocation on this payment. For each
+  // lot touched here we surface: lot total, total paid to-date (across all
+  // payments via allocations), this allocation's amount, and remaining.
+  const lotIds = payment.allocations.map((a) => a.supplierLotId);
+  const lotTotals = lotIds.length
+    ? await prisma.supplierPaymentAllocation.groupBy({
+        by: ["supplierLotId"],
+        where: { supplierLotId: { in: lotIds } },
+        _sum: { amount: true },
+      })
+    : [];
+  const paidByLot = new Map(
+    lotTotals.map((t) => [t.supplierLotId, Number(t._sum.amount ?? 0)])
+  );
+
+  const allocationSummaries = payment.allocations.map((a) => {
+    const lotTotal = Number(a.supplierLot.totalCost);
+    const lotTotalPaid = paidByLot.get(a.supplierLotId) ?? 0;
+    return {
+      id: a.id,
+      lot: a.supplierLot,
+      thisAllocation: Number(a.amount),
+      lotTotal,
+      lotTotalPaid,
+      lotRemaining: lotTotal - lotTotalPaid,
+    };
+  });
+
+  // For the single-allocation layout: keep the legacy fields exactly as they
+  // were so the existing receipt template renders unchanged.
+  const single = allocationSummaries.length === 1 ? allocationSummaries[0] : null;
 
   return {
     ...payment,
-    lotTotalPaid,
-    previouslyPaid,
-    remainingBalance: payment.supplierLot
-      ? Number(payment.supplierLot.totalCost) - lotTotalPaid
-      : null,
+    allocationSummaries,
+    // Legacy single-allocation fields (used when allocationSummaries.length === 1).
+    lotTotalPaid: single?.lotTotalPaid ?? 0,
+    previouslyPaid: single ? single.lotTotalPaid - single.thisAllocation : 0,
+    remainingBalance: single ? single.lotRemaining : null,
   };
 }
 
@@ -321,6 +353,7 @@ export async function getClientPaymentDetail(id: string) {
     where: { id },
     include: {
       client: true,
+      // Legacy single-FK order kept for the single-allocation receipt layout.
       order: {
         include: {
           items: {
@@ -332,41 +365,77 @@ export async function getClientPaymentDetail(id: string) {
           },
         },
       },
+      // Source of truth for multi-order receipts.
+      allocations: {
+        include: {
+          order: {
+            include: {
+              items: {
+                select: { quantityOrdered: true, unitPrice: true },
+              },
+            },
+          },
+        },
+      },
     },
   });
 
   if (!payment) return null;
 
-  // Calculate order total
-  const orderTotal = payment.order
+  // Per-order balance summary across every allocation on this payment.
+  const orderIds = payment.allocations.map((a) => a.orderId);
+  const orderTotalsPaid = orderIds.length
+    ? await prisma.clientPaymentAllocation.groupBy({
+        by: ["orderId"],
+        where: { orderId: { in: orderIds } },
+        _sum: { amount: true },
+      })
+    : [];
+  const paidByOrder = new Map(
+    orderTotalsPaid.map((t) => [t.orderId, Number(t._sum.amount ?? 0)])
+  );
+
+  const allocationSummaries = payment.allocations.map((a) => {
+    const orderTotal = a.order.items.reduce(
+      (sum, item) =>
+        sum + Number(item.quantityOrdered) * Number(item.unitPrice),
+      0
+    );
+    const orderTotalPaid = paidByOrder.get(a.orderId) ?? 0;
+    return {
+      id: a.id,
+      order: {
+        id: a.order.id,
+        orderNumber: a.order.orderNumber,
+        invoiceNumber: a.order.invoiceNumber,
+      },
+      thisAllocation: Number(a.amount),
+      orderTotal,
+      orderTotalPaid,
+      orderRemaining: orderTotal - orderTotalPaid,
+    };
+  });
+
+  const single = allocationSummaries.length === 1 ? allocationSummaries[0] : null;
+
+  // Legacy orderTotal calc kept for non-allocation single-FK fallbacks. With
+  // the Phase 1 backfill, every payment has at least one allocation, so this
+  // path is hit only by tests or imports that bypass allocations.
+  const legacyOrderTotal = payment.order
     ? payment.order.items.reduce(
         (sum, i) => sum + Number(i.quantityOrdered) * Number(i.unitPrice),
         0
       )
     : null;
 
-  // Get sibling payments on the same order for balance calculation
-  let orderTotalPaid = 0;
-  let previouslyPaid = 0;
-  if (payment.orderId) {
-    const siblingPayments = await prisma.clientPayment.findMany({
-      where: { orderId: payment.orderId },
-      select: { id: true, amount: true, paymentDate: true },
-      orderBy: { paymentDate: "asc" },
-    });
-    for (const p of siblingPayments) {
-      orderTotalPaid += Number(p.amount);
-      if (p.id !== payment.id && p.paymentDate <= payment.paymentDate) {
-        previouslyPaid += Number(p.amount);
-      }
-    }
-  }
-
   return {
     ...payment,
-    orderTotal,
-    orderTotalPaid,
-    previouslyPaid,
-    remainingBalance: orderTotal !== null ? orderTotal - orderTotalPaid : null,
+    allocationSummaries,
+    orderTotal: single?.orderTotal ?? legacyOrderTotal,
+    orderTotalPaid: single?.orderTotalPaid ?? 0,
+    previouslyPaid: single
+      ? single.orderTotalPaid - single.thisAllocation
+      : 0,
+    remainingBalance: single ? single.orderRemaining : null,
   };
 }
