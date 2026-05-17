@@ -27,6 +27,52 @@ p.\$executeRawUnsafe(
 
 npx prisma db push --skip-generate --accept-data-loss
 
+# Idempotent backfill: convert legacy single-FK supplier/client payments into
+# one-row entries in the new allocation tables, so the new payment listing UI
+# can read them uniformly. Skips payments that already have allocation rows.
+echo "Backfilling payment allocations from legacy single-FK rows if needed..."
+node -e "
+const { PrismaClient } = require('@prisma/client');
+const p = new PrismaClient();
+Promise.resolve()
+  .then(() =>
+    p.\$executeRawUnsafe(
+      \`INSERT INTO supplier_payment_allocations (id, supplier_payment_id, supplier_lot_id, amount)
+       SELECT gen_random_uuid(), sp.id, sp.supplier_lot_id, sp.amount
+       FROM supplier_payments sp
+       WHERE sp.supplier_lot_id IS NOT NULL
+         AND NOT EXISTS (
+           SELECT 1 FROM supplier_payment_allocations spa
+           WHERE spa.supplier_payment_id = sp.id
+         )\`
+    )
+  )
+  .then((n) => console.log('Supplier allocations backfilled:', n))
+  .then(() =>
+    p.\$executeRawUnsafe(
+      \`INSERT INTO client_payment_allocations (id, client_payment_id, order_id, amount)
+       SELECT gen_random_uuid(), cp.id, cp.order_id, cp.amount
+       FROM client_payments cp
+       WHERE cp.order_id IS NOT NULL
+         AND NOT EXISTS (
+           SELECT 1 FROM client_payment_allocations cpa
+           WHERE cpa.client_payment_id = cp.id
+         )\`
+    )
+  )
+  .then((n) => console.log('Client allocations backfilled:', n))
+  .then(() => p.\$disconnect())
+  .catch((e) => {
+    // Tables may not exist yet on a fresh DB before db push — skip silently.
+    if (/relation .* does not exist/i.test(e.message)) {
+      console.log('Allocation tables not yet present; skipping allocation backfill.');
+      return p.\$disconnect();
+    }
+    console.error('Allocation backfill failed:', e.message);
+    process.exit(1);
+  });
+"
+
 # Idempotent backfill: initialize available_output for COMPLETED batches that
 # predate this column, accounting for any fulfillments already recorded.
 echo "Backfilling production_batches.available_output if needed..."
