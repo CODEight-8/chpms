@@ -31,7 +31,7 @@ services:
       OWNER_EMAIL: ${OWNER_EMAIL:?OWNER_EMAIL must be set}
       OWNER_PASSWORD: ${OWNER_PASSWORD:?OWNER_PASSWORD must be set}
     ports:
-      - "3000:3000"
+      - "${APP_BIND_IP:-127.0.0.1}:3000:3000"
     volumes:
       - appdata:/app/data
     networks:

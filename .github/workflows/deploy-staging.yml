@@ -32,6 +32,7 @@ jobs:
           NEXTAUTH_URL: ${{ secrets.NEXTAUTH_URL }}
           OWNER_EMAIL: ${{ secrets.OWNER_EMAIL }}
           OWNER_PASSWORD: ${{ secrets.OWNER_PASSWORD }}
+          APP_BIND_IP: ${{ secrets.APP_BIND_IP }}
           SYSTEM_MODE: ${{ secrets.SYSTEM_MODE }}
           SNAPSHOT_TIMESTAMP: ${{ secrets.SNAPSHOT_TIMESTAMP }}
           BACKUP_RETENTION_DAYS: ${{ secrets.BACKUP_RETENTION_DAYS }}
@@ -49,6 +50,7 @@ jobs:
           write_env NEXTAUTH_URL "$NEXTAUTH_URL"
           write_env OWNER_EMAIL "$OWNER_EMAIL"
           write_env OWNER_PASSWORD "$OWNER_PASSWORD"
+          write_env APP_BIND_IP "$APP_BIND_IP"
           write_env SYSTEM_MODE "$SYSTEM_MODE"
           write_env SNAPSHOT_TIMESTAMP "$SNAPSHOT_TIMESTAMP"
           write_env BACKUP_RETENTION_DAYS "$BACKUP_RETENTION_DAYS"

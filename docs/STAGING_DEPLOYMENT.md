@@ -29,6 +29,7 @@ Set these in GitHub:
 | `NEXTAUTH_URL` | Yes | `http://SERVER_IP:3000` or `https://staging.example.com` | Must be the URL users will use to access staging. |
 | `OWNER_EMAIL` | Yes | `owner@example.com` | First owner account created by the seed script. |
 | `OWNER_PASSWORD` | Yes | `use-a-strong-password` | First owner account password. |
+| `APP_BIND_IP` | Yes for Tailscale-only staging | `100.66.117.80` | Host IP Docker binds port `3000` to. Use the server's Tailscale IP to prevent public-IP access. |
 | `SYSTEM_MODE` | Recommended | `live` | Use `live` for normal staging. |
 | `SNAPSHOT_TIMESTAMP` | Optional | empty | Only set this for snapshot mode. Leave empty for normal staging. |
 | `BACKUP_RETENTION_DAYS` | Recommended | `7` | Daily backup retention. |
@@ -105,30 +106,64 @@ sudo ./svc.sh status
 
 The runner should show as `Idle` in GitHub before deployment.
 
-### 5. Open The Staging Port
+### 5. Restrict Access To Tailscale
 
-The current compose file publishes the app on port `3000`:
+The app port is bound with `APP_BIND_IP`:
 
 ```yaml
 ports:
-  - "3000:3000"
+  - "${APP_BIND_IP:-127.0.0.1}:3000:3000"
 ```
 
-Allow access through your firewall or reverse proxy.
+For Tailscale-only staging, set this GitHub secret:
 
-For direct access on Ubuntu with UFW:
+```text
+APP_BIND_IP=100.66.117.80
+```
+
+Set `NEXTAUTH_URL` to the MagicDNS URL or Tailscale IP URL users open:
+
+```text
+NEXTAUTH_URL=http://rgunaya001.tail7c6164.ts.net:3000
+```
+
+or:
+
+```text
+NEXTAUTH_URL=http://100.66.117.80:3000
+```
+
+Allow port `3000` only on the Tailscale interface:
 
 ```bash
+sudo ufw allow in on tailscale0 to any port 3000 proto tcp
+```
+
+Do not add a public UFW rule like this unless public access is intentional:
+
+```text
 sudo ufw allow 3000/tcp
 ```
 
-If using Nginx, Caddy, Cloudflare Tunnel, or Tailscale, point it to:
+Docker can bypass normal-looking UFW output when a port is published on `0.0.0.0`. Binding Docker directly to the Tailscale IP is the important fix.
 
-```text
-http://127.0.0.1:3000
+After deployment, verify Docker is not listening on every interface:
+
+```bash
+sudo docker ps
 ```
 
-Set `NEXTAUTH_URL` to the final public or private URL users open in the browser.
+The app port should look like:
+
+```text
+100.66.117.80:3000->3000/tcp
+```
+
+It should not look like:
+
+```text
+0.0.0.0:3000->3000/tcp
+```
 
 ## First Deployment
 
