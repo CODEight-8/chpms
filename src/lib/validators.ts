@@ -170,6 +170,13 @@ export const productionBatchSchema = z.object({
 export const completeBatchSchema = z.object({
   outputQuantity: z.number().positive("Output quantity must be positive").max(1000000),
   qualityScore: z.number().min(0, "Quality score must be 0-100").max(100, "Quality score must be 0-100"),
+  // Optional operating cost for this batch (labor, electricity, fuel, etc).
+  // When > 0 the API auto-creates a linked Misc Out transaction.
+  additionalCost: z
+    .number()
+    .nonnegative("Additional cost cannot be negative")
+    .max(100000000, "Additional cost cannot exceed 100,000,000 LKR")
+    .optional(),
 });
 
 export const clientSchema = z.object({

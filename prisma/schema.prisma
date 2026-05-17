@@ -154,6 +154,10 @@ model ProductionBatch {
   outputQuantity  Decimal?    @map("output_quantity") @db.Decimal(10, 2)
   availableOutput Decimal?    @map("available_output") @db.Decimal(10, 2)
   outputUnit      String?     @map("output_unit")
+  // Operating costs spent on this specific batch (labor, electricity, fuel,
+  // packaging, etc.) outside of raw husk material. Captured at completion.
+  // A corresponding MiscTransaction (direction OUT) is auto-created when > 0.
+  additionalCost  Decimal?    @map("additional_cost") @db.Decimal(12, 2)
   qualityScore   Decimal?    @map("quality_score") @db.Decimal(5, 2)
   qualityGrade   BatchQualityGrade? @map("quality_grade")
   totalRawCost   Decimal     @default(0) @map("total_raw_cost") @db.Decimal(12, 2)
@@ -161,9 +165,10 @@ model ProductionBatch {
   createdAt      DateTime    @default(now()) @map("created_at")
   updatedAt      DateTime    @updatedAt @map("updated_at")
 
-  product      Product              @relation(fields: [productId], references: [id])
-  batchLots    ProductionBatchLot[]
-  fulfillments OrderFulfillment[]
+  product          Product              @relation(fields: [productId], references: [id])
+  batchLots        ProductionBatchLot[]
+  fulfillments     OrderFulfillment[]
+  miscTransactions MiscTransaction[]
 
   @@index([status])
   @@map("production_batches")
@@ -335,10 +340,16 @@ model MiscTransaction {
   reference         String?
   notes             String?
   createdByUserId   String?       @map("created_by_user_id")
+  // Optional back-link when this misc record was auto-created from a
+  // production batch's additional cost. Stays null for user-entered misc.
+  productionBatchId String?       @map("production_batch_id")
   createdAt         DateTime      @default(now()) @map("created_at")
+
+  productionBatch   ProductionBatch? @relation(fields: [productionBatchId], references: [id])
 
   @@index([direction])
   @@index([transactionDate])
+  @@index([productionBatchId])
   @@map("misc_transactions")
 }
 

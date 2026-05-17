@@ -245,6 +245,42 @@ export default async function ProductionBatchDetailPage({
             </CardContent>
           </Card>
 
+          {/* Additional Cost — captured at completion, linked to Misc Out */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Additional Cost</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {batch.additionalCost && Number(batch.additionalCost) > 0 ? (
+                <>
+                  <div className="text-2xl font-bold text-rose-700">
+                    {formatLKR(batch.additionalCost)}
+                  </div>
+                  {batch.miscTransactions.length > 0 ? (
+                    <p className="text-xs text-gray-500 mt-2">
+                      Recorded as{" "}
+                      <Link
+                        href={`/accounts?tab=misc-out`}
+                        className="font-mono text-emerald-700 hover:underline"
+                      >
+                        {batch.miscTransactions[0].receiptNumber}
+                      </Link>{" "}
+                      in Misc Out
+                    </p>
+                  ) : (
+                    <p className="text-xs text-gray-500 mt-2">
+                      Recorded as Miscellaneous Out
+                    </p>
+                  )}
+                </>
+              ) : (
+                <p className="text-sm text-gray-500 py-2 text-center">
+                  No additional cost recorded
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Order Fulfillments */}
           <Card>
             <CardHeader>
