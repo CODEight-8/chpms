@@ -68,6 +68,7 @@ export async function getOrderDetail(id: string) {
                   batchNumber: true,
                   status: true,
                   totalRawCost: true,
+                  additionalCost: true,
                   outputQuantity: true,
                   product: { select: { name: true } },
                 },
@@ -114,10 +115,14 @@ export async function getOrderDetail(id: string) {
       item.fulfillments.reduce((fSum, f) => {
         const output = Number(f.productionBatch.outputQuantity);
         if (!output || output <= 0) return fSum;
+        // True production cost = raw husks + operating extras captured at
+        // completion (labor, electricity, fuel, packaging).
+        const batchTotal =
+          Number(f.productionBatch.totalRawCost) +
+          Number(f.productionBatch.additionalCost ?? 0);
         return (
           fSum +
-          (Number(f.quantityFulfilled) / output) *
-            Number(f.productionBatch.totalRawCost)
+          (Number(f.quantityFulfilled) / output) * batchTotal
         );
       }, 0),
     0

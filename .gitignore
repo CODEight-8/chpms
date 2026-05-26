@@ -37,3 +37,12 @@ yarn-error.log*
 next-env.d.ts
 
 /src/generated/prisma
+
+# Client delivery build artifacts (regenerable via release/build-package.sh)
+/chpms-v*.zip
+/.build/
+/release/chpms-*.tar.gz
+
+# Generated docs (regenerable from markdown source)
+/docs/test-scenarios.html
+/docs/test-scenarios.pdf

@@ -32,6 +32,7 @@ interface CompletedBatch {
   availableOutput: string | null;
   outputUnit: string;
   totalRawCost: string;
+  additionalCost: string | null;
 }
 
 interface BatchAllocation {
@@ -91,7 +92,11 @@ export function FulfillForm({
         if (!batch) return sum;
         const output = Number(batch.outputQuantity);
         if (!output || output <= 0) return sum;
-        return sum + (a.quantity / output) * Number(batch.totalRawCost);
+        // Total production cost = raw material + operating extras (labor,
+        // electricity, fuel, packaging, etc.) captured at batch completion.
+        const batchTotal =
+          Number(batch.totalRawCost) + Number(batch.additionalCost ?? 0);
+        return sum + (a.quantity / output) * batchTotal;
       }, 0),
     [allocations, batches]
   );
@@ -234,7 +239,9 @@ export function FulfillForm({
                     if (!batch) return null;
                     const output = Number(batch.outputQuantity);
                     const allocCost = output > 0
-                      ? (alloc.quantity / output) * Number(batch.totalRawCost)
+                      ? (alloc.quantity / output) *
+                        (Number(batch.totalRawCost) +
+                          Number(batch.additionalCost ?? 0))
                       : 0;
                     return (
                       <div
@@ -332,7 +339,9 @@ export function FulfillForm({
                     {availableBatches.map((b) => {
                       const costPerUnit =
                         Number(b.outputQuantity) > 0
-                          ? Number(b.totalRawCost) / Number(b.outputQuantity)
+                          ? (Number(b.totalRawCost) +
+                              Number(b.additionalCost ?? 0)) /
+                            Number(b.outputQuantity)
                           : 0;
                       return (
                         <button
