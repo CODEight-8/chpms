@@ -52,16 +52,16 @@ function CustomTooltip({
           <span className="font-medium">LKR {formatLKR(row.income)}</span>
         </div>
         <div className="flex justify-between gap-6">
-          <span className="text-rose-600">Outgoing</span>
+          <span className="text-amber-700">Supplier payments</span>
+          <span className="font-medium">LKR {formatLKR(row.supplierOut)}</span>
+        </div>
+        <div className="flex justify-between gap-6">
+          <span className="text-rose-600">Miscellaneous out</span>
+          <span className="font-medium">LKR {formatLKR(row.miscOut)}</span>
+        </div>
+        <div className="flex justify-between gap-6 border-t pt-1 mt-1 text-gray-600">
+          <span>Total outgoing</span>
           <span className="font-medium">LKR {formatLKR(row.outgoing)}</span>
-        </div>
-        <div className="ml-3 flex justify-between gap-6 text-gray-500">
-          <span>· Suppliers</span>
-          <span>LKR {formatLKR(row.supplierOut)}</span>
-        </div>
-        <div className="ml-3 flex justify-between gap-6 text-gray-500">
-          <span>· Misc out</span>
-          <span>LKR {formatLKR(row.miscOut)}</span>
         </div>
         <div className="flex justify-between gap-6 border-t pt-1 mt-1">
           <span className="font-medium">Net</span>
@@ -99,11 +99,19 @@ export function CashFlowChart({ data }: CashFlowChartProps) {
         <Tooltip content={<CustomTooltip />} cursor={{ fill: "#f9fafb" }} />
         <Legend
           formatter={(value: string) =>
-            value === "income" ? "Income (Client Payments)" : "Outgoing (Suppliers + Misc)"
+            value === "income"
+              ? "Income (Client Payments)"
+              : value === "supplierOut"
+                ? "Supplier Payments"
+                : "Miscellaneous Out"
           }
         />
+        {/* Income: one solid bar per month */}
         <Bar dataKey="income" fill="#059669" radius={[4, 4, 0, 0]} />
-        <Bar dataKey="outgoing" fill="#e11d48" radius={[4, 4, 0, 0]} />
+        {/* Outgoing: stacked into two segments so both colors are visible
+            at a glance — supplier payments (amber) and misc out (rose). */}
+        <Bar dataKey="supplierOut" stackId="out" fill="#d97706" />
+        <Bar dataKey="miscOut" stackId="out" fill="#e11d48" radius={[4, 4, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
   );
