@@ -11,6 +11,8 @@ import {
 } from "@/lib/queries/production-batches";
 import { PageHeader } from "@/components/shared/page-header";
 import { SummaryCard } from "@/components/shared/summary-card";
+import { Pagination } from "@/components/shared/pagination";
+import { parsePagination } from "@/lib/pagination";
 import { EmptyState } from "@/components/shared/empty-state";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { BatchStatusTabs } from "@/components/production/batch-status-tabs";
@@ -30,22 +32,29 @@ import { Plus, Factory, CheckCircle, Package, PackageCheck } from "lucide-react"
 export default async function ProductionPage({
   searchParams,
 }: {
-  searchParams: { status?: string; search?: string };
+  searchParams: Record<string, string | string[] | undefined>;
 }) {
   const session = await getServerSession(authOptions);
   const role = session!.user.role as UserRole;
   const canCreate = hasPermission(role, "production", "create");
 
+  const statusParam = pickString(searchParams.status);
   const statusFilter =
-    searchParams.status &&
-    Object.values(BatchStatus).includes(searchParams.status as BatchStatus)
-      ? (searchParams.status as BatchStatus)
+    statusParam &&
+    Object.values(BatchStatus).includes(statusParam as BatchStatus)
+      ? (statusParam as BatchStatus)
       : undefined;
-  const [batches, counts, outputSummary] = await Promise.all([
-    getBatchesWithDetails({ status: statusFilter, search: searchParams.search }),
+  const search = pickString(searchParams.search);
+  const pg = parsePagination(searchParams);
+  const [batchesResult, counts, outputSummary] = await Promise.all([
+    getBatchesWithDetails(
+      { status: statusFilter, search },
+      { skip: pg.skip, take: pg.take }
+    ),
     getBatchStatusCounts(),
     getBatchOutputSummary(),
   ]);
+  const { rows: batches, total } = batchesResult;
   const outputUnit = outputSummary.outputUnit;
 
   return (
@@ -122,6 +131,12 @@ export default async function ProductionPage({
         />
       ) : (
         <div className="rounded-lg border bg-white">
+          <Pagination
+            total={total}
+            page={pg.page}
+            perPage={pg.perPage}
+            pageParam={pg.pageParam}
+          />
           <Table>
             <TableHeader>
               <TableRow>
@@ -188,8 +203,19 @@ export default async function ProductionPage({
               ))}
             </TableBody>
           </Table>
+          <Pagination
+            total={total}
+            page={pg.page}
+            perPage={pg.perPage}
+            pageParam={pg.pageParam}
+          />
         </div>
       )}
     </div>
   );
+}
+
+function pickString(v: string | string[] | undefined): string | undefined {
+  if (Array.isArray(v)) return v[0];
+  return v;
 }

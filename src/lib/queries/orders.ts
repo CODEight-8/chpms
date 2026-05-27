@@ -7,7 +7,15 @@ interface OrderFilters {
   search?: string;
 }
 
-export async function getOrdersWithDetails(filters?: OrderFilters) {
+interface PageOpts {
+  skip?: number;
+  take?: number;
+}
+
+export async function getOrdersWithDetails(
+  filters?: OrderFilters,
+  page?: PageOpts
+) {
   const where: Prisma.OrderWhereInput = {};
 
   if (filters?.status) {
@@ -29,27 +37,35 @@ export async function getOrdersWithDetails(filters?: OrderFilters) {
     ];
   }
 
-  const orders = await prisma.order.findMany({
-    where,
-    include: {
-      client: { select: { id: true, name: true, companyName: true } },
-      items: {
-        include: {
-          product: { select: { name: true, unit: true } },
+  const [orders, total] = await Promise.all([
+    prisma.order.findMany({
+      where,
+      include: {
+        client: { select: { id: true, name: true, companyName: true } },
+        items: {
+          include: {
+            product: { select: { name: true, unit: true } },
+          },
         },
       },
-    },
-    orderBy: { createdAt: "desc" },
-  });
+      orderBy: { createdAt: "desc" },
+      skip: page?.skip,
+      take: page?.take,
+    }),
+    prisma.order.count({ where }),
+  ]);
 
-  return orders.map((order) => ({
-    ...order,
-    totalValue: order.items.reduce(
-      (sum, i) => sum + Number(i.quantityOrdered) * Number(i.unitPrice),
-      0
-    ),
-    itemCount: order.items.length,
-  }));
+  return {
+    rows: orders.map((order) => ({
+      ...order,
+      totalValue: order.items.reduce(
+        (sum, i) => sum + Number(i.quantityOrdered) * Number(i.unitPrice),
+        0
+      ),
+      itemCount: order.items.length,
+    })),
+    total,
+  };
 }
 
 export async function getOrderDetail(id: string) {

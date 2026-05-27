@@ -8,7 +8,15 @@ interface LotFilters {
   search?: string;
 }
 
-export async function getLotsWithAging(filters?: LotFilters) {
+interface PageOpts {
+  skip?: number;
+  take?: number;
+}
+
+export async function getLotsWithAging(
+  filters?: LotFilters,
+  page?: PageOpts
+) {
   const where: Prisma.SupplierLotWhereInput = {};
 
   if (filters?.status) {
@@ -31,20 +39,28 @@ export async function getLotsWithAging(filters?: LotFilters) {
     ];
   }
 
-  const lots = await prisma.supplierLot.findMany({
-    where,
-    include: {
-      supplier: {
-        select: { id: true, name: true },
+  const [lots, total] = await Promise.all([
+    prisma.supplierLot.findMany({
+      where,
+      include: {
+        supplier: {
+          select: { id: true, name: true },
+        },
       },
-    },
-    orderBy: { createdAt: "desc" },
-  });
+      orderBy: { createdAt: "desc" },
+      skip: page?.skip,
+      take: page?.take,
+    }),
+    prisma.supplierLot.count({ where }),
+  ]);
 
-  return lots.map((lot) => ({
-    ...lot,
-    batchAging: calculateBatchAging(lot.harvestDate),
-  }));
+  return {
+    rows: lots.map((lot) => ({
+      ...lot,
+      batchAging: calculateBatchAging(lot.harvestDate),
+    })),
+    total,
+  };
 }
 
 export async function getLotDetail(id: string) {

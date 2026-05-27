@@ -22,13 +22,13 @@ export async function GET(request: NextRequest) {
     return jsonResponse(counts);
   }
 
-  const orders = await getOrdersWithDetails({
+  const { rows } = await getOrdersWithDetails({
     status: status || undefined,
     clientId,
     search,
   });
 
-  return jsonResponse(orders);
+  return jsonResponse(rows);
 }
 
 export async function POST(request: NextRequest) {

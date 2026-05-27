@@ -8,7 +8,14 @@ interface PaymentFilters {
   dateTo?: string;
 }
 
-export async function getSupplierPayments(filters?: PaymentFilters) {
+interface PageOpts {
+  skip?: number;
+  take?: number;
+}
+
+function buildSupplierPaymentWhere(
+  filters?: PaymentFilters
+): Prisma.SupplierPaymentWhereInput {
   const where: Prisma.SupplierPaymentWhereInput = {};
 
   if (filters?.method) {
@@ -37,26 +44,44 @@ export async function getSupplierPayments(filters?: PaymentFilters) {
     ];
   }
 
-  return prisma.supplierPayment.findMany({
-    where,
-    include: {
-      supplier: { select: { id: true, name: true } },
-      supplierLot: {
-        select: { lotNumber: true, invoiceNumber: true },
-      },
-      allocations: {
-        include: {
-          supplierLot: {
-            select: { id: true, lotNumber: true, invoiceNumber: true },
+  return where;
+}
+
+export async function getSupplierPayments(
+  filters?: PaymentFilters,
+  page?: PageOpts
+) {
+  const where = buildSupplierPaymentWhere(filters);
+
+  const [rows, total] = await Promise.all([
+    prisma.supplierPayment.findMany({
+      where,
+      include: {
+        supplier: { select: { id: true, name: true } },
+        supplierLot: {
+          select: { lotNumber: true, invoiceNumber: true },
+        },
+        allocations: {
+          include: {
+            supplierLot: {
+              select: { id: true, lotNumber: true, invoiceNumber: true },
+            },
           },
         },
       },
-    },
-    orderBy: { paymentDate: "desc" },
-  });
+      orderBy: { paymentDate: "desc" },
+      skip: page?.skip,
+      take: page?.take,
+    }),
+    prisma.supplierPayment.count({ where }),
+  ]);
+
+  return { rows, total };
 }
 
-export async function getClientPayments(filters?: PaymentFilters) {
+function buildClientPaymentWhere(
+  filters?: PaymentFilters
+): Prisma.ClientPaymentWhereInput {
   const where: Prisma.ClientPaymentWhereInput = {};
 
   if (filters?.method) {
@@ -99,26 +124,42 @@ export async function getClientPayments(filters?: PaymentFilters) {
     ];
   }
 
-  return prisma.clientPayment.findMany({
-    where,
-    include: {
-      client: { select: { id: true, name: true } },
-      order: { select: { orderNumber: true, invoiceNumber: true } },
-      allocations: {
-        include: {
-          order: {
-            select: { id: true, orderNumber: true, invoiceNumber: true },
+  return where;
+}
+
+export async function getClientPayments(
+  filters?: PaymentFilters,
+  page?: PageOpts
+) {
+  const where = buildClientPaymentWhere(filters);
+
+  const [rows, total] = await Promise.all([
+    prisma.clientPayment.findMany({
+      where,
+      include: {
+        client: { select: { id: true, name: true } },
+        order: { select: { orderNumber: true, invoiceNumber: true } },
+        allocations: {
+          include: {
+            order: {
+              select: { id: true, orderNumber: true, invoiceNumber: true },
+            },
           },
         },
       },
-    },
-    orderBy: { paymentDate: "desc" },
-  });
+      orderBy: { paymentDate: "desc" },
+      skip: page?.skip,
+      take: page?.take,
+    }),
+    prisma.clientPayment.count({ where }),
+  ]);
+
+  return { rows, total };
 }
 
-export async function getMiscTransactions(filters?: PaymentFilters & {
-  direction?: "IN" | "OUT";
-}) {
+function buildMiscWhere(
+  filters?: PaymentFilters & { direction?: "IN" | "OUT" }
+): Prisma.MiscTransactionWhereInput {
   const where: Prisma.MiscTransactionWhereInput = {};
 
   if (filters?.direction) where.direction = filters.direction;
@@ -139,10 +180,26 @@ export async function getMiscTransactions(filters?: PaymentFilters & {
     ];
   }
 
-  return prisma.miscTransaction.findMany({
-    where,
-    orderBy: [{ transactionDate: "desc" }, { createdAt: "desc" }],
-  });
+  return where;
+}
+
+export async function getMiscTransactions(
+  filters?: PaymentFilters & { direction?: "IN" | "OUT" },
+  page?: PageOpts
+) {
+  const where = buildMiscWhere(filters);
+
+  const [rows, total] = await Promise.all([
+    prisma.miscTransaction.findMany({
+      where,
+      orderBy: [{ transactionDate: "desc" }, { createdAt: "desc" }],
+      skip: page?.skip,
+      take: page?.take,
+    }),
+    prisma.miscTransaction.count({ where }),
+  ]);
+
+  return { rows, total };
 }
 
 export async function getAccountsSummary() {

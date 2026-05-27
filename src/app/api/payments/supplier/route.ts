@@ -10,8 +10,8 @@ export async function GET() {
   const { error } = await requireAuth("accounts", "view");
   if (error) return error;
 
-  const payments = await getSupplierPayments();
-  return jsonResponse(payments);
+  const { rows } = await getSupplierPayments();
+  return jsonResponse(rows);
 }
 
 export async function POST(request: NextRequest) {

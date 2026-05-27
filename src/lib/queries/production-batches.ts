@@ -7,7 +7,15 @@ interface BatchFilters {
   chipSize?: string;
 }
 
-export async function getBatchesWithDetails(filters?: BatchFilters) {
+interface PageOpts {
+  skip?: number;
+  take?: number;
+}
+
+export async function getBatchesWithDetails(
+  filters?: BatchFilters,
+  page?: PageOpts
+) {
   const where: Prisma.ProductionBatchWhereInput = {};
 
   if (filters?.status) {
@@ -29,52 +37,60 @@ export async function getBatchesWithDetails(filters?: BatchFilters) {
     ];
   }
 
-  const batches = await prisma.productionBatch.findMany({
-    where,
-    include: {
-      product: { select: { id: true, name: true, unit: true } },
-      batchLots: {
-        include: {
-          supplierLot: {
-            select: {
-              id: true,
-              lotNumber: true,
-              invoiceNumber: true,
-              huskCount: true,
-              qualityGrade: true,
-              perHuskRate: true,
-              supplier: { select: { id: true, name: true } },
+  const [batches, total] = await Promise.all([
+    prisma.productionBatch.findMany({
+      where,
+      include: {
+        product: { select: { id: true, name: true, unit: true } },
+        batchLots: {
+          include: {
+            supplierLot: {
+              select: {
+                id: true,
+                lotNumber: true,
+                invoiceNumber: true,
+                huskCount: true,
+                qualityGrade: true,
+                perHuskRate: true,
+                supplier: { select: { id: true, name: true } },
+              },
             },
           },
         },
+        fulfillments: {
+          select: { quantityFulfilled: true },
+        },
       },
-      fulfillments: {
-        select: { quantityFulfilled: true },
-      },
-    },
-    orderBy: { createdAt: "desc" },
-  });
+      orderBy: { createdAt: "desc" },
+      skip: page?.skip,
+      take: page?.take,
+    }),
+    prisma.productionBatch.count({ where }),
+  ]);
 
-  return batches.map((batch) => {
-    const fulfilledQuantity = batch.fulfillments.reduce(
-      (sum, f) => sum + Number(f.quantityFulfilled),
-      0
-    );
-    const output = Number(batch.outputQuantity || 0);
-    const availableQuantity = Math.max(output - fulfilledQuantity, 0);
-
-    return {
-      ...batch,
-      totalInputHusks: batch.batchLots.reduce(
-        (sum, bl) => sum + bl.quantityUsed,
+  return {
+    rows: batches.map((batch) => {
+      const fulfilledQuantity = batch.fulfillments.reduce(
+        (sum, f) => sum + Number(f.quantityFulfilled),
         0
-      ),
-      lotCount: batch.batchLots.length,
-      fulfillmentCount: batch.fulfillments.length,
-      fulfilledQuantity,
-      availableQuantity,
-    };
-  });
+      );
+      const output = Number(batch.outputQuantity || 0);
+      const availableQuantity = Math.max(output - fulfilledQuantity, 0);
+
+      return {
+        ...batch,
+        totalInputHusks: batch.batchLots.reduce(
+          (sum, bl) => sum + bl.quantityUsed,
+          0
+        ),
+        lotCount: batch.batchLots.length,
+        fulfillmentCount: batch.fulfillments.length,
+        fulfilledQuantity,
+        availableQuantity,
+      };
+    }),
+    total,
+  };
 }
 
 export async function getBatchDetail(id: string) {

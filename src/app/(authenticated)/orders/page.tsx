@@ -7,6 +7,8 @@ import { formatLKR } from "@/lib/currency";
 import { getOrdersWithDetails, getOrderStatusCounts } from "@/lib/queries/orders";
 import { PageHeader } from "@/components/shared/page-header";
 import { SummaryCard } from "@/components/shared/summary-card";
+import { Pagination } from "@/components/shared/pagination";
+import { parsePagination } from "@/lib/pagination";
 import { EmptyState } from "@/components/shared/empty-state";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { OrderStatusTabs } from "@/components/orders/order-status-tabs";
@@ -25,18 +27,26 @@ import { Plus, ShoppingCart, CheckCircle, Truck, AlertTriangle } from "lucide-re
 export default async function OrdersPage({
   searchParams,
 }: {
-  searchParams: { status?: string; search?: string };
+  searchParams: Record<string, string | string[] | undefined>;
 }) {
   const session = await getServerSession(authOptions);
   const role = session!.user.role as UserRole;
   const canCreate = hasPermission(role, "orders", "create");
   const canViewClients = canAccessModule(role, "clients");
 
-  const statusFilter = searchParams.status as OrderStatus | undefined;
-  const [orders, counts] = await Promise.all([
-    getOrdersWithDetails({ status: statusFilter, search: searchParams.search }),
+  const statusFilter = pickString(searchParams.status) as
+    | OrderStatus
+    | undefined;
+  const search = pickString(searchParams.search);
+  const pg = parsePagination(searchParams);
+  const [ordersResult, counts] = await Promise.all([
+    getOrdersWithDetails(
+      { status: statusFilter, search },
+      { skip: pg.skip, take: pg.take }
+    ),
     getOrderStatusCounts(),
   ]);
+  const { rows: orders, total } = ordersResult;
 
   return (
     <div className="pt-6">
@@ -80,7 +90,7 @@ export default async function OrdersPage({
           icon={ShoppingCart}
           title="No orders found"
           description={
-            searchParams.search
+            search
               ? "Try a different search term"
               : statusFilter
                 ? `No ${statusFilter.toLowerCase()} orders found`
@@ -98,6 +108,12 @@ export default async function OrdersPage({
         />
       ) : (
         <div className="rounded-lg border bg-white">
+          <Pagination
+            total={total}
+            page={pg.page}
+            perPage={pg.perPage}
+            pageParam={pg.pageParam}
+          />
           <Table>
             <TableHeader>
               <TableRow>
@@ -159,8 +175,19 @@ export default async function OrdersPage({
               ))}
             </TableBody>
           </Table>
+          <Pagination
+            total={total}
+            page={pg.page}
+            perPage={pg.perPage}
+            pageParam={pg.pageParam}
+          />
         </div>
       )}
     </div>
   );
+}
+
+function pickString(v: string | string[] | undefined): string | undefined {
+  if (Array.isArray(v)) return v[0];
+  return v;
 }
