@@ -16,8 +16,8 @@ export async function GET(request: NextRequest) {
   const active =
     activeParam === "true" ? true : activeParam === "false" ? false : undefined;
 
-  const users = await getUsers({ search, active });
-  return jsonResponse(users);
+  const { rows } = await getUsers({ search, active });
+  return jsonResponse(rows);
 }
 
 export async function POST(request: NextRequest) {

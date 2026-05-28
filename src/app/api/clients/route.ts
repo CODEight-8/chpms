@@ -15,8 +15,8 @@ export async function GET(request: NextRequest) {
   const active =
     activeParam === "true" ? true : activeParam === "false" ? false : undefined;
 
-  const clients = await getClientsWithStats({ search, active });
-  return jsonResponse(clients);
+  const { rows } = await getClientsWithStats({ search, active });
+  return jsonResponse(rows);
 }
 
 export async function POST(request: NextRequest) {

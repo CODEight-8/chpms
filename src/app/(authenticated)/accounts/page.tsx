@@ -33,7 +33,6 @@ import {
 import {
   ArrowDownLeft,
   ArrowUpRight,
-  Wallet,
   TrendingUp,
   Coins,
   Receipt,
@@ -255,19 +254,7 @@ export default async function AccountsPage({
         />
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-        <SummaryCard
-          title="Received (Clients)"
-          value={formatLKR(summary.totalReceivedFromClients)}
-          tooltip="Cash received from clients against their orders."
-          icon={Wallet}
-        />
-        <SummaryCard
-          title="Paid (Suppliers)"
-          value={formatLKR(summary.totalPaidToSuppliers)}
-          tooltip="Cash paid to suppliers against their lots."
-          icon={Wallet}
-        />
+      <div className="grid grid-cols-2 sm:grid-cols-2 gap-4 mb-6">
         <SummaryCard
           title="Misc In"
           value={formatLKR(summary.totalMiscIn)}
