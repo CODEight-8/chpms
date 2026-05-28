@@ -203,8 +203,7 @@ export function OrderForm() {
               <SelectContent>
                 {clients.map((c) => (
                   <SelectItem key={c.id} value={c.id}>
-                    {c.name}
-                    {c.companyName ? ` (${c.companyName})` : ""}
+                    {c.companyName ? `${c.companyName} (${c.name})` : c.name}
                   </SelectItem>
                 ))}
               </SelectContent>

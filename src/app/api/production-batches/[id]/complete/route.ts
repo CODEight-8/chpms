@@ -6,8 +6,6 @@ import { generateMiscReceiptNumber } from "@/lib/id-generators";
 import { logAuditEvent } from "@/lib/audit-log";
 import { BatchQualityGrade } from "@prisma/client";
 
-const OUTPUT_UNIT = "kg";
-
 function calculateQualityGrade(score: number): BatchQualityGrade {
   if (score >= 75) return "GOOD";
   if (score >= 50) return "AVERAGE";
@@ -51,7 +49,7 @@ export async function PATCH(
 
   if (parsed.data.outputQuantity > totalInputHusks) {
     return errorResponse(
-      `Output quantity cannot be more than total input husks (${totalInputHusks.toLocaleString()} kg).`
+      `Output quantity (${parsed.data.outputQuantity.toLocaleString()} ${parsed.data.outputUnit}) cannot exceed total input husks (${totalInputHusks.toLocaleString()}).`
     );
   }
 
@@ -75,7 +73,7 @@ export async function PATCH(
         completedAt,
         outputQuantity: parsed.data.outputQuantity,
         availableOutput: parsed.data.outputQuantity,
-        outputUnit: OUTPUT_UNIT,
+        outputUnit: parsed.data.outputUnit,
         qualityScore: parsed.data.qualityScore,
         qualityGrade,
         additionalCost: additionalCost > 0 ? additionalCost : null,
@@ -114,7 +112,7 @@ export async function PATCH(
     details: {
       batchNumber: batch.batchNumber,
       outputQuantity: parsed.data.outputQuantity,
-      outputUnit: OUTPUT_UNIT,
+      outputUnit: parsed.data.outputUnit,
       qualityScore: parsed.data.qualityScore,
       qualityGrade,
       additionalCost,

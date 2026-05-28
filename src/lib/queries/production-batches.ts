@@ -168,8 +168,19 @@ export async function getBatchStatusCounts() {
   return result;
 }
 
-export async function getBatchOutputSummary() {
-  const totals = await prisma.productionBatch.aggregate({
+export interface UnitTotals {
+  totalOutput: number;
+  availableOutput: number;
+}
+
+export async function getBatchOutputSummary(): Promise<{
+  byUnit: Record<string, UnitTotals>;
+}> {
+  // Group by outputUnit so kg and liter batches do not get summed together.
+  // Older completed batches with a NULL unit are bucketed under "kg" for
+  // backwards compatibility (every legacy batch was implicitly kg).
+  const grouped = await prisma.productionBatch.groupBy({
+    by: ["outputUnit"],
     where: { status: "COMPLETED" },
     _sum: {
       outputQuantity: true,
@@ -177,11 +188,17 @@ export async function getBatchOutputSummary() {
     },
   });
 
-  return {
-    totalOutput: Number(totals._sum.outputQuantity ?? 0),
-    availableOutput: Number(totals._sum.availableOutput ?? 0),
-    outputUnit: "kg",
-  };
+  const byUnit: Record<string, UnitTotals> = {};
+  for (const row of grouped) {
+    const unit = row.outputUnit ?? "kg";
+    const totalOutput = Number(row._sum.outputQuantity ?? 0);
+    const availableOutput = Number(row._sum.availableOutput ?? 0);
+    if (!byUnit[unit]) byUnit[unit] = { totalOutput: 0, availableOutput: 0 };
+    byUnit[unit].totalOutput += totalOutput;
+    byUnit[unit].availableOutput += availableOutput;
+  }
+
+  return { byUnit };
 }
 
 export async function getAvailableLots() {

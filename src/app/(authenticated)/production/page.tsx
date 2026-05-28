@@ -55,7 +55,17 @@ export default async function ProductionPage({
     getBatchOutputSummary(),
   ]);
   const { rows: batches, total } = batchesResult;
-  const outputUnit = outputSummary.outputUnit;
+
+  // Always render at least one Total/Available pair so the layout stays
+  // consistent even when there are no completed batches yet. Suppress L cards
+  // unless there is liter output to avoid empty noise on kg-only setups.
+  const unitsWithData = Object.entries(outputSummary.byUnit).filter(
+    ([, t]) => t.totalOutput > 0 || t.availableOutput > 0
+  );
+  const summaryUnits =
+    unitsWithData.length > 0
+      ? unitsWithData
+      : [["kg", { totalOutput: 0, availableOutput: 0 }] as const];
 
   return (
     <div className="pt-6">
@@ -86,18 +96,32 @@ export default async function ProductionPage({
           value={counts.COMPLETED}
           icon={CheckCircle}
         />
-        <SummaryCard
-          title="Total Output"
-          value={`${outputSummary.totalOutput.toLocaleString()} ${outputUnit}`}
-          tooltip="Total output produced by completed batches."
-          icon={Package}
-        />
-        <SummaryCard
-          title="Available Output"
-          value={`${outputSummary.availableOutput.toLocaleString()} ${outputUnit}`}
-          tooltip="Completed output still available for orders."
-          icon={PackageCheck}
-        />
+        {summaryUnits.map(([unit, totals]) => (
+          <SummaryCard
+            key={`total-${unit}`}
+            title={
+              summaryUnits.length > 1
+                ? `Total Output (${unit})`
+                : "Total Output"
+            }
+            value={`${totals.totalOutput.toLocaleString()} ${unit}`}
+            tooltip={`Total ${unit} output produced by completed batches.`}
+            icon={Package}
+          />
+        ))}
+        {summaryUnits.map(([unit, totals]) => (
+          <SummaryCard
+            key={`avail-${unit}`}
+            title={
+              summaryUnits.length > 1
+                ? `Available Output (${unit})`
+                : "Available Output"
+            }
+            value={`${totals.availableOutput.toLocaleString()} ${unit}`}
+            tooltip={`Completed ${unit} output still available for orders.`}
+            icon={PackageCheck}
+          />
+        ))}
       </div>
 
       {/* Search + Status Tabs */}

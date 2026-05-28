@@ -40,7 +40,11 @@ export default async function OrderDetailPage({
     <div className="pt-6">
       <PageHeader
         title={`Order ${order.orderNumber}`}
-        description={`Invoice: ${order.invoiceNumber} | Client: ${order.client.name}`}
+        description={`Invoice: ${order.invoiceNumber} | Client: ${
+          order.client.companyName
+            ? `${order.client.companyName} (${order.client.name})`
+            : order.client.name
+        }`}
         backHref="/orders"
         action={
           <div className="flex flex-wrap gap-2">
@@ -90,17 +94,15 @@ export default async function OrderDetailPage({
                         href={`/clients/${order.client.id}`}
                         className="text-emerald-700 hover:underline"
                       >
-                        {order.client.name}
                         {order.client.companyName
-                          ? ` (${order.client.companyName})`
-                          : ""}
+                          ? `${order.client.companyName} (${order.client.name})`
+                          : order.client.name}
                       </Link>
                     ) : (
                       <span>
-                        {order.client.name}
                         {order.client.companyName
-                          ? ` (${order.client.companyName})`
-                          : ""}
+                          ? `${order.client.companyName} (${order.client.name})`
+                          : order.client.name}
                       </span>
                     )
                   }

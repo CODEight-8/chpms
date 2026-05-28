@@ -68,10 +68,9 @@ export default async function OrderInvoicePage({
             </h3>
             <div className="bg-gray-50 rounded-lg p-4">
               <p className="font-bold text-gray-900">
-                {order.client.name}
                 {order.client.companyName
-                  ? ` (${order.client.companyName})`
-                  : ""}
+                  ? `${order.client.companyName} (${order.client.name})`
+                  : order.client.name}
               </p>
               {order.client.phone && (
                 <p className="text-sm text-gray-600">
