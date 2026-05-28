@@ -30,13 +30,13 @@ export async function GET(request: NextRequest) {
     return jsonResponse(counts);
   }
 
-  const batches = await getBatchesWithDetails({
+  const { rows } = await getBatchesWithDetails({
     status: status || undefined,
     search,
     chipSize,
   });
 
-  return jsonResponse(batches);
+  return jsonResponse(rows);
 }
 
 export async function POST(request: NextRequest) {

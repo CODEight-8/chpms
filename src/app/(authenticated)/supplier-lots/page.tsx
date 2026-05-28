@@ -7,6 +7,8 @@ import { formatLKR } from "@/lib/currency";
 import { getLotsWithAging, getLotStatusCounts } from "@/lib/queries/supplier-lots";
 import { PageHeader } from "@/components/shared/page-header";
 import { SummaryCard } from "@/components/shared/summary-card";
+import { Pagination } from "@/components/shared/pagination";
+import { parsePagination } from "@/lib/pagination";
 import { EmptyState } from "@/components/shared/empty-state";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { GradeBadge } from "@/components/shared/grade-badge";
@@ -27,17 +29,25 @@ import { Plus, Package, ClipboardCheck, CheckCircle, XCircle, ShieldCheck } from
 export default async function SupplierLotsPage({
   searchParams,
 }: {
-  searchParams: { status?: string; search?: string };
+  searchParams: Record<string, string | string[] | undefined>;
 }) {
   const session = await getServerSession(authOptions);
   const role = session!.user.role as UserRole;
   const canCreate = hasPermission(role, "supplier-lots", "create");
 
-  const statusFilter = searchParams.status as LotStatus | undefined;
-  const [lots, counts] = await Promise.all([
-    getLotsWithAging({ status: statusFilter, search: searchParams.search }),
+  const statusFilter = pickString(searchParams.status) as
+    | LotStatus
+    | undefined;
+  const search = pickString(searchParams.search);
+  const pg = parsePagination(searchParams);
+  const [lotsResult, counts] = await Promise.all([
+    getLotsWithAging(
+      { status: statusFilter, search },
+      { skip: pg.skip, take: pg.take }
+    ),
     getLotStatusCounts(),
   ]);
+  const { rows: lots, total } = lotsResult;
 
   return (
     <div className="pt-6">
@@ -116,6 +126,12 @@ export default async function SupplierLotsPage({
         />
       ) : (
         <div className="rounded-lg border bg-white">
+          <Pagination
+            total={total}
+            page={pg.page}
+            perPage={pg.perPage}
+            pageParam={pg.pageParam}
+          />
           <Table>
             <TableHeader>
               <TableRow>
@@ -174,8 +190,19 @@ export default async function SupplierLotsPage({
               ))}
             </TableBody>
           </Table>
+          <Pagination
+            total={total}
+            page={pg.page}
+            perPage={pg.perPage}
+            pageParam={pg.pageParam}
+          />
         </div>
       )}
     </div>
   );
+}
+
+function pickString(v: string | string[] | undefined): string | undefined {
+  if (Array.isArray(v)) return v[0];
+  return v;
 }

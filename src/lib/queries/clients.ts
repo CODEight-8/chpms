@@ -6,7 +6,15 @@ interface ClientFilters {
   active?: boolean;
 }
 
-export async function getClientsWithStats(filters?: ClientFilters) {
+interface PageOpts {
+  skip?: number;
+  take?: number;
+}
+
+export async function getClientsWithStats(
+  filters?: ClientFilters,
+  page?: PageOpts
+) {
   const where: Prisma.ClientWhereInput = {};
 
   if (filters?.active !== undefined) {
@@ -21,29 +29,34 @@ export async function getClientsWithStats(filters?: ClientFilters) {
     ];
   }
 
-  const clients = await prisma.client.findMany({
-    where,
-    include: {
-      orders: {
-        select: {
-          id: true,
-          status: true,
-          items: {
-            select: {
-              quantityOrdered: true,
-              unitPrice: true,
+  const [clients, total] = await Promise.all([
+    prisma.client.findMany({
+      where,
+      include: {
+        orders: {
+          select: {
+            id: true,
+            status: true,
+            items: {
+              select: {
+                quantityOrdered: true,
+                unitPrice: true,
+              },
             },
           },
         },
+        payments: {
+          select: { amount: true },
+        },
       },
-      payments: {
-        select: { amount: true },
-      },
-    },
-    orderBy: [{ isActive: "desc" }, { name: "asc" }],
-  });
+      orderBy: [{ isActive: "desc" }, { name: "asc" }],
+      skip: page?.skip,
+      take: page?.take,
+    }),
+    prisma.client.count({ where }),
+  ]);
 
-  return clients.map((client) => {
+  const rows = clients.map((client) => {
     const totalOrders = client.orders.length;
     const totalRevenue = client.orders.reduce(
       (sum, o) =>
@@ -76,6 +89,8 @@ export async function getClientsWithStats(filters?: ClientFilters) {
       outstandingBalance: totalRevenue - totalReceived,
     };
   });
+
+  return { rows, total };
 }
 
 export async function getClientWithStats(id: string) {

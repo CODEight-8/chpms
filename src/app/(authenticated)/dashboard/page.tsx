@@ -19,6 +19,7 @@ import { ThroughputChart } from "@/components/dashboard/throughput-chart";
 import { CashFlowChart } from "@/components/dashboard/cash-flow-chart";
 import { ProfitabilityChart } from "@/components/dashboard/profitability-chart";
 import { DashboardExport } from "@/components/dashboard/dashboard-export";
+import { AuditLogExport } from "@/components/dashboard/audit-log-export";
 import { FinancialOverview } from "@/components/dashboard/financial-overview";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -97,7 +98,11 @@ export default async function DashboardPage() {
 
   return (
     <div className="pt-6">
-      <PageHeader title="Dashboard" description="Business overview at a glance" />
+      <PageHeader
+        title="Dashboard"
+        description="Business overview at a glance"
+        action={isOwner ? <AuditLogExport /> : undefined}
+      />
 
       {/* Operational KPI Cards — visible to all roles */}
       <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">

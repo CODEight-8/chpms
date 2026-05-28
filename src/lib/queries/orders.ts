@@ -7,7 +7,15 @@ interface OrderFilters {
   search?: string;
 }
 
-export async function getOrdersWithDetails(filters?: OrderFilters) {
+interface PageOpts {
+  skip?: number;
+  take?: number;
+}
+
+export async function getOrdersWithDetails(
+  filters?: OrderFilters,
+  page?: PageOpts
+) {
   const where: Prisma.OrderWhereInput = {};
 
   if (filters?.status) {
@@ -29,27 +37,59 @@ export async function getOrdersWithDetails(filters?: OrderFilters) {
     ];
   }
 
-  const orders = await prisma.order.findMany({
-    where,
-    include: {
-      client: { select: { id: true, name: true, companyName: true } },
-      items: {
-        include: {
-          product: { select: { name: true, unit: true } },
+  const [orders, total] = await Promise.all([
+    prisma.order.findMany({
+      where,
+      include: {
+        client: { select: { id: true, name: true, companyName: true } },
+        items: {
+          include: {
+            product: { select: { name: true, unit: true } },
+          },
         },
+        paymentAllocations: { select: { amount: true } },
       },
-    },
-    orderBy: { createdAt: "desc" },
-  });
+      orderBy: { createdAt: "desc" },
+      skip: page?.skip,
+      take: page?.take,
+    }),
+    prisma.order.count({ where }),
+  ]);
 
-  return orders.map((order) => ({
-    ...order,
-    totalValue: order.items.reduce(
-      (sum, i) => sum + Number(i.quantityOrdered) * Number(i.unitPrice),
-      0
-    ),
-    itemCount: order.items.length,
-  }));
+  return {
+    rows: orders.map((order) => {
+      const totalValue = order.items.reduce(
+        (sum, i) => sum + Number(i.quantityOrdered) * Number(i.unitPrice),
+        0
+      );
+      const totalPaid = order.paymentAllocations.reduce(
+        (sum, a) => sum + Number(a.amount),
+        0
+      );
+      const paymentStatus = derivePaymentStatus(totalValue, totalPaid);
+      return {
+        ...order,
+        totalValue,
+        totalPaid,
+        paymentStatus,
+        itemCount: order.items.length,
+      };
+    }),
+    total,
+  };
+}
+
+export type PaymentStatus = "PAID" | "PARTIAL" | "UNPAID";
+
+function derivePaymentStatus(
+  totalValue: number,
+  totalPaid: number
+): PaymentStatus {
+  // 1-cent tolerance to absorb LKR floating-point rounding when allocations
+  // sum to ~totalValue but not exactly.
+  if (totalPaid + 0.01 >= totalValue && totalValue > 0) return "PAID";
+  if (totalPaid > 0) return "PARTIAL";
+  return "UNPAID";
 }
 
 export async function getOrderDetail(id: string) {

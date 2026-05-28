@@ -12,8 +12,22 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { CheckCircle } from "lucide-react";
 import { toast } from "sonner";
+
+type OutputUnit = "kg" | "L";
+
+const UNIT_LABEL: Record<OutputUnit, string> = {
+  kg: "Kilograms (kg)",
+  L: "Liters (L)",
+};
 
 interface BatchActionsProps {
   batchId: string;
@@ -32,6 +46,7 @@ export function BatchActions({
   const [loading, setLoading] = useState(false);
   const [completeOpen, setCompleteOpen] = useState(false);
   const [outputQuantity, setOutputQuantity] = useState("");
+  const [outputUnit, setOutputUnit] = useState<OutputUnit>("kg");
   const [qualityScore, setQualityScore] = useState("");
   const [additionalCost, setAdditionalCost] = useState("");
   const parsedOutputQuantity = Number.parseFloat(outputQuantity);
@@ -62,6 +77,7 @@ export function BatchActions({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           outputQuantity: parsedOutputQuantity,
+          outputUnit,
           qualityScore: parsedQualityScore,
           ...(additionalCostEmpty
             ? {}
@@ -72,6 +88,7 @@ export function BatchActions({
       toast.success("Batch marked as completed");
       setCompleteOpen(false);
       setOutputQuantity("");
+      setOutputUnit("kg");
       setQualityScore("");
       setAdditionalCost("");
       router.refresh();
@@ -103,21 +120,39 @@ export function BatchActions({
             <DialogTitle>Complete Production Batch</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-2">
-            <div className="space-y-2">
-              <Label>Output Quantity (Kg) *</Label>
-              <Input
-                type="number"
-                min={0.01}
-                max={totalInputHusks}
-                step={0.01}
-                value={outputQuantity}
-                onChange={(e) => setOutputQuantity(e.target.value)}
-                placeholder="e.g. 450"
-              />
-              <p className="text-xs text-gray-500">
-                Maximum allowed: {totalInputHusks.toLocaleString()} kg
-              </p>
+            <div className="grid grid-cols-[1fr_140px] gap-2">
+              <div className="space-y-2">
+                <Label>Output Quantity *</Label>
+                <Input
+                  type="number"
+                  min={0.01}
+                  max={totalInputHusks}
+                  step={0.01}
+                  value={outputQuantity}
+                  onChange={(e) => setOutputQuantity(e.target.value)}
+                  placeholder="e.g. 450"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Unit *</Label>
+                <Select
+                  value={outputUnit}
+                  onValueChange={(v) => setOutputUnit(v as OutputUnit)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="kg">{UNIT_LABEL.kg}</SelectItem>
+                    <SelectItem value="L">{UNIT_LABEL.L}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
+            <p className="-mt-2 text-xs text-gray-500">
+              Maximum allowed: {totalInputHusks.toLocaleString()} {outputUnit}{" "}
+              (one unit of output per input husk).
+            </p>
             <div className="space-y-2">
               <Label>Quality Score (% correct size) *</Label>
               <Input

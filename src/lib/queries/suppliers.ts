@@ -6,7 +6,15 @@ interface SupplierFilters {
   active?: boolean;
 }
 
-export async function getSuppliersWithStats(filters?: SupplierFilters) {
+interface PageOpts {
+  skip?: number;
+  take?: number;
+}
+
+export async function getSuppliersWithStats(
+  filters?: SupplierFilters,
+  page?: PageOpts
+) {
   const where: Prisma.SupplierWhereInput = {};
 
   if (filters?.active !== undefined) {
@@ -21,28 +29,33 @@ export async function getSuppliersWithStats(filters?: SupplierFilters) {
     ];
   }
 
-  const suppliers = await prisma.supplier.findMany({
-    where,
-    include: {
-      lots: {
-        select: {
-          id: true,
-          qualityGrade: true,
-          totalCost: true,
-          huskCount: true,
-          status: true,
+  const [suppliers, total] = await Promise.all([
+    prisma.supplier.findMany({
+      where,
+      include: {
+        lots: {
+          select: {
+            id: true,
+            qualityGrade: true,
+            totalCost: true,
+            huskCount: true,
+            status: true,
+          },
+        },
+        payments: {
+          select: {
+            amount: true,
+          },
         },
       },
-      payments: {
-        select: {
-          amount: true,
-        },
-      },
-    },
-    orderBy: [{ isActive: "desc" }, { name: "asc" }],
-  });
+      orderBy: [{ isActive: "desc" }, { name: "asc" }],
+      skip: page?.skip,
+      take: page?.take,
+    }),
+    prisma.supplier.count({ where }),
+  ]);
 
-  return suppliers.map((supplier) => {
+  const rows = suppliers.map((supplier) => {
     const totalLots = supplier.lots.length;
     const rejectedLots = supplier.lots.filter(
       (l) => l.qualityGrade === "REJECT"
@@ -79,6 +92,8 @@ export async function getSuppliersWithStats(filters?: SupplierFilters) {
       outstandingBalance: totalOwed - totalPaid,
     };
   });
+
+  return { rows, total };
 }
 
 export async function getSupplierWithStats(id: string) {

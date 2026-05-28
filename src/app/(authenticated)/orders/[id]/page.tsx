@@ -40,7 +40,11 @@ export default async function OrderDetailPage({
     <div className="pt-6">
       <PageHeader
         title={`Order ${order.orderNumber}`}
-        description={`Invoice: ${order.invoiceNumber} | Client: ${order.client.name}`}
+        description={`Invoice: ${order.invoiceNumber} | Client: ${
+          order.client.companyName
+            ? `${order.client.companyName} (${order.client.name})`
+            : order.client.name
+        }`}
         backHref="/orders"
         action={
           <div className="flex flex-wrap gap-2">
@@ -90,17 +94,15 @@ export default async function OrderDetailPage({
                         href={`/clients/${order.client.id}`}
                         className="text-emerald-700 hover:underline"
                       >
-                        {order.client.name}
                         {order.client.companyName
-                          ? ` (${order.client.companyName})`
-                          : ""}
+                          ? `${order.client.companyName} (${order.client.name})`
+                          : order.client.name}
                       </Link>
                     ) : (
                       <span>
-                        {order.client.name}
                         {order.client.companyName
-                          ? ` (${order.client.companyName})`
-                          : ""}
+                          ? `${order.client.companyName} (${order.client.name})`
+                          : order.client.name}
                       </span>
                     )
                   }
@@ -162,12 +164,13 @@ export default async function OrderDetailPage({
                   {order.items.map((item) => {
                     const remaining =
                       Number(item.quantityOrdered) - Number(item.quantityFulfilled);
+                    const itemUnit = item.unit ?? item.product.unit;
                     return (
                       <TableRow key={item.id}>
                         <TableCell className="font-medium">
                           {item.product.name}
                           <span className="text-gray-500 ml-1 text-xs">
-                            ({item.product.unit})
+                            ({itemUnit})
                           </span>
                           {item.chipSize && (
                             <span className="ml-1 text-xs font-medium text-blue-600">
@@ -210,7 +213,7 @@ export default async function OrderDetailPage({
                                 productName={item.product.name}
                                 chipSize={item.chipSize}
                                 remaining={remaining}
-                                unit={item.product.unit}
+                                unit={itemUnit}
                               />
                             ) : (
                               <span className="text-xs text-green-600 font-medium">Done</span>

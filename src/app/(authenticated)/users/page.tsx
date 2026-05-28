@@ -5,6 +5,8 @@ import { hasPermission } from "@/lib/permissions";
 import { UserRole } from "@prisma/client";
 import { getUsers } from "@/lib/queries/users";
 import { PageHeader } from "@/components/shared/page-header";
+import { Pagination } from "@/components/shared/pagination";
+import { parsePagination } from "@/lib/pagination";
 import { SearchInput } from "@/components/shared/search-input";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
@@ -22,13 +24,18 @@ import { Plus, Users } from "lucide-react";
 export default async function UsersPage({
   searchParams,
 }: {
-  searchParams: { search?: string };
+  searchParams: Record<string, string | string[] | undefined>;
 }) {
   const session = await getServerSession(authOptions);
   const role = session!.user.role as UserRole;
   const canCreate = hasPermission(role, "users", "create");
 
-  const users = await getUsers({ search: searchParams.search });
+  const search = pickString(searchParams.search);
+  const pg = parsePagination(searchParams);
+  const { rows: users, total } = await getUsers(
+    { search },
+    { skip: pg.skip, take: pg.take }
+  );
 
   const roleBadgeStyles: Record<string, string> = {
     OWNER: "bg-purple-50 text-purple-700 border-purple-200",
@@ -65,12 +72,12 @@ export default async function UsersPage({
           icon={Users}
           title="No users found"
           description={
-            searchParams.search
+            search
               ? "Try a different search term"
               : "Add staff accounts to manage access"
           }
           action={
-            canCreate && !searchParams.search ? (
+            canCreate && !search ? (
               <Link href="/users/new">
                 <Button className="bg-emerald-700 hover:bg-emerald-800">
                   Add User
@@ -81,6 +88,12 @@ export default async function UsersPage({
         />
       ) : (
         <div className="rounded-lg border bg-white">
+          <Pagination
+            total={total}
+            page={pg.page}
+            perPage={pg.perPage}
+            pageParam={pg.pageParam}
+          />
           <Table>
             <TableHeader>
               <TableRow>
@@ -133,8 +146,19 @@ export default async function UsersPage({
               ))}
             </TableBody>
           </Table>
+          <Pagination
+            total={total}
+            page={pg.page}
+            perPage={pg.perPage}
+            pageParam={pg.pageParam}
+          />
         </div>
       )}
     </div>
   );
+}
+
+function pickString(v: string | string[] | undefined): string | undefined {
+  if (Array.isArray(v)) return v[0];
+  return v;
 }
