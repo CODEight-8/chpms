@@ -59,6 +59,82 @@ export async function getMonthlyThroughput() {
 }
 
 /**
+ * Monthly cash flow: income (client order payments) vs outgoing
+ * (supplier payments + miscellaneous out). Returns last 6 months for the
+ * dashboard cash-flow chart.
+ *
+ * "Income" here is operational revenue only — client payments collected
+ * against orders. Owner capital and other Misc In are intentionally
+ * excluded so the chart reflects business performance, not equity flow.
+ */
+export async function getMonthlyCashFlow() {
+  const sixMonthsAgo = new Date();
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+  sixMonthsAgo.setDate(1);
+  sixMonthsAgo.setHours(0, 0, 0, 0);
+
+  const [clientPayments, supplierPayments, miscOut] = await Promise.all([
+    prisma.clientPayment.findMany({
+      where: { paymentDate: { gte: sixMonthsAgo } },
+      select: { paymentDate: true, amount: true },
+    }),
+    prisma.supplierPayment.findMany({
+      where: { paymentDate: { gte: sixMonthsAgo } },
+      select: { paymentDate: true, amount: true },
+    }),
+    prisma.miscTransaction.findMany({
+      where: { direction: "OUT", transactionDate: { gte: sixMonthsAgo } },
+      select: { transactionDate: true, amount: true },
+    }),
+  ]);
+
+  const months: Record<
+    string,
+    { income: number; supplierOut: number; miscOut: number }
+  > = {};
+
+  // Pre-seed every month in the window so empty months still render a bar.
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date();
+    d.setMonth(d.getMonth() - i);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    months[key] = { income: 0, supplierOut: 0, miscOut: 0 };
+  }
+
+  const keyFor = (date: Date) =>
+    `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+
+  for (const p of clientPayments) {
+    const key = keyFor(new Date(p.paymentDate));
+    if (months[key]) months[key].income += Number(p.amount);
+  }
+  for (const p of supplierPayments) {
+    const key = keyFor(new Date(p.paymentDate));
+    if (months[key]) months[key].supplierOut += Number(p.amount);
+  }
+  for (const m of miscOut) {
+    const key = keyFor(new Date(m.transactionDate));
+    if (months[key]) months[key].miscOut += Number(m.amount);
+  }
+
+  return Object.entries(months).map(([month, data]) => {
+    const outgoing = data.supplierOut + data.miscOut;
+    return {
+      month,
+      label: new Date(month + "-01").toLocaleDateString("en-LK", {
+        month: "short",
+        year: "2-digit",
+      }),
+      income: data.income,
+      outgoing,
+      supplierOut: data.supplierOut,
+      miscOut: data.miscOut,
+      net: data.income - outgoing,
+    };
+  });
+}
+
+/**
  * Profitability per completed batch
  */
 export async function getBatchProfitability() {
@@ -78,6 +154,10 @@ export async function getBatchProfitability() {
 
   return batches.map((batch) => {
     const rawMaterialCost = Number(batch.totalRawCost);
+    const additionalCost = Number(batch.additionalCost ?? 0);
+    // True total production cost includes operating extras captured at
+    // batch completion (labor, electricity, fuel, packaging, etc.).
+    const totalCost = rawMaterialCost + additionalCost;
 
     const revenue = batch.fulfillments.reduce(
       (sum: number, f: { quantityFulfilled: unknown; orderItem: { unitPrice: unknown } }) =>
@@ -92,9 +172,11 @@ export async function getBatchProfitability() {
       outputQuantity: Number(batch.outputQuantity || 0),
       outputUnit: batch.outputUnit || "kg",
       rawMaterialCost,
+      additionalCost,
+      totalCost,
       revenue,
-      profit: revenue - rawMaterialCost,
-      margin: revenue > 0 ? ((revenue - rawMaterialCost) / revenue) * 100 : 0,
+      profit: revenue - totalCost,
+      margin: revenue > 0 ? ((revenue - totalCost) / revenue) * 100 : 0,
     };
   });
 }

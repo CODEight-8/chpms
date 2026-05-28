@@ -42,3 +42,7 @@ next-env.d.ts
 /chpms-v*.zip
 /.build/
 /release/chpms-*.tar.gz
+
+# Generated docs (regenerable from markdown source)
+/docs/test-scenarios.html
+/docs/test-scenarios.pdf
