@@ -227,6 +227,8 @@ export const orderSchema = z.object({
       z.object({
         productId: z.string().uuid(),
         chipSize: z.string().min(1, "Chip size is required").max(50),
+        // Per-item unit. When omitted the order POST falls back to product.unit.
+        unit: z.enum(["kg", "L"]).optional(),
         quantityOrdered: z.number().positive(),
         unitPrice: z.number().positive(),
       })

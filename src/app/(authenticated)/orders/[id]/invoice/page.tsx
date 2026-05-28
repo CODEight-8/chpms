@@ -140,7 +140,7 @@ export default async function OrderInvoicePage({
                     <td className="py-3">
                       {item.product.name}
                       <span className="text-gray-500 ml-1">
-                        ({item.product.unit})
+                        ({item.unit ?? item.product.unit})
                       </span>
                       {item.chipSize && (
                         <span className="ml-1 text-blue-600">

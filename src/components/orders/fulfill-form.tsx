@@ -65,14 +65,20 @@ export function FulfillForm({
     fetch(`/api/production-batches?${params}`)
       .then((r) => r.json())
       .then((data: CompletedBatch[]) => {
-        // Hide batches with nothing left to allocate
+        // Hide batches with nothing left to allocate, and batches whose
+        // outputUnit doesn't match this order item's unit (a kg line cannot
+        // be fulfilled from an L batch — the server rejects it anyway, this
+        // just keeps the picker from showing batches that won't work).
         setBatches(
-          data.filter((b) => batchAvailable(b) > 0)
+          data.filter(
+            (b) =>
+              batchAvailable(b) > 0 && (b.outputUnit ?? "kg") === unit
+          )
         );
         setAllocations([]);
       })
       .catch(() => toast.error("Failed to load batches"));
-  }, [open, chipSize]);
+  }, [open, chipSize, unit]);
 
   const totalAvailable = useMemo(
     () => batches.reduce((sum, b) => sum + batchAvailable(b), 0),
