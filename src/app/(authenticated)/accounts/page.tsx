@@ -14,6 +14,8 @@ import {
 } from "@/lib/queries/accounts";
 import { PageHeader } from "@/components/shared/page-header";
 import { SummaryCard } from "@/components/shared/summary-card";
+import { Pagination } from "@/components/shared/pagination";
+import { parsePagination } from "@/lib/pagination";
 import { RecordMiscTransaction } from "@/components/accounts/record-misc-transaction";
 import { AccountsFilters } from "@/components/accounts/accounts-filters";
 import { OutstandingAlerts } from "@/components/accounts/outstanding-alerts";
@@ -31,7 +33,6 @@ import {
 import {
   ArrowDownLeft,
   ArrowUpRight,
-  Wallet,
   TrendingUp,
   Coins,
   Receipt,
@@ -89,35 +90,53 @@ function formatInvoiceChips(
 export default async function AccountsPage({
   searchParams,
 }: {
-  searchParams: {
-    search?: string;
-    method?: string;
-    dateFrom?: string;
-    dateTo?: string;
-    tab?: string;
-  };
+  searchParams: Record<string, string | string[] | undefined>;
 }) {
   const session = await getServerSession(authOptions);
   const role = session!.user.role as UserRole;
   const canCreate = hasPermission(role, "accounts", "create");
   const canViewClients = canAccessModule(role, "clients");
 
-  const filters = {
-    search: searchParams.search,
-    method: searchParams.method,
-    dateFrom: searchParams.dateFrom,
-    dateTo: searchParams.dateTo,
-  };
+  const search = pickString(searchParams.search);
+  const method = pickString(searchParams.method);
+  const dateFrom = pickString(searchParams.dateFrom);
+  const dateTo = pickString(searchParams.dateTo);
+  const tabParam = pickString(searchParams.tab);
+
+  const filters = { search, method, dateFrom, dateTo };
+
+  // Per-tab pagination so changing pages on one tab does not reset the others.
+  const inPg = parsePagination(searchParams, { paramPrefix: "in" });
+  const outPg = parsePagination(searchParams, { paramPrefix: "out" });
+  const miscInPg = parsePagination(searchParams, { paramPrefix: "miscIn" });
+  const miscOutPg = parsePagination(searchParams, { paramPrefix: "miscOut" });
 
   const [
     supplierPayments,
     clientPayments,
     miscIn,
     miscOut,
+    // Unpaginated copies for CSV export so "Download all" stays accurate.
+    // Hits the DB a second time per tab, accepted trade-off (export is rare,
+    // table render is fast).
+    supplierPaymentsAll,
+    clientPaymentsAll,
+    miscInAll,
+    miscOutAll,
     summary,
     outstandingSuppliers,
     outstandingClients,
   ] = await Promise.all([
+    getSupplierPayments(filters, { skip: outPg.skip, take: outPg.take }),
+    getClientPayments(filters, { skip: inPg.skip, take: inPg.take }),
+    getMiscTransactions(
+      { ...filters, direction: "IN" },
+      { skip: miscInPg.skip, take: miscInPg.take }
+    ),
+    getMiscTransactions(
+      { ...filters, direction: "OUT" },
+      { skip: miscOutPg.skip, take: miscOutPg.take }
+    ),
     getSupplierPayments(filters),
     getClientPayments(filters),
     getMiscTransactions({ ...filters, direction: "IN" }),
@@ -130,7 +149,7 @@ export default async function AccountsPage({
   // CSV-friendly representations. Multi-allocation payments get a "+" suffix
   // listing all invoices and amounts; single allocations look the same as the
   // legacy single-FK rows so downstream tooling does not break.
-  const supplierCsvData = supplierPayments.map((p) => {
+  const supplierCsvData = supplierPaymentsAll.rows.map((p) => {
     const allocs = (p.allocations as SupplierAllocation[]).map(
       (a) =>
         `${a.supplierLot.lotNumber} / ${a.supplierLot.invoiceNumber} (${formatLKR(Number(a.amount))})`
@@ -153,7 +172,7 @@ export default async function AccountsPage({
     };
   });
 
-  const clientCsvData = clientPayments.map((p) => {
+  const clientCsvData = clientPaymentsAll.rows.map((p) => {
     const allocs = (p.allocations as ClientAllocation[]).map(
       (a) =>
         `${a.order.orderNumber} / ${a.order.invoiceNumber} (${formatLKR(Number(a.amount))})`
@@ -176,7 +195,7 @@ export default async function AccountsPage({
     };
   });
 
-  const miscInCsvData = miscIn.map((t) => ({
+  const miscInCsvData = miscInAll.rows.map((t) => ({
     receipt: t.receiptNumber,
     date: new Date(t.transactionDate).toLocaleDateString("en-LK"),
     category: t.category,
@@ -187,7 +206,7 @@ export default async function AccountsPage({
     notes: t.notes || "",
   }));
 
-  const miscOutCsvData = miscOut.map((t) => ({
+  const miscOutCsvData = miscOutAll.rows.map((t) => ({
     receipt: t.receiptNumber,
     date: new Date(t.transactionDate).toLocaleDateString("en-LK"),
     category: t.category,
@@ -199,8 +218,8 @@ export default async function AccountsPage({
   }));
 
   const initialTab =
-    searchParams.tab && ["in", "out", "misc-in", "misc-out"].includes(searchParams.tab)
-      ? searchParams.tab
+    tabParam && ["in", "out", "misc-in", "misc-out"].includes(tabParam)
+      ? tabParam
       : "in";
 
   return (
@@ -235,19 +254,7 @@ export default async function AccountsPage({
         />
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-        <SummaryCard
-          title="Received (Clients)"
-          value={formatLKR(summary.totalReceivedFromClients)}
-          tooltip="Cash received from clients against their orders."
-          icon={Wallet}
-        />
-        <SummaryCard
-          title="Paid (Suppliers)"
-          value={formatLKR(summary.totalPaidToSuppliers)}
-          tooltip="Cash paid to suppliers against their lots."
-          icon={Wallet}
-        />
+      <div className="grid grid-cols-2 sm:grid-cols-2 gap-4 mb-6">
         <SummaryCard
           title="Misc In"
           value={formatLKR(summary.totalMiscIn)}
@@ -277,16 +284,16 @@ export default async function AccountsPage({
         <div className="space-y-3">
           <TabsList className="w-full sm:w-auto">
             <TabsTrigger value="in" className="flex-1 sm:flex-none">
-              Money In ({clientPayments.length})
+              Money In ({clientPayments.total})
             </TabsTrigger>
             <TabsTrigger value="out" className="flex-1 sm:flex-none">
-              Money Out ({supplierPayments.length})
+              Money Out ({supplierPayments.total})
             </TabsTrigger>
             <TabsTrigger value="misc-in" className="flex-1 sm:flex-none">
-              Misc In ({miscIn.length})
+              Misc In ({miscIn.total})
             </TabsTrigger>
             <TabsTrigger value="misc-out" className="flex-1 sm:flex-none">
-              Misc Out ({miscOut.length})
+              Misc Out ({miscOut.total})
             </TabsTrigger>
           </TabsList>
           {canCreate && (
@@ -326,7 +333,7 @@ export default async function AccountsPage({
               </p>
             </CardHeader>
             <CardContent>
-              {clientPayments.length === 0 ? (
+              {clientPayments.total === 0 ? (
                 <p className="text-sm text-gray-500 text-center py-4">
                   No client payments found
                 </p>
@@ -343,7 +350,7 @@ export default async function AccountsPage({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {clientPayments.map((p) => {
+                    {clientPayments.rows.map((p) => {
                       const allocations = (p.allocations as ClientAllocation[]).map(
                         (a) => ({
                           amount: a.amount,
@@ -391,6 +398,12 @@ export default async function AccountsPage({
                   </TableBody>
                 </Table>
               )}
+              <Pagination
+                total={clientPayments.total}
+                page={inPg.page}
+                perPage={inPg.perPage}
+                pageParam={inPg.pageParam}
+              />
             </CardContent>
           </Card>
         </TabsContent>
@@ -424,7 +437,7 @@ export default async function AccountsPage({
               </p>
             </CardHeader>
             <CardContent>
-              {supplierPayments.length === 0 ? (
+              {supplierPayments.total === 0 ? (
                 <p className="text-sm text-gray-500 text-center py-4">
                   No supplier payments found
                 </p>
@@ -441,7 +454,7 @@ export default async function AccountsPage({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {supplierPayments.map((p) => {
+                    {supplierPayments.rows.map((p) => {
                       const allocations = (
                         p.allocations as SupplierAllocation[]
                       ).map((a) => ({
@@ -485,6 +498,12 @@ export default async function AccountsPage({
                   </TableBody>
                 </Table>
               )}
+              <Pagination
+                total={supplierPayments.total}
+                page={outPg.page}
+                perPage={outPg.perPage}
+                pageParam={outPg.pageParam}
+              />
             </CardContent>
           </Card>
         </TabsContent>
@@ -514,7 +533,7 @@ export default async function AccountsPage({
               </div>
             </CardHeader>
             <CardContent>
-              {miscIn.length === 0 ? (
+              {miscIn.total === 0 ? (
                 <p className="text-sm text-gray-500 text-center py-4">
                   No miscellaneous inflows recorded
                 </p>
@@ -531,7 +550,7 @@ export default async function AccountsPage({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {miscIn.map((t) => (
+                    {miscIn.rows.map((t) => (
                       <TableRow key={t.id}>
                         <TableCell className="font-mono text-xs text-emerald-700">
                           {t.receiptNumber}
@@ -552,6 +571,12 @@ export default async function AccountsPage({
                   </TableBody>
                 </Table>
               )}
+              <Pagination
+                total={miscIn.total}
+                page={miscInPg.page}
+                perPage={miscInPg.perPage}
+                pageParam={miscInPg.pageParam}
+              />
             </CardContent>
           </Card>
         </TabsContent>
@@ -581,7 +606,7 @@ export default async function AccountsPage({
               </div>
             </CardHeader>
             <CardContent>
-              {miscOut.length === 0 ? (
+              {miscOut.total === 0 ? (
                 <p className="text-sm text-gray-500 text-center py-4">
                   No miscellaneous outflows recorded
                 </p>
@@ -598,7 +623,7 @@ export default async function AccountsPage({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {miscOut.map((t) => (
+                    {miscOut.rows.map((t) => (
                       <TableRow key={t.id}>
                         <TableCell className="font-mono text-xs text-rose-700">
                           {t.receiptNumber}
@@ -619,10 +644,21 @@ export default async function AccountsPage({
                   </TableBody>
                 </Table>
               )}
+              <Pagination
+                total={miscOut.total}
+                page={miscOutPg.page}
+                perPage={miscOutPg.perPage}
+                pageParam={miscOutPg.pageParam}
+              />
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
     </div>
   );
+}
+
+function pickString(v: string | string[] | undefined): string | undefined {
+  if (Array.isArray(v)) return v[0];
+  return v;
 }

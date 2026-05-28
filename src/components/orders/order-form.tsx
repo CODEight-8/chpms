@@ -31,14 +31,21 @@ interface Product {
   defaultPrice: string | null;
 }
 
+type OrderUnit = "kg" | "L";
+
 interface LineItem {
   productId: string;
   chipSize: string;
+  unit: OrderUnit;
   quantity: number;
   unitPrice: number;
 }
 
 const CHIP_SIZES = ["5mm", "10mm", "15mm", "20mm", "25mm"];
+
+function defaultUnit(product?: Product): OrderUnit {
+  return product?.unit === "L" ? "L" : "kg";
+}
 
 export function OrderForm() {
   const router = useRouter();
@@ -66,6 +73,7 @@ export function OrderForm() {
             {
               productId: prods[0].id,
               chipSize: "5mm",
+              unit: defaultUnit(prods[0]),
               quantity: 0,
               unitPrice: Number(prods[0].defaultPrice) || 0,
             },
@@ -81,7 +89,11 @@ export function OrderForm() {
     [items]
   );
 
-  function updateItem(index: number, field: keyof LineItem, value: string | number) {
+  function updateItem(
+    index: number,
+    field: keyof LineItem,
+    value: string | number
+  ) {
     setItems((prev) => {
       const updated = [...prev];
       if (field === "productId") {
@@ -89,7 +101,12 @@ export function OrderForm() {
         updated[index] = {
           ...updated[index],
           productId: value as string,
-          unitPrice: product?.defaultPrice ? Number(product.defaultPrice) : updated[index].unitPrice,
+          // Reset to the product's preferred unit when the product changes —
+          // user can override after.
+          unit: defaultUnit(product),
+          unitPrice: product?.defaultPrice
+            ? Number(product.defaultPrice)
+            : updated[index].unitPrice,
         };
       } else {
         updated[index] = { ...updated[index], [field]: value };
@@ -107,6 +124,7 @@ export function OrderForm() {
       {
         productId: nextProduct.id,
         chipSize: "5mm",
+        unit: defaultUnit(nextProduct),
         quantity: 0,
         unitPrice: Number(nextProduct.defaultPrice) || 0,
       },
@@ -148,6 +166,7 @@ export function OrderForm() {
       items: validItems.map((i) => ({
         productId: i.productId,
         chipSize: i.chipSize,
+        unit: i.unit,
         quantityOrdered: i.quantity,
         unitPrice: i.unitPrice,
       })),
@@ -203,8 +222,7 @@ export function OrderForm() {
               <SelectContent>
                 {clients.map((c) => (
                   <SelectItem key={c.id} value={c.id}>
-                    {c.name}
-                    {c.companyName ? ` (${c.companyName})` : ""}
+                    {c.companyName ? `${c.companyName} (${c.name})` : c.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -306,36 +324,51 @@ export function OrderForm() {
                         {product?.name || "Loading..."}
                       </p>
                       <p className="text-xs text-emerald-600">
-                        Measured in {product?.unit || "kg"}
+                        Ordered in {item.unit}
                       </p>
                     </div>
                   </div>
                 )}
 
-                <div className="space-y-2">
-                  <Label>Chip Size *</Label>
-                  <Select
-                    value={item.chipSize}
-                    onValueChange={(v) => updateItem(index, "chipSize", v)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select chip size" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CHIP_SIZES.map((size) => (
-                        <SelectItem key={size} value={size}>
-                          {size}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Chip Size *</Label>
+                    <Select
+                      value={item.chipSize}
+                      onValueChange={(v) => updateItem(index, "chipSize", v)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select chip size" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CHIP_SIZES.map((size) => (
+                          <SelectItem key={size} value={size}>
+                            {size}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Unit *</Label>
+                    <Select
+                      value={item.unit}
+                      onValueChange={(v) => updateItem(index, "unit", v)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="kg">Kilograms (kg)</SelectItem>
+                        <SelectItem value="L">Liters (L)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>
-                      Quantity ({product?.unit || "kg"}) *
-                    </Label>
+                    <Label>Quantity ({item.unit}) *</Label>
                     <Input
                       type="number"
                       min={0.01}
@@ -349,12 +382,12 @@ export function OrderForm() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Unit Price (LKR per kg) *</Label>
+                    <Label>Unit Price (LKR per {item.unit}) *</Label>
                     <Input
                       type="number"
                       min={0.01}
                       step={0.01}
-                      placeholder="Price per kg"
+                      placeholder={`Price per ${item.unit}`}
                       value={item.unitPrice || ""}
                       onChange={(e) =>
                         updateItem(index, "unitPrice", parseFloat(e.target.value) || 0)

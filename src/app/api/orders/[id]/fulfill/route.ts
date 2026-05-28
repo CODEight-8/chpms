@@ -13,7 +13,9 @@ export async function POST(
 
   const order = await prisma.order.findUnique({
     where: { id: params.id },
-    include: { items: true },
+    include: {
+      items: { include: { product: { select: { unit: true } } } },
+    },
   });
   if (!order) return errorResponse("Order not found", 404);
 
@@ -66,6 +68,17 @@ export async function POST(
         if (item.chipSize && batch.chipSize && item.chipSize !== batch.chipSize) {
           throw new Error(
             `Chip size mismatch: order requires ${item.chipSize} but batch ${batch.batchNumber} is ${batch.chipSize}`
+          );
+        }
+
+        // Unit must match: cannot fulfill an L order line from a kg batch
+        // (or vice versa). Fall back to product.unit for legacy order items
+        // that pre-date the per-item unit override.
+        const itemUnit = item.unit ?? item.product.unit;
+        const batchUnit = batch.outputUnit ?? "kg";
+        if (itemUnit !== batchUnit) {
+          throw new Error(
+            `Unit mismatch: order line is in ${itemUnit} but batch ${batch.batchNumber} is in ${batchUnit}`
           );
         }
 

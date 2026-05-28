@@ -11,6 +11,8 @@ import {
 } from "@/lib/queries/production-batches";
 import { PageHeader } from "@/components/shared/page-header";
 import { SummaryCard } from "@/components/shared/summary-card";
+import { Pagination } from "@/components/shared/pagination";
+import { parsePagination } from "@/lib/pagination";
 import { EmptyState } from "@/components/shared/empty-state";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { BatchStatusTabs } from "@/components/production/batch-status-tabs";
@@ -30,23 +32,40 @@ import { Plus, Factory, CheckCircle, Package, PackageCheck } from "lucide-react"
 export default async function ProductionPage({
   searchParams,
 }: {
-  searchParams: { status?: string; search?: string };
+  searchParams: Record<string, string | string[] | undefined>;
 }) {
   const session = await getServerSession(authOptions);
   const role = session!.user.role as UserRole;
   const canCreate = hasPermission(role, "production", "create");
 
+  const statusParam = pickString(searchParams.status);
   const statusFilter =
-    searchParams.status &&
-    Object.values(BatchStatus).includes(searchParams.status as BatchStatus)
-      ? (searchParams.status as BatchStatus)
+    statusParam &&
+    Object.values(BatchStatus).includes(statusParam as BatchStatus)
+      ? (statusParam as BatchStatus)
       : undefined;
-  const [batches, counts, outputSummary] = await Promise.all([
-    getBatchesWithDetails({ status: statusFilter, search: searchParams.search }),
+  const search = pickString(searchParams.search);
+  const pg = parsePagination(searchParams);
+  const [batchesResult, counts, outputSummary] = await Promise.all([
+    getBatchesWithDetails(
+      { status: statusFilter, search },
+      { skip: pg.skip, take: pg.take }
+    ),
     getBatchStatusCounts(),
     getBatchOutputSummary(),
   ]);
-  const outputUnit = outputSummary.outputUnit;
+  const { rows: batches, total } = batchesResult;
+
+  // Always render at least one Total/Available pair so the layout stays
+  // consistent even when there are no completed batches yet. Suppress L cards
+  // unless there is liter output to avoid empty noise on kg-only setups.
+  const unitsWithData = Object.entries(outputSummary.byUnit).filter(
+    ([, t]) => t.totalOutput > 0 || t.availableOutput > 0
+  );
+  const summaryUnits =
+    unitsWithData.length > 0
+      ? unitsWithData
+      : [["kg", { totalOutput: 0, availableOutput: 0 }] as const];
 
   return (
     <div className="pt-6">
@@ -77,18 +96,32 @@ export default async function ProductionPage({
           value={counts.COMPLETED}
           icon={CheckCircle}
         />
-        <SummaryCard
-          title="Total Output"
-          value={`${outputSummary.totalOutput.toLocaleString()} ${outputUnit}`}
-          tooltip="Total output produced by completed batches."
-          icon={Package}
-        />
-        <SummaryCard
-          title="Available Output"
-          value={`${outputSummary.availableOutput.toLocaleString()} ${outputUnit}`}
-          tooltip="Completed output still available for orders."
-          icon={PackageCheck}
-        />
+        {summaryUnits.map(([unit, totals]) => (
+          <SummaryCard
+            key={`total-${unit}`}
+            title={
+              summaryUnits.length > 1
+                ? `Total Output (${unit})`
+                : "Total Output"
+            }
+            value={`${totals.totalOutput.toLocaleString()} ${unit}`}
+            tooltip={`Total ${unit} output produced by completed batches.`}
+            icon={Package}
+          />
+        ))}
+        {summaryUnits.map(([unit, totals]) => (
+          <SummaryCard
+            key={`avail-${unit}`}
+            title={
+              summaryUnits.length > 1
+                ? `Available Output (${unit})`
+                : "Available Output"
+            }
+            value={`${totals.availableOutput.toLocaleString()} ${unit}`}
+            tooltip={`Completed ${unit} output still available for orders.`}
+            icon={PackageCheck}
+          />
+        ))}
       </div>
 
       {/* Search + Status Tabs */}
@@ -122,6 +155,12 @@ export default async function ProductionPage({
         />
       ) : (
         <div className="rounded-lg border bg-white">
+          <Pagination
+            total={total}
+            page={pg.page}
+            perPage={pg.perPage}
+            pageParam={pg.pageParam}
+          />
           <Table>
             <TableHeader>
               <TableRow>
@@ -188,8 +227,19 @@ export default async function ProductionPage({
               ))}
             </TableBody>
           </Table>
+          <Pagination
+            total={total}
+            page={pg.page}
+            perPage={pg.perPage}
+            pageParam={pg.pageParam}
+          />
         </div>
       )}
     </div>
   );
+}
+
+function pickString(v: string | string[] | undefined): string | undefined {
+  if (Array.isArray(v)) return v[0];
+  return v;
 }

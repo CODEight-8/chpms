@@ -7,8 +7,11 @@ import { formatLKR } from "@/lib/currency";
 import { getOrdersWithDetails, getOrderStatusCounts } from "@/lib/queries/orders";
 import { PageHeader } from "@/components/shared/page-header";
 import { SummaryCard } from "@/components/shared/summary-card";
+import { Pagination } from "@/components/shared/pagination";
+import { parsePagination } from "@/lib/pagination";
 import { EmptyState } from "@/components/shared/empty-state";
 import { StatusBadge } from "@/components/shared/status-badge";
+import { Badge } from "@/components/ui/badge";
 import { OrderStatusTabs } from "@/components/orders/order-status-tabs";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,18 +28,26 @@ import { Plus, ShoppingCart, CheckCircle, Truck, AlertTriangle } from "lucide-re
 export default async function OrdersPage({
   searchParams,
 }: {
-  searchParams: { status?: string; search?: string };
+  searchParams: Record<string, string | string[] | undefined>;
 }) {
   const session = await getServerSession(authOptions);
   const role = session!.user.role as UserRole;
   const canCreate = hasPermission(role, "orders", "create");
   const canViewClients = canAccessModule(role, "clients");
 
-  const statusFilter = searchParams.status as OrderStatus | undefined;
-  const [orders, counts] = await Promise.all([
-    getOrdersWithDetails({ status: statusFilter, search: searchParams.search }),
+  const statusFilter = pickString(searchParams.status) as
+    | OrderStatus
+    | undefined;
+  const search = pickString(searchParams.search);
+  const pg = parsePagination(searchParams);
+  const [ordersResult, counts] = await Promise.all([
+    getOrdersWithDetails(
+      { status: statusFilter, search },
+      { skip: pg.skip, take: pg.take }
+    ),
     getOrderStatusCounts(),
   ]);
+  const { rows: orders, total } = ordersResult;
 
   return (
     <div className="pt-6">
@@ -80,7 +91,7 @@ export default async function OrdersPage({
           icon={ShoppingCart}
           title="No orders found"
           description={
-            searchParams.search
+            search
               ? "Try a different search term"
               : statusFilter
                 ? `No ${statusFilter.toLowerCase()} orders found`
@@ -98,6 +109,12 @@ export default async function OrdersPage({
         />
       ) : (
         <div className="rounded-lg border bg-white">
+          <Pagination
+            total={total}
+            page={pg.page}
+            perPage={pg.perPage}
+            pageParam={pg.pageParam}
+          />
           <Table>
             <TableHeader>
               <TableRow>
@@ -105,62 +122,94 @@ export default async function OrdersPage({
                 <TableHead>Client</TableHead>
                 <TableHead>Order Date</TableHead>
                 <TableHead>Delivery</TableHead>
-                <TableHead className="text-center">Items</TableHead>
                 <TableHead className="text-right">Total</TableHead>
+                <TableHead>Payment</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {orders.map((order) => (
-                <TableRow key={order.id}>
-                  <TableCell>
-                    <Link
-                      href={`/orders/${order.id}`}
-                      className="font-mono font-medium text-emerald-700 hover:underline"
-                    >
-                      {order.orderNumber}
-                    </Link>
-                  </TableCell>
-                  <TableCell>
-                    {canViewClients ? (
+              {orders.map((order) => {
+                const clientLabel = order.client.companyName
+                  ? `${order.client.companyName} (${order.client.name})`
+                  : order.client.name;
+                return (
+                  <TableRow key={order.id}>
+                    <TableCell>
                       <Link
-                        href={`/clients/${order.client.id}`}
-                        className="text-gray-700 hover:underline"
+                        href={`/orders/${order.id}`}
+                        className="font-mono font-medium text-emerald-700 hover:underline"
                       >
-                        {order.client.name}
+                        {order.orderNumber}
                       </Link>
-                    ) : (
-                      <span className="text-gray-700">{order.client.name}</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-gray-600">
-                    {new Date(order.orderDate).toLocaleDateString("en-LK")}
-                  </TableCell>
-                  <TableCell className="text-gray-600">
-                    {order.expectedDelivery
-                      ? new Date(order.expectedDelivery).toLocaleDateString("en-LK")
-                      : "-"}
-                  </TableCell>
-                  <TableCell className="text-center">{order.itemCount}</TableCell>
-                  <TableCell className="text-right font-medium">
-                    {formatLKR(order.totalValue)}
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge
-                      status={
-                        order.status === "CONFIRMED" &&
-                        order.items.some((i) => Number(i.quantityFulfilled) > 0)
-                          ? "PARTIALLY_FULFILLED"
-                          : order.status
-                      }
-                    />
-                  </TableCell>
-                </TableRow>
-              ))}
+                    </TableCell>
+                    <TableCell>
+                      {canViewClients ? (
+                        <Link
+                          href={`/clients/${order.client.id}`}
+                          className="text-gray-700 hover:underline"
+                        >
+                          {clientLabel}
+                        </Link>
+                      ) : (
+                        <span className="text-gray-700">{clientLabel}</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-gray-600">
+                      {new Date(order.orderDate).toLocaleDateString("en-LK")}
+                    </TableCell>
+                    <TableCell className="text-gray-600">
+                      {order.expectedDelivery
+                        ? new Date(order.expectedDelivery).toLocaleDateString("en-LK")
+                        : "-"}
+                    </TableCell>
+                    <TableCell className="text-right font-medium">
+                      {formatLKR(order.totalValue)}
+                    </TableCell>
+                    <TableCell>
+                      <PaymentBadge status={order.paymentStatus} />
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge
+                        status={
+                          order.status === "CONFIRMED" &&
+                          order.items.some((i) => Number(i.quantityFulfilled) > 0)
+                            ? "PARTIALLY_FULFILLED"
+                            : order.status
+                        }
+                      />
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
+          <Pagination
+            total={total}
+            page={pg.page}
+            perPage={pg.perPage}
+            pageParam={pg.pageParam}
+          />
         </div>
       )}
     </div>
+  );
+}
+
+function pickString(v: string | string[] | undefined): string | undefined {
+  if (Array.isArray(v)) return v[0];
+  return v;
+}
+
+function PaymentBadge({ status }: { status: "PAID" | "PARTIAL" | "UNPAID" }) {
+  const styles = {
+    PAID: "bg-green-100 text-green-800 border-green-200",
+    PARTIAL: "bg-amber-100 text-amber-800 border-amber-200",
+    UNPAID: "bg-gray-100 text-gray-700 border-gray-200",
+  } as const;
+  const labels = { PAID: "Paid", PARTIAL: "Partial", UNPAID: "Unpaid" } as const;
+  return (
+    <Badge variant="outline" className={styles[status]}>
+      {labels[status]}
+    </Badge>
   );
 }

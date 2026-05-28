@@ -1,0 +1,94 @@
+# CHPMS — Coconut Husk Processing Management System
+# Production deployment for client install.
+#
+# Run:
+#   ./setup.sh         (macOS / Linux)
+#   setup.bat          (Windows)
+#
+# The wizard creates .env, loads the chpms application image, and starts
+# the stack. Open http://localhost:3000 after startup.
+#
+# Manual commands once .env exists:
+#   docker compose up -d        — start
+#   docker compose down         — stop (data preserved)
+#   docker compose logs -f app  — view live application logs
+#   docker compose pull         — pull latest images (postgres)
+#   docker compose restart app  — restart only the app
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: chpms
+      POSTGRES_USER: chpms_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    expose:
+      - "5432"
+    ports:
+      # Bound to localhost only — not exposed to the network.
+      - "127.0.0.1:5434:5432"
+    networks:
+      - internal
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chpms_user -d chpms"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    # Pre-built application image — loaded via ./setup.sh from
+    # chpms-1.0.0.tar.gz. No source code build required on the client side.
+    image: chpms:1.0.0
+    environment:
+      DATABASE_URL: postgresql://chpms_user:${DB_PASSWORD:?DB_PASSWORD must be set in .env}@db:5432/chpms
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?NEXTAUTH_SECRET must be set in .env}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+      SYSTEM_MODE: ${SYSTEM_MODE:-live}
+      OWNER_EMAIL: ${OWNER_EMAIL:?OWNER_EMAIL must be set in .env}
+      OWNER_PASSWORD: ${OWNER_PASSWORD:?OWNER_PASSWORD must be set in .env}
+    ports:
+      - "${APP_BIND_IP:-0.0.0.0}:3000:3000"
+    volumes:
+      - appdata:/app/data
+    networks:
+      - internal
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  backup:
+    image: postgres:16-alpine
+    environment:
+      PGHOST: db
+      PGUSER: chpms_user
+      PGPASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set in .env}
+      PGDATABASE: chpms
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-7}
+      BACKUP_RETENTION_WEEKS: ${BACKUP_RETENTION_WEEKS:-4}
+    volumes:
+      # Backups live in a named volume — see README for how to copy them
+      # off the machine for disaster recovery.
+      - backups:/backups
+      - ./backup/backup.sh:/backup.sh:ro
+    networks:
+      - internal
+    depends_on:
+      db:
+        condition: service_healthy
+    entrypoint: /bin/sh
+    command: >
+      -c "cp /backup.sh /tmp/backup.sh && sed -i 's/\r$$//' /tmp/backup.sh && chmod +x /tmp/backup.sh && echo '0 2 * * * /tmp/backup.sh >> /var/log/backup.log 2>&1' | crontab - && crond -f"
+    restart: unless-stopped
+
+networks:
+  internal:
+    driver: bridge
+
+volumes:
+  pgdata:    # PostgreSQL data — DO NOT delete unless you intend to wipe everything
+  appdata:   # Application data (seed flag, etc.)
+  backups:   # Nightly database backups (.sql.gz)

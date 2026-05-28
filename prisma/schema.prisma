@@ -234,6 +234,11 @@ model OrderItem {
   orderId           String  @map("order_id")
   productId         String  @map("product_id")
   chipSize          String? @map("chip_size")
+  // Per-item override of the product's default unit. Lets one product (e.g.
+  // Coconut Husk Chips, default kg) be ordered in either kg or L without
+  // creating duplicate products. Falls back to product.unit when null (legacy
+  // rows + orders created before per-item units were introduced).
+  unit              String? @map("unit")
   quantityOrdered   Decimal @map("quantity_ordered") @db.Decimal(10, 2)
   unitPrice         Decimal @map("unit_price") @db.Decimal(10, 2)
   quantityFulfilled Decimal @default(0) @map("quantity_fulfilled") @db.Decimal(10, 2)

@@ -169,6 +169,11 @@ export const productionBatchSchema = z.object({
 
 export const completeBatchSchema = z.object({
   outputQuantity: z.number().positive("Output quantity must be positive").max(1000000),
+  // Per-batch unit chosen at completion time. Some output is solid chips (kg),
+  // others are pressed/liquid by-products measured in liters.
+  outputUnit: z.enum(["kg", "L"], {
+    message: "Output unit must be 'kg' or 'L'",
+  }),
   qualityScore: z.number().min(0, "Quality score must be 0-100").max(100, "Quality score must be 0-100"),
   // Optional operating cost for this batch (labor, electricity, fuel, etc).
   // When > 0 the API auto-creates a linked Misc Out transaction.
@@ -222,6 +227,8 @@ export const orderSchema = z.object({
       z.object({
         productId: z.string().uuid(),
         chipSize: z.string().min(1, "Chip size is required").max(50),
+        // Per-item unit. When omitted the order POST falls back to product.unit.
+        unit: z.enum(["kg", "L"]).optional(),
         quantityOrdered: z.number().positive(),
         unitPrice: z.number().positive(),
       })

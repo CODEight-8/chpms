@@ -73,10 +73,9 @@ export default async function ClientReceiptPage({
             </h3>
             <div className="bg-gray-50 rounded-lg p-4">
               <p className="font-bold text-gray-900">
-                {payment.client.name}
                 {payment.client.companyName
-                  ? ` (${payment.client.companyName})`
-                  : ""}
+                  ? `${payment.client.companyName} (${payment.client.name})`
+                  : payment.client.name}
               </p>
               {payment.client.phone && (
                 <p className="text-sm text-gray-600">
