@@ -54,7 +54,7 @@ function CustomTooltip({
           <span className="font-medium">LKR {formatLKR(row.clientIn)}</span>
         </div>
         <div className="flex justify-between gap-6">
-          <span className="text-teal-600">Miscellaneous in</span>
+          <span className="text-sky-600">Miscellaneous in</span>
           <span className="font-medium">LKR {formatLKR(row.miscIn)}</span>
         </div>
         <div className="flex justify-between gap-6 border-t pt-1 mt-1 text-gray-600">
@@ -118,10 +118,11 @@ export function CashFlowChart({ data }: CashFlowChartProps) {
                   : "Miscellaneous Out"
           }
         />
-        {/* Income: stacked client payments (emerald) + misc in (teal) so
-            both inflow types are visible at a glance. */}
+        {/* Income: stacked client payments (emerald) + misc in (sky blue)
+            so both inflow types are clearly distinguishable. Sky vs emerald
+            has higher contrast than the previous teal/emerald pairing. */}
         <Bar dataKey="clientIn" stackId="in" fill="#059669" />
-        <Bar dataKey="miscIn" stackId="in" fill="#0d9488" radius={[4, 4, 0, 0]} />
+        <Bar dataKey="miscIn" stackId="in" fill="#0ea5e9" radius={[4, 4, 0, 0]} />
         {/* Outgoing: stacked supplier payments (amber) + misc out (rose). */}
         <Bar dataKey="supplierOut" stackId="out" fill="#d97706" />
         <Bar dataKey="miscOut" stackId="out" fill="#e11d48" radius={[4, 4, 0, 0]} />
