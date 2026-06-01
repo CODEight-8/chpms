@@ -245,7 +245,9 @@ export default async function ProductionBatchDetailPage({
             </CardContent>
           </Card>
 
-          {/* Additional Cost — captured at completion, linked to Misc Out */}
+          {/* Additional Cost — operating cost captured at completion. Used
+              for cost-of-production analytics only; intentionally not mirrored
+              into the Accounts tab as a Misc Out row. */}
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">Additional Cost</CardTitle>
@@ -256,22 +258,10 @@ export default async function ProductionBatchDetailPage({
                   <div className="text-2xl font-bold text-rose-700">
                     {formatLKR(batch.additionalCost)}
                   </div>
-                  {batch.miscTransactions.length > 0 ? (
-                    <p className="text-xs text-gray-500 mt-2">
-                      Recorded as{" "}
-                      <Link
-                        href={`/accounts?tab=misc-out`}
-                        className="font-mono text-emerald-700 hover:underline"
-                      >
-                        {batch.miscTransactions[0].receiptNumber}
-                      </Link>{" "}
-                      in Misc Out
-                    </p>
-                  ) : (
-                    <p className="text-xs text-gray-500 mt-2">
-                      Recorded as Miscellaneous Out
-                    </p>
-                  )}
+                  <p className="text-xs text-gray-500 mt-2">
+                    Labor, electricity, fuel, packaging, etc. spent on this
+                    batch. Included in cost-of-production analytics.
+                  </p>
                 </>
               ) : (
                 <p className="text-sm text-gray-500 py-2 text-center">
