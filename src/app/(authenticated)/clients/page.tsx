@@ -5,8 +5,11 @@ import { authOptions } from "@/lib/auth";
 import { canAccessModule, hasPermission } from "@/lib/permissions";
 import { UserRole } from "@prisma/client";
 import { formatLKR } from "@/lib/currency";
+import { formatSriLankaPhoneNumber } from "@/lib/utils";
 import { getClientsWithStats } from "@/lib/queries/clients";
 import { PageHeader } from "@/components/shared/page-header";
+import { Pagination } from "@/components/shared/pagination";
+import { parsePagination } from "@/lib/pagination";
 import { SearchInput } from "@/components/shared/search-input";
 import { StatusFilter } from "@/components/shared/status-filter";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -25,7 +28,7 @@ import { Plus, Users } from "lucide-react";
 export default async function ClientsPage({
   searchParams,
 }: {
-  searchParams: { search?: string; active?: string };
+  searchParams: Record<string, string | string[] | undefined>;
 }) {
   const session = await getServerSession(authOptions);
   const role = session!.user.role as UserRole;
@@ -33,17 +36,16 @@ export default async function ClientsPage({
     redirect("/dashboard");
   }
   const canCreate = hasPermission(role, "clients", "create");
+  const search = pickString(searchParams.search);
+  const activeRaw = pickString(searchParams.active);
   const activeFilter =
-    searchParams.active === "all"
-      ? undefined
-      : searchParams.active === "false"
-        ? false
-        : true;
+    activeRaw === "all" ? undefined : activeRaw === "false" ? false : true;
+  const pg = parsePagination(searchParams);
 
-  const clients = await getClientsWithStats({
-    active: activeFilter,
-    search: searchParams.search,
-  });
+  const { rows: clients, total } = await getClientsWithStats(
+    { active: activeFilter, search },
+    { skip: pg.skip, take: pg.take }
+  );
 
   return (
     <div className="pt-6">
@@ -72,16 +74,16 @@ export default async function ClientsPage({
           icon={Users}
           title="No clients found"
           description={
-            searchParams.search
+            search
               ? "Try a different search term"
-              : searchParams.active === "false"
+              : activeRaw === "false"
                 ? "No inactive clients found"
-                : searchParams.active === undefined || searchParams.active === "true"
+                : activeRaw === undefined || activeRaw === "true"
                   ? "No active clients found"
-              : "Add your first client to start managing orders"
+                  : "Add your first client to start managing orders"
           }
           action={
-            canCreate && !searchParams.search ? (
+            canCreate && !search ? (
               <Link href="/clients/new">
                 <Button className="bg-emerald-700 hover:bg-emerald-800">
                   Add Client
@@ -92,6 +94,12 @@ export default async function ClientsPage({
         />
       ) : (
         <div className="rounded-lg border bg-white">
+          <Pagination
+            total={total}
+            page={pg.page}
+            perPage={pg.perPage}
+            pageParam={pg.pageParam}
+          />
           <Table>
             <TableHeader>
               <TableRow>
@@ -116,10 +124,10 @@ export default async function ClientsPage({
                     </Link>
                   </TableCell>
                   <TableCell className="text-gray-600">
-                    {client.companyName || "\u2014"}
+                    {client.companyName || "-"}
                   </TableCell>
                   <TableCell className="text-gray-600">
-                    {client.phone || "\u2014"}
+                    {formatSriLankaPhoneNumber(client.phone) || "-"}
                   </TableCell>
                   <TableCell className="text-center">
                     {client.totalOrders}
@@ -127,7 +135,7 @@ export default async function ClientsPage({
                   <TableCell className="text-right font-medium">
                     {client.totalRevenue > 0
                       ? formatLKR(client.totalRevenue)
-                      : "\u2014"}
+                      : "-"}
                   </TableCell>
                   <TableCell className="text-right font-medium">
                     {client.outstandingBalance > 0 ? (
@@ -135,7 +143,7 @@ export default async function ClientsPage({
                         {formatLKR(client.outstandingBalance)}
                       </span>
                     ) : (
-                      <span className="text-gray-500">\u2014</span>
+                      <span className="text-gray-500">-</span>
                     )}
                   </TableCell>
                   <TableCell>
@@ -154,8 +162,19 @@ export default async function ClientsPage({
               ))}
             </TableBody>
           </Table>
+          <Pagination
+            total={total}
+            page={pg.page}
+            perPage={pg.perPage}
+            pageParam={pg.pageParam}
+          />
         </div>
       )}
     </div>
   );
+}
+
+function pickString(v: string | string[] | undefined): string | undefined {
+  if (Array.isArray(v)) return v[0];
+  return v;
 }

@@ -6,7 +6,12 @@ interface UserFilters {
   active?: boolean;
 }
 
-export async function getUsers(filters?: UserFilters) {
+interface PageOpts {
+  skip?: number;
+  take?: number;
+}
+
+export async function getUsers(filters?: UserFilters, page?: PageOpts) {
   const where: Prisma.UserWhereInput = {};
 
   if (filters?.active !== undefined) {
@@ -20,21 +25,26 @@ export async function getUsers(filters?: UserFilters) {
     ];
   }
 
-  const users = await prisma.user.findMany({
-    where,
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-      isActive: true,
-      createdAt: true,
-      updatedAt: true,
-    },
-    orderBy: { createdAt: "asc" },
-  });
+  const [rows, total] = await Promise.all([
+    prisma.user.findMany({
+      where,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+      orderBy: { createdAt: "asc" },
+      skip: page?.skip,
+      take: page?.take,
+    }),
+    prisma.user.count({ where }),
+  ]);
 
-  return users;
+  return { rows, total };
 }
 
 export async function getUserById(id: string) {

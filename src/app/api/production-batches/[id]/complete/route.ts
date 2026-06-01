@@ -5,8 +5,6 @@ import { requireAuth, errorResponse, jsonResponse } from "@/lib/api-helpers";
 import { logAuditEvent } from "@/lib/audit-log";
 import { BatchQualityGrade } from "@prisma/client";
 
-const OUTPUT_UNIT = "kg";
-
 function calculateQualityGrade(score: number): BatchQualityGrade {
   if (score >= 75) return "GOOD";
   if (score >= 50) return "AVERAGE";
@@ -50,21 +48,28 @@ export async function PATCH(
 
   if (parsed.data.outputQuantity > totalInputHusks) {
     return errorResponse(
-      `Output quantity cannot be more than total input husks (${totalInputHusks.toLocaleString()} kg).`
+      `Output quantity (${parsed.data.outputQuantity.toLocaleString()} ${parsed.data.outputUnit}) cannot exceed total input husks (${totalInputHusks.toLocaleString()}).`
     );
   }
 
   const qualityGrade = calculateQualityGrade(parsed.data.qualityScore);
+  const additionalCost = parsed.data.additionalCost ?? 0;
+  const completedAt = new Date();
 
+  // Additional cost is now stored on the batch for cost-of-production analytics
+  // only. It is intentionally NOT mirrored into a MiscTransaction OUT row —
+  // client requirement to keep batch operating costs out of the Accounts tab.
   const updated = await prisma.productionBatch.update({
     where: { id: params.id },
     data: {
       status: "COMPLETED",
-      completedAt: new Date(),
+      completedAt,
       outputQuantity: parsed.data.outputQuantity,
-      outputUnit: OUTPUT_UNIT,
+      availableOutput: parsed.data.outputQuantity,
+      outputUnit: parsed.data.outputUnit,
       qualityScore: parsed.data.qualityScore,
       qualityGrade,
+      additionalCost: additionalCost > 0 ? additionalCost : null,
     },
     include: {
       product: { select: { id: true, name: true, unit: true } },
@@ -79,9 +84,10 @@ export async function PATCH(
     details: {
       batchNumber: batch.batchNumber,
       outputQuantity: parsed.data.outputQuantity,
-      outputUnit: OUTPUT_UNIT,
+      outputUnit: parsed.data.outputUnit,
       qualityScore: parsed.data.qualityScore,
       qualityGrade,
+      additionalCost,
     },
   });
 

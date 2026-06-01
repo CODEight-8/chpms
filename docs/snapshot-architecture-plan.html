@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>CHPMS — Snapshot Mode Architecture</title>
+<style>
+  @page {
+    size: A4;
+    margin: 22mm 18mm;
+    @bottom-center {
+      content: "CHPMS Snapshot Mode Architecture — Page " counter(page) " of " counter(pages);
+      font-family: "Helvetica", sans-serif;
+      font-size: 9pt;
+      color: #888;
+    }
+    @top-right {
+      content: "v1.0 · 2026-05-10";
+      font-family: "Helvetica", sans-serif;
+      font-size: 9pt;
+      color: #888;
+    }
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 10.5pt;
+    line-height: 1.55;
+    color: #1f2937;
+    margin: 0;
+  }
+
+  h1, h2, h3, h4 {
+    font-weight: 600;
+    color: #064e3b;
+    page-break-after: avoid;
+  }
+
+  h1 {
+    font-size: 22pt;
+    border-bottom: 3px solid #047857;
+    padding-bottom: 8px;
+    margin-top: 0;
+  }
+
+  h2 {
+    font-size: 16pt;
+    margin-top: 28px;
+    border-bottom: 1px solid #d1fae5;
+    padding-bottom: 4px;
+  }
+
+  h3 {
+    font-size: 13pt;
+    margin-top: 20px;
+    color: #065f46;
+  }
+
+  h4 {
+    font-size: 11pt;
+    margin-top: 14px;
+    color: #047857;
+  }
+
+  p { margin: 6px 0 10px; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10px 0 14px;
+    font-size: 9.5pt;
+  }
+
+  th, td {
+    border: 1px solid #d1d5db;
+    padding: 6px 8px;
+    text-align: left;
+    vertical-align: top;
+  }
+
+  th {
+    background: #ecfdf5;
+    color: #065f46;
+    font-weight: 600;
+  }
+
+  tr:nth-child(even) td { background: #f9fafb; }
+
+  code {
+    background: #f3f4f6;
+    color: #be123c;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-family: "Menlo", "Courier New", monospace;
+    font-size: 9pt;
+  }
+
+  pre {
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    padding: 10px 12px;
+    overflow-x: auto;
+    page-break-inside: avoid;
+  }
+
+  pre code {
+    background: transparent;
+    color: #1f2937;
+    padding: 0;
+    font-size: 8.5pt;
+    line-height: 1.5;
+    white-space: pre;
+  }
+
+  .ascii-diagram {
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-family: "Menlo", "Courier New", monospace;
+    font-size: 7.5pt;
+    line-height: 1.35;
+    white-space: pre;
+    page-break-inside: avoid;
+    color: #1f2937;
+  }
+
+  blockquote {
+    border-left: 3px solid #047857;
+    padding: 4px 12px;
+    background: #ecfdf5;
+    color: #065f46;
+    margin: 10px 0;
+    font-size: 10pt;
+  }
+
+  .note {
+    background: #fef3c7;
+    border-left: 3px solid #d97706;
+    color: #92400e;
+    padding: 8px 12px;
+    margin: 10px 0;
+    border-radius: 0 4px 4px 0;
+    font-size: 9.5pt;
+  }
+
+  .severity-high { color: #b91c1c; font-weight: 600; }
+  .severity-med  { color: #b45309; font-weight: 600; }
+  .severity-low  { color: #15803d; font-weight: 600; }
+
+  ul, ol { margin: 4px 0 10px 22px; padding: 0; }
+  li { margin: 3px 0; }
+
+  .cover {
+    page-break-after: always;
+    text-align: center;
+    padding-top: 80px;
+  }
+
+  .cover h1 {
+    font-size: 30pt;
+    border-bottom: none;
+    margin-bottom: 8px;
+  }
+
+  .cover .subtitle {
+    font-size: 14pt;
+    color: #6b7280;
+    margin-top: 0;
+    font-weight: 400;
+  }
+
+  .cover .meta {
+    margin-top: 80px;
+    font-size: 11pt;
+    color: #4b5563;
+    line-height: 2;
+  }
+
+  .cover .meta strong { color: #1f2937; }
+
+  .toc {
+    page-break-after: always;
+    padding-top: 20px;
+  }
+
+  .toc ol {
+    list-style: none;
+    margin-left: 0;
+  }
+
+  .toc li {
+    padding: 4px 0;
+    font-size: 11pt;
+    border-bottom: 1px dotted #d1d5db;
+  }
+
+  .toc .section-num {
+    color: #047857;
+    font-weight: 600;
+    margin-right: 8px;
+  }
+
+  .page-break { page-break-before: always; }
+</style>
+</head>
+<body>
+
+<!-- COVER -->
+<div class="cover">
+  <h1>CHPMS</h1>
+  <p class="subtitle">Snapshot-Mode Failover Architecture</p>
+
+  <p class="subtitle" style="margin-top: 60px; font-size: 12pt;">
+    Architectural &amp; Implementation Plan
+  </p>
+
+  <div class="meta">
+    <div><strong>Project:</strong> Coconut Husk Processing Management System</div>
+    <div><strong>Document version:</strong> 1.0</div>
+    <div><strong>Date:</strong> 2026-05-10</div>
+    <div><strong>Status:</strong> Awaiting stakeholder decisions</div>
+    <div><strong>Audience:</strong> Project owner, infrastructure operator, development team</div>
+  </div>
+</div>
+
+<!-- TOC -->
+<div class="toc">
+  <h1>Table of Contents</h1>
+  <ol>
+    <li><span class="section-num">1.</span> Problem statement &amp; objectives</li>
+    <li><span class="section-num">2.</span> Architecture overview</li>
+    <li><span class="section-num">3.</span> Mode-switching mechanism (runtime detail)</li>
+    <li><span class="section-num">4.</span> Implementation plan (phased)</li>
+    <li><span class="section-num">5.</span> Information required from stakeholders</li>
+    <li><span class="section-num">6.</span> Effort, risk &amp; rollout sequence</li>
+    <li><span class="section-num">7.</span> Appendix — file change inventory</li>
+  </ol>
+</div>
+
+<!-- 1. PROBLEM -->
+<h1>1. Problem statement &amp; objectives</h1>
+
+<h3>1.1 Current state</h3>
+<p>
+  CHPMS runs as a single Docker stack on a designated <strong>host machine</strong>:
+  PostgreSQL + Next.js application + nightly backup container. Other team members
+  reach the system over <strong>Tailscale</strong>, browsing to the host's Tailscale
+  hostname. All traffic terminates at the host's Next.js process; all data lives in
+  the host's PostgreSQL instance.
+</p>
+
+<h3>1.2 The failure mode</h3>
+<p>
+  When the host machine loses power, network, or is otherwise offline, every
+  client loses access to the system entirely. There is currently no mechanism
+  for clients to view recent data, no off-host backup, and no clear indication
+  to users that the system is in a degraded state — they simply see a connection
+  error.
+</p>
+
+<h3>1.3 Objectives of this plan</h3>
+<table>
+  <tr><th>#</th><th>Objective</th></tr>
+  <tr><td>O1</td><td>Each client machine should automatically see <strong>live data</strong> when the host is online.</td></tr>
+  <tr><td>O2</td><td>When the host is offline, clients should automatically see the <strong>most recent snapshot</strong> from Google Drive.</td></tr>
+  <tr><td>O3</td><td>Mode transitions must be <strong>automatic</strong> — no tab switching, no separate URLs, no user intervention.</td></tr>
+  <tr><td>O4</td><td>Snapshot mode is <strong>strictly read-only</strong>; all write actions must be blocked at both UI and API layers.</td></tr>
+  <tr><td>O5</td><td>The user must be clearly informed: <em>which</em> mode is active, <em>when</em> the snapshot was taken, and <em>that the live system is unreachable</em>.</td></tr>
+  <tr><td>O6</td><td>Snapshots are persisted to a <strong>Google Drive shared folder</strong> on a 15-minute cadence.</td></tr>
+  <tr><td>O7</td><td>The implementation must reuse existing scaffolding (<code>SYSTEM_MODE</code>, <code>SNAPSHOT_TIMESTAMP</code> env vars, the existing <code>backup</code> service).</td></tr>
+</table>
+
+<!-- 2. ARCHITECTURE -->
+<h1>2. Architecture overview</h1>
+
+<h3>2.1 Core idea</h3>
+<p>
+  Every machine — host and clients — runs the <strong>same</strong> Docker stack.
+  The difference is at the database connection layer: each client's Next.js
+  instance dynamically chooses which database to read from based on whether the
+  host is reachable.
+</p>
+
+<ul>
+  <li><strong>Host reachable</strong> → query the host's <em>live</em> PostgreSQL over Tailscale → app shows <strong>LIVE</strong> mode</li>
+  <li><strong>Host unreachable</strong> → query the <em>local snapshot</em> PostgreSQL → app shows <strong>SNAPSHOT</strong> mode (read-only)</li>
+</ul>
+
+<p>
+  The user always opens <code>http://localhost:3000</code> (or their machine's
+  Tailscale name). The mode switch is invisible; the same URL always works.
+</p>
+
+<h3>2.2 Topology</h3>
+
+<div class="ascii-diagram">                    ┌──────────────────────────────────────┐
+                    │            GOOGLE DRIVE              │
+                    │   pg_dump every 15 min from host     │
+                    └──────────────────┬───────────────────┘
+                                       │ pulled every 15 min
+        ┌──────────────────────────────┴──────────────────────────────┐
+        ▼                              ▼                               ▼
+┌───────────────┐            ┌───────────────┐              ┌───────────────┐
+│ HOST MACHINE  │            │  CLIENT 1     │              │  CLIENT 2     │
+│ ┌───────────┐ │            │ ┌───────────┐ │              │ ┌───────────┐ │
+│ │  Next.js  │ │  ┌──────►  │ │  Next.js  │ │              │ │  Next.js  │ │
+│ └─────┬─────┘ │  │ live    │ └─────┬─────┘ │              │ └─────┬─────┘ │
+│       ▼       │  │ DB      │       ▼       │              │       ▼       │
+│ ┌───────────┐ │  │ over    │ ┌───────────┐ │              │ ┌───────────┐ │
+│ │ Postgres  │◄┼──┴── Tail- │ │ Postgres  │ │              │ │ Postgres  │ │
+│ │  (LIVE)   │ │     scale  │ │ (SNAPSHOT)│ │              │ │ (SNAPSHOT)│ │
+│ └───────────┘ │            │ └───────────┘ │              │ └───────────┘ │
+│       ▲       │            │       ▲       │              │       ▲       │
+│ ┌─────┴─────┐ │            │ ┌─────┴─────┐ │              │ ┌─────┴─────┐ │
+│ │  backup   │ │            │ │ snapshot- │ │              │ │ snapshot- │ │
+│ │ (15 min)  │─┼─►  GDrive  │ │  puller   │ │              │ │  puller   │ │
+│ └───────────┘ │            │ │ (15 min)  │ │              │ │ (15 min)  │ │
+│               │            │ └───────────┘ │              │ └───────────┘ │
+│ SYSTEM_MODE=  │            │ SYSTEM_MODE=  │              │ SYSTEM_MODE=  │
+│   host        │            │   client      │              │   client      │
+└───────────────┘            └───────────────┘              └───────────────┘
+</div>
+
+<h3>2.3 How this satisfies each objective</h3>
+<table>
+  <tr><th>#</th><th>Objective</th><th>Mechanism</th></tr>
+  <tr><td>O1</td><td>Live when host is up</td><td>Per-request router selects <code>livePrisma</code>; queries hit host's DB over Tailscale; full read/write</td></tr>
+  <tr><td>O2</td><td>Snapshot when host is down</td><td>Heartbeat fails, router flips to <code>snapshotPrisma</code>; reads served from local snapshot DB</td></tr>
+  <tr><td>O3</td><td>Automatic, single URL</td><td>Switching is server-side, per request; user never changes URLs</td></tr>
+  <tr><td>O4</td><td>Read-only in snapshot</td><td>Middleware returns 503 on writes; UI buttons disabled</td></tr>
+  <tr><td>O5</td><td>Clear indication</td><td>Persistent banner with mode + snapshot timestamp + reason</td></tr>
+  <tr><td>O6</td><td>15-minute GDrive cadence</td><td>Modified <code>backup</code> container with <code>rclone</code> + cron <code>*/15 * * * *</code></td></tr>
+  <tr><td>O7</td><td>Reuse scaffolding</td><td><code>SYSTEM_MODE</code> already wired; extend semantics to <code>host</code> | <code>client</code></td></tr>
+</table>
+
+<!-- 3. MECHANISM -->
+<h1>3. Mode-switching mechanism (runtime detail)</h1>
+
+<p>
+  Inside each client's Next.js process, four pieces work together to deliver a
+  seamless live ↔ snapshot transition.
+</p>
+
+<h3>3.1 Two PrismaClient instances at startup</h3>
+<pre><code>// src/lib/prisma-router.ts (new file)
+const livePrisma = new PrismaClient({
+  datasources: { db: { url: process.env.LIVE_DATABASE_URL } },
+});
+const snapshotPrisma = new PrismaClient({
+  datasources: { db: { url: process.env.SNAPSHOT_DATABASE_URL } },
+});</code></pre>
+
+<h3>3.2 Background heartbeat (every 10 seconds)</h3>
+<p>
+  A self-scheduling timer in the Node.js process attempts a 2-second
+  <code>SELECT 1</code> against <code>livePrisma</code>. The result is cached in
+  process memory along with the last-success timestamp. Three consecutive
+  failures (~30 s) flip the cached state to <em>offline</em>.
+</p>
+
+<h3>3.3 Per-request router</h3>
+<pre><code>// Returns the right Prisma client for the current request.
+export async function getPrisma(): Promise&lt;{
+  client: PrismaClient;
+  mode: "live" | "snapshot";
+  snapshotAt: string | null;
+}&gt; {
+  if (heartbeat.isLive()) return { client: livePrisma, mode: "live", snapshotAt: null };
+  return {
+    client: snapshotPrisma,
+    mode: "snapshot",
+    snapshotAt: readSnapshotMeta()?.takenAt ?? null,
+  };
+}</code></pre>
+
+<h3>3.4 Write guard middleware</h3>
+<p>
+  When mode is <code>snapshot</code>, all <code>POST</code>, <code>PUT</code>,
+  <code>PATCH</code>, and <code>DELETE</code> requests receive HTTP <code>503</code>
+  with a JSON body explaining the snapshot mode and timestamp. The UI never sends
+  these requests in snapshot mode (buttons are disabled), but the middleware is a
+  defense-in-depth backstop.
+</p>
+
+<h3>3.5 UI banner</h3>
+<p>
+  A sticky top banner subscribes to the mode (via a small client polling endpoint
+  every ~5 s). Two states:
+</p>
+<ul>
+  <li><strong>LIVE</strong>: small green dot, no banner — system feels normal.</li>
+  <li><strong>SNAPSHOT</strong>: amber sticky banner —<br>
+      <em>"📸 System unreachable. Showing snapshot from {timestamp}. Read-only mode."</em></li>
+</ul>
+
+<!-- 4. IMPLEMENTATION -->
+<h1>4. Implementation plan (phased)</h1>
+
+<h3>Phase 1 — Expose host's PostgreSQL over Tailscale (host change only)</h3>
+<table>
+  <tr><th>File</th><th>Change</th></tr>
+  <tr><td><code>docker-compose.yml</code></td><td>Bind PostgreSQL port to Tailscale interface (or 0.0.0.0 with Tailscale ACL restriction)</td></tr>
+  <tr><td><code>postgres/pg_hba.conf</code> <em>(new)</em></td><td>Restrict connections to the Tailscale subnet (<code>100.64.0.0/10</code>) with <code>md5</code> authentication</td></tr>
+  <tr><td><code>.env.example</code></td><td>Document <code>TAILSCALE_NET</code> and <code>DB_HOST_FOR_CLIENTS</code></td></tr>
+</table>
+
+<h3>Phase 2 — Backup pipeline (host change only)</h3>
+<table>
+  <tr><th>File</th><th>Change</th></tr>
+  <tr><td><code>backup/Dockerfile</code> <em>(new)</em></td><td>Base on <code>postgres:16-alpine</code> + install <code>rclone</code></td></tr>
+  <tr><td><code>backup/backup.sh</code></td><td>After <code>pg_dump</code>, upload to GDrive via <code>rclone copy</code>; prune by retention policy</td></tr>
+  <tr><td><code>docker-compose.yml</code></td><td>Cron <code>*/15 * * * *</code>; mount GDrive service-account JSON; add <code>GDRIVE_FOLDER_ID</code> env</td></tr>
+  <tr><td><code>.env.example</code></td><td>New vars: <code>GDRIVE_SERVICE_ACCOUNT_JSON_PATH</code>, <code>GDRIVE_FOLDER_ID</code></td></tr>
+</table>
+
+<p><strong>Retention policy:</strong> 96 fifteen-minute snapshots (24 hours) plus 7 daily snapshots, pruned by filename pattern.</p>
+
+<h3>Phase 3 — Snapshot puller (client side, new container)</h3>
+<table>
+  <tr><th>File</th><th>Change</th></tr>
+  <tr><td><code>snapshot-puller/Dockerfile</code> <em>(new)</em></td><td><code>postgres:16-alpine</code> + <code>rclone</code></td></tr>
+  <tr><td><code>snapshot-puller/pull-and-restore.sh</code> <em>(new)</em></td><td>Atomic restore: download → restore into <code>chpms_staging</code> → swap names. Writes <code>/app/data/snapshot-meta.json</code> with timestamp.</td></tr>
+  <tr><td><code>docker-compose.client.yml</code> <em>(new)</em></td><td>Overlay file that activates client mode: replaces <code>backup</code> with <code>snapshot-puller</code>, sets <code>SYSTEM_MODE=client</code>, points app at the local restored DB and at the host's live DB</td></tr>
+</table>
+
+<p><strong>Atomic restore strategy:</strong> restore into a side database, then atomically rename — total transition ~200 ms, no app downtime during snapshot refresh.</p>
+
+<h3>Phase 4 — Mode-switching Prisma router (app code, runs in all instances)</h3>
+<table>
+  <tr><th>File</th><th>Change</th></tr>
+  <tr><td><code>src/lib/prisma-router.ts</code> <em>(new)</em></td><td>Holds <code>livePrisma</code> and <code>snapshotPrisma</code>; runs background heartbeat; exports <code>getPrisma()</code> returning <code>{ client, mode, snapshotAt }</code></td></tr>
+  <tr><td><code>src/lib/prisma.ts</code></td><td>Replace direct export with a wrapper that delegates to <code>getPrisma()</code></td></tr>
+  <tr><td><code>src/lib/queries/*.ts</code></td><td>Mechanical change: <code>prisma.x.findMany(…)</code> → <code>(await getPrisma()).client.x.findMany(…)</code></td></tr>
+  <tr><td>All API route handlers</td><td>Same mechanical change</td></tr>
+  <tr><td><code>src/middleware.ts</code> <em>(or extension)</em></td><td>Block <code>POST/PUT/PATCH/DELETE</code> when mode is snapshot; return 503 with <code>{ error, mode, snapshotAt }</code></td></tr>
+  <tr><td><code>src/lib/system-mode.ts</code> <em>(new)</em></td><td>Server helpers: <code>requireLive()</code>, <code>getSystemModeForUI()</code></td></tr>
+</table>
+
+<h3>Phase 5 — UI banner + write button gating</h3>
+<table>
+  <tr><th>File</th><th>Change</th></tr>
+  <tr><td><code>src/components/shared/system-mode-banner.tsx</code> <em>(new)</em></td><td>Sticky top banner. Polls <code>/api/system/mode</code> every 5 s. Renders LIVE/SNAPSHOT differently.</td></tr>
+  <tr><td><code>src/app/api/system/mode/route.ts</code> <em>(new)</em></td><td>Returns <code>{ mode, snapshotAt, lastLivePingAt }</code> (no auth required)</td></tr>
+  <tr><td><code>src/app/(authenticated)/layout.tsx</code></td><td>Mount the banner above the page chrome</td></tr>
+  <tr><td><code>src/lib/use-system-mode.ts</code> <em>(new)</em></td><td>Client React hook exposing mode to action components</td></tr>
+  <tr><td>Action components (FulfillForm, RecordPayment dialogs, status change buttons, edit/delete actions, "Add new" buttons)</td><td>Disable when <code>mode === "snapshot"</code> with tooltip <em>"System is in snapshot mode (read-only)"</em></td></tr>
+</table>
+
+<p><strong>Strategy:</strong> introduce a single <code>&lt;ActionGuard&gt;</code> wrapper that disables children in snapshot mode. Wrap once at the layout/page level rather than touching every button site individually.</p>
+
+<h3>Phase 6 — Documentation + bootstrap</h3>
+<table>
+  <tr><th>File</th><th>Change</th></tr>
+  <tr><td><code>SETUP.md</code></td><td>New section: <em>Setting up a client machine for snapshot fallback</em> — Tailscale install, GDrive credentials, command to bring stack up</td></tr>
+  <tr><td><code>scripts/setup-client-machine.sh</code> <em>(new)</em></td><td>Interactive wizard: prompts for primary's Tailscale name, GDrive folder ID, drops <code>.env.client</code>, runs <code>docker compose up</code></td></tr>
+  <tr><td><code>README.md</code></td><td>Architecture diagram + brief mode explanation at the top</td></tr>
+</table>
+
+<!-- 5. INFORMATION REQUIRED -->
+<h1>5. Information required from stakeholders</h1>
+
+<p>
+  Before implementation can begin, the following information and decisions are
+  required. Each is grouped by the party best positioned to provide it.
+</p>
+
+<h3>5.1 From the project owner / business</h3>
+<table>
+  <tr><th>#</th><th>Question</th><th>Default if no answer</th></tr>
+  <tr>
+    <td>Q1</td>
+    <td>Confirm that snapshot mode must be <strong>strictly read-only</strong> (no offline writes, no eventual sync back to the live system).</td>
+    <td>Yes — strictly read-only.</td>
+  </tr>
+  <tr>
+    <td>Q2</td>
+    <td>How long is acceptable as the maximum data-loss window if the host fails between backups?</td>
+    <td>15 minutes.</td>
+  </tr>
+  <tr>
+    <td>Q3</td>
+    <td>How many client machines need snapshot capability? (Affects setup overhead, GDrive bandwidth.)</td>
+    <td>To be determined.</td>
+  </tr>
+  <tr>
+    <td>Q4</td>
+    <td>Should snapshot mode require a logged-in session, or can the snapshot be browsed without authentication on the LAN?</td>
+    <td>Logged-in session required (uses snapshot's user table).</td>
+  </tr>
+</table>
+
+<h3>5.2 From the infrastructure operator / IT</h3>
+<table>
+  <tr><th>#</th><th>Question</th><th>Required artifact</th></tr>
+  <tr>
+    <td>Q5</td>
+    <td>Tailscale ACL configuration: confirm the host's PostgreSQL port (5432) can be exposed to authorized client devices on the tailnet, and supply the ACL excerpt or confirm an existing ACL covers it.</td>
+    <td>Tailscale ACL JSON or written confirmation.</td>
+  </tr>
+  <tr>
+    <td>Q6</td>
+    <td>Google Drive: provide a <strong>Google Cloud service account</strong> JSON key with permission to upload to and download from a designated shared folder. (Service account is preferred over user OAuth for unattended/headless operation.)</td>
+    <td>Service account JSON file + the GDrive folder ID it has access to.</td>
+  </tr>
+  <tr>
+    <td>Q7</td>
+    <td>Designated host machine: confirm hostname, Tailscale name, expected uptime, who is responsible for restarting it, and where backups of the host's local DB should ALSO be stored (in addition to GDrive) for disaster recovery.</td>
+    <td>Document.</td>
+  </tr>
+  <tr>
+    <td>Q8</td>
+    <td>Confirm each client machine has Docker installed and at least 2 GB free disk for the local snapshot database.</td>
+    <td>Inventory.</td>
+  </tr>
+</table>
+
+<h3>5.3 From the development team (configuration choices)</h3>
+<table>
+  <tr><th>#</th><th>Question</th><th>Recommendation</th></tr>
+  <tr>
+    <td>Q9</td>
+    <td>Heartbeat interval and stale threshold (live → snapshot flip)?</td>
+    <td>10 s poll, 30 s threshold (3 misses).</td>
+  </tr>
+  <tr>
+    <td>Q10</td>
+    <td>Snapshot restore strategy?</td>
+    <td>Atomic swap (no app downtime during refresh).</td>
+  </tr>
+  <tr>
+    <td>Q11</td>
+    <td>Banner UX: passive top stripe vs modal-style block-until-acknowledged?</td>
+    <td>Passive stripe + disabled action buttons.</td>
+  </tr>
+  <tr>
+    <td>Q12</td>
+    <td>Write-attempt UX in snapshot mode: hard-block (button disabled) vs allow click + show error toast?</td>
+    <td>Hard-block at the UI; 503 from the API as defense-in-depth.</td>
+  </tr>
+</table>
+
+<!-- 6. EFFORT -->
+<h1>6. Effort, risk &amp; rollout sequence</h1>
+
+<table>
+  <tr>
+    <th>Phase</th>
+    <th>Effort</th>
+    <th>Risk</th>
+    <th>Independent?</th>
+  </tr>
+  <tr>
+    <td>Phase 1 — Postgres on Tailscale</td>
+    <td>S</td>
+    <td><span class="severity-med">MED</span> (security review)</td>
+    <td>Yes</td>
+  </tr>
+  <tr>
+    <td>Phase 2 — GDrive backup</td>
+    <td>M</td>
+    <td><span class="severity-low">LOW</span></td>
+    <td>Needs rclone setup; can test independently</td>
+  </tr>
+  <tr>
+    <td>Phase 3 — Snapshot puller</td>
+    <td>M</td>
+    <td><span class="severity-low">LOW</span></td>
+    <td>Needs Phase 2</td>
+  </tr>
+  <tr>
+    <td>Phase 4 — Prisma router</td>
+    <td>L</td>
+    <td><span class="severity-high">HIGH</span> — touches every query &amp; route</td>
+    <td>Yes (can stub heartbeat to always-live until Phase 3 ready)</td>
+  </tr>
+  <tr>
+    <td>Phase 5 — UI banner + gating</td>
+    <td>M</td>
+    <td><span class="severity-low">LOW</span></td>
+    <td>Needs Phase 4</td>
+  </tr>
+  <tr>
+    <td>Phase 6 — Docs + bootstrap</td>
+    <td>S</td>
+    <td>—</td>
+    <td>Last</td>
+  </tr>
+</table>
+
+<p>
+  <strong>Total estimated effort:</strong> approximately 2–3 days of focused
+  development. Phase 4 dominates because the database access pattern changes
+  from a global singleton to a request-scoped router, requiring careful and
+  systematic edits across all query and API files.
+</p>
+
+<h3>Recommended rollout order</h3>
+<ol>
+  <li>Set up the Google Cloud service account and Drive folder (out-of-band).</li>
+  <li>Implement Phase 1 (Tailscale exposure) and verify host's DB is reachable from a test client.</li>
+  <li>Implement Phase 2 (backup pipeline) and verify snapshots appear in GDrive on the 15-minute cadence.</li>
+  <li>Implement Phase 3 (snapshot puller) on one client machine and verify automatic restore.</li>
+  <li>Implement Phase 4 (Prisma router) — staged: ship with heartbeat returning <code>always-live</code> first, verify nothing regresses; then enable real heartbeat.</li>
+  <li>Implement Phase 5 (banner + gating).</li>
+  <li>Roll out to remaining client machines via Phase 6 bootstrap.</li>
+</ol>
+
+<!-- 7. APPENDIX -->
+<h1>7. Appendix — file change inventory</h1>
+
+<h3>New files</h3>
+<ul>
+  <li><code>backup/Dockerfile</code> — backup image with <code>rclone</code></li>
+  <li><code>postgres/pg_hba.conf</code> — Tailscale-restricted auth rules</li>
+  <li><code>snapshot-puller/Dockerfile</code> — puller image</li>
+  <li><code>snapshot-puller/pull-and-restore.sh</code> — atomic restore script</li>
+  <li><code>docker-compose.client.yml</code> — overlay for client machines</li>
+  <li><code>scripts/setup-client-machine.sh</code> — interactive bootstrap wizard</li>
+  <li><code>src/lib/prisma-router.ts</code> — dual-client router with heartbeat</li>
+  <li><code>src/lib/system-mode.ts</code> — server-side mode helpers</li>
+  <li><code>src/lib/use-system-mode.ts</code> — client-side mode hook</li>
+  <li><code>src/components/shared/system-mode-banner.tsx</code> — UI banner</li>
+  <li><code>src/components/shared/action-guard.tsx</code> — wrapper that disables children in snapshot mode</li>
+  <li><code>src/app/api/system/mode/route.ts</code> — mode status endpoint</li>
+</ul>
+
+<h3>Modified files</h3>
+<ul>
+  <li><code>docker-compose.yml</code> — Postgres binding, backup cadence, GDrive volume mount</li>
+  <li><code>backup/backup.sh</code> — GDrive upload step + retention pruning</li>
+  <li><code>.env.example</code> — new vars documented</li>
+  <li><code>SETUP.md</code> — client machine setup section added</li>
+  <li><code>README.md</code> — architecture diagram + mode summary</li>
+  <li><code>src/lib/prisma.ts</code> — delegates to <code>prisma-router</code></li>
+  <li><code>src/middleware.ts</code> — extend with snapshot-mode write guard</li>
+  <li><code>src/app/(authenticated)/layout.tsx</code> — mount banner</li>
+  <li><strong>All</strong> <code>src/lib/queries/*.ts</code> — switch to <code>(await getPrisma()).client</code></li>
+  <li><strong>All</strong> <code>src/app/api/**/*.ts</code> — same</li>
+</ul>
+
+<h3>Document control</h3>
+<table>
+  <tr><th>Field</th><th>Value</th></tr>
+  <tr><td>Document</td><td>CHPMS — Snapshot-Mode Failover Architecture</td></tr>
+  <tr><td>Version</td><td>1.0</td></tr>
+  <tr><td>Date</td><td>2026-05-10</td></tr>
+  <tr><td>Status</td><td>Draft — awaiting decisions on Q1–Q12 in Section 5</td></tr>
+  <tr><td>Owner</td><td>CHPMS development team</td></tr>
+</table>
+
+</body>
+</html>

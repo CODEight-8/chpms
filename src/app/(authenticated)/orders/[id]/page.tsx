@@ -13,6 +13,11 @@ import { FulfillForm } from "@/components/orders/fulfill-form";
 import { RecordOrderPayment } from "@/components/accounts/record-order-payment";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  PREPARATION_BADGE,
+  PREPARATION_LABEL,
+} from "@/components/shared/preparation";
 import { Receipt, TrendingUp } from "lucide-react";
 import {
   Table,
@@ -40,7 +45,11 @@ export default async function OrderDetailPage({
     <div className="pt-6">
       <PageHeader
         title={`Order ${order.orderNumber}`}
-        description={`Invoice: ${order.invoiceNumber} | Client: ${order.client.name}`}
+        description={`Invoice: ${order.invoiceNumber} | Client: ${
+          order.client.companyName
+            ? `${order.client.companyName} (${order.client.name})`
+            : order.client.name
+        }`}
         backHref="/orders"
         action={
           <div className="flex flex-wrap gap-2">
@@ -90,17 +99,15 @@ export default async function OrderDetailPage({
                         href={`/clients/${order.client.id}`}
                         className="text-emerald-700 hover:underline"
                       >
-                        {order.client.name}
                         {order.client.companyName
-                          ? ` (${order.client.companyName})`
-                          : ""}
+                          ? `${order.client.companyName} (${order.client.name})`
+                          : order.client.name}
                       </Link>
                     ) : (
                       <span>
-                        {order.client.name}
                         {order.client.companyName
-                          ? ` (${order.client.companyName})`
-                          : ""}
+                          ? `${order.client.companyName} (${order.client.name})`
+                          : order.client.name}
                       </span>
                     )
                   }
@@ -121,11 +128,11 @@ export default async function OrderDetailPage({
                 />
                 <InfoField
                   label="Payment Method"
-                  value={order.client.paymentMethod || "—"}
+                  value={order.client.paymentMethod || "-"}
                 />
                 <InfoField
                   label="Payment Terms"
-                  value={order.client.paymentTerms || "—"}
+                  value={order.client.paymentTerms || "-"}
                 />
               </div>
               {order.notes && (
@@ -162,18 +169,27 @@ export default async function OrderDetailPage({
                   {order.items.map((item) => {
                     const remaining =
                       Number(item.quantityOrdered) - Number(item.quantityFulfilled);
+                    const itemUnit = item.unit ?? item.product.unit;
                     return (
                       <TableRow key={item.id}>
                         <TableCell className="font-medium">
-                          {item.product.name}
-                          <span className="text-gray-500 ml-1 text-xs">
-                            ({item.product.unit})
-                          </span>
-                          {item.chipSize && (
-                            <span className="ml-1 text-xs font-medium text-blue-600">
-                              [{item.chipSize}]
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span>{item.product.name}</span>
+                            <span className="text-gray-500 text-xs">
+                              ({itemUnit})
                             </span>
-                          )}
+                            {item.chipSize && (
+                              <span className="text-xs font-medium text-blue-600">
+                                [{item.chipSize}]
+                              </span>
+                            )}
+                            <Badge
+                              variant="outline"
+                              className={`text-[10px] py-0 px-1.5 ${PREPARATION_BADGE[item.preparation]}`}
+                            >
+                              {PREPARATION_LABEL[item.preparation]}
+                            </Badge>
+                          </div>
                         </TableCell>
                         <TableCell className="text-center">
                           {Number(item.quantityOrdered).toLocaleString()}
@@ -209,8 +225,9 @@ export default async function OrderDetailPage({
                                 orderItemId={item.id}
                                 productName={item.product.name}
                                 chipSize={item.chipSize}
+                                preparation={item.preparation}
                                 remaining={remaining}
-                                unit={item.product.unit}
+                                unit={itemUnit}
                               />
                             ) : (
                               <span className="text-xs text-green-600 font-medium">Done</span>
@@ -383,33 +400,40 @@ export default async function OrderDetailPage({
               )}
             </CardHeader>
             <CardContent>
-              {order.payments.length === 0 ? (
+              {order.paymentAllocations.length === 0 ? (
                 <p className="text-sm text-gray-500 text-center py-2">
                   No payments recorded
                 </p>
               ) : (
                 <div className="space-y-2">
-                  {order.payments.map((p) => (
+                  {order.paymentAllocations.map((a) => (
                     <div
-                      key={p.id}
+                      key={a.id}
                       className="flex justify-between items-center text-sm border-b pb-2"
                     >
                       <div>
                         <Link
-                          href={`/payments/client/${p.id}/receipt`}
+                          href={`/payments/client/${a.clientPayment.id}/receipt`}
                           className="font-mono text-xs text-emerald-700 hover:underline"
                         >
-                          {p.receiptNumber}
+                          {a.clientPayment.receiptNumber}
                         </Link>
                         <p className="text-xs text-gray-500">
-                          {new Date(p.paymentDate).toLocaleDateString("en-LK")}
+                          {new Date(
+                            a.clientPayment.paymentDate
+                          ).toLocaleDateString("en-LK")}
                           {" · "}
                           <span className="text-gray-400">
-                            Against {order.invoiceNumber}
+                            {a.clientPayment.paymentMethod}
+                            {Number(a.amount) !==
+                              Number(a.clientPayment.amount) &&
+                              ` · ${formatLKR(Number(a.clientPayment.amount))} total payment`}
                           </span>
                         </p>
                       </div>
-                      <span className="font-medium">{formatLKR(p.amount)}</span>
+                      <span className="font-medium">
+                        {formatLKR(Number(a.amount))}
+                      </span>
                     </div>
                   ))}
                 </div>

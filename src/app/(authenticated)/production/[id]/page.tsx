@@ -23,6 +23,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import {
+  PREPARATION_BADGE,
+  PREPARATION_LABEL,
+} from "@/components/shared/preparation";
 import { FileText } from "lucide-react";
 
 export default async function ProductionBatchDetailPage({
@@ -79,7 +83,18 @@ export default async function ProductionBatchDetailPage({
                 <InfoField label="Product" value={batch.product.name} />
                 <InfoField
                   label="Target Chip Size"
-                  value={batch.chipSize || "—"}
+                  value={batch.chipSize || "-"}
+                />
+                <InfoField
+                  label="Preparation"
+                  value={
+                    <Badge
+                      variant="outline"
+                      className={PREPARATION_BADGE[batch.preparation]}
+                    >
+                      {PREPARATION_LABEL[batch.preparation]}
+                    </Badge>
+                  }
                 />
                 <InfoField
                   label="Started"
@@ -108,7 +123,7 @@ export default async function ProductionBatchDetailPage({
                       value={
                         batch.completedAt
                           ? new Date(batch.completedAt).toLocaleDateString("en-LK")
-                          : "—"
+                          : "-"
                       }
                     />
                     {batch.qualityScore !== null && batch.qualityScore !== undefined && (
@@ -240,6 +255,32 @@ export default async function ProductionBatchDetailPage({
               ) : (
                 <p className="text-sm text-gray-500 py-4">
                   Not yet completed — output pending
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Additional Cost — operating cost captured at completion. Used
+              for cost-of-production analytics only; intentionally not mirrored
+              into the Accounts tab as a Misc Out row. */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Additional Cost</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {batch.additionalCost && Number(batch.additionalCost) > 0 ? (
+                <>
+                  <div className="text-2xl font-bold text-rose-700">
+                    {formatLKR(batch.additionalCost)}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Labor, electricity, fuel, packaging, etc. spent on this
+                    batch. Included in cost-of-production analytics.
+                  </p>
+                </>
+              ) : (
+                <p className="text-sm text-gray-500 py-2 text-center">
+                  No additional cost recorded
                 </p>
               )}
             </CardContent>

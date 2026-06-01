@@ -16,6 +16,11 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { GradeBadge } from "@/components/shared/grade-badge";
+import { ChipSizeInput } from "@/components/shared/chip-size-input";
+import {
+  PreparationSelect,
+  type Preparation,
+} from "@/components/shared/preparation-select";
 import { toast } from "sonner";
 import { Minus, Plus, X } from "lucide-react";
 
@@ -52,6 +57,7 @@ export function BatchForm() {
   const { validate } = useFieldErrors();
   const [product, setProduct] = useState<Product | null>(null);
   const [chipSize, setChipSize] = useState("");
+  const [preparation, setPreparation] = useState<Preparation>("RAW");
   const [availableLots, setAvailableLots] = useState<AvailableLot[]>([]);
   const [selectedLots, setSelectedLots] = useState<SelectedLot[]>([]);
   const [lotToAdd, setLotToAdd] = useState("");
@@ -161,6 +167,7 @@ export function BatchForm() {
     const data = {
       productId: product.id,
       chipSize,
+      preparation,
       lots: selectedLots.map((l) => ({
         lotId: l.lotId,
         quantityUsed: l.quantityUsed,
@@ -211,23 +218,29 @@ export function BatchForm() {
             </div>
           </div>
 
-          <div className="space-y-2 max-w-xs">
-            <Label htmlFor="chipSize">Target Chip Size *</Label>
-            <Select value={chipSize} onValueChange={setChipSize}>
-              <SelectTrigger id="chipSize">
-                <SelectValue placeholder="Select chip size..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="5mm">5 mm</SelectItem>
-                <SelectItem value="10mm">10 mm</SelectItem>
-                <SelectItem value="15mm">15 mm</SelectItem>
-                <SelectItem value="20mm">20 mm</SelectItem>
-                <SelectItem value="25mm">25 mm</SelectItem>
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-gray-500">
-              Chip size as required by the order
-            </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-md">
+            <div className="space-y-2">
+              <Label htmlFor="chipSize">Target Chip Size *</Label>
+              <ChipSizeInput
+                id="chipSize"
+                value={chipSize}
+                onChange={setChipSize}
+              />
+              <p className="text-xs text-gray-500">
+                Number + type, e.g. 5c, 3s. Default c.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="preparation">Preparation *</Label>
+              <PreparationSelect
+                id="preparation"
+                value={preparation}
+                onChange={setPreparation}
+              />
+              <p className="text-xs text-gray-500">
+                Raw, Dry, or Washed. Must match the order item.
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>

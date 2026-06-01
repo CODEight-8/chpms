@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation";
 import { getOrderDetail } from "@/lib/queries/orders";
 import { formatLKR } from "@/lib/currency";
+import { formatSriLankaPhoneNumber } from "@/lib/utils";
 import { PrintLayout } from "@/components/shared/print-layout";
+import { COMPANY_NAME } from "@/lib/branding";
 
 export default async function OrderInvoicePage({
   params,
@@ -19,7 +21,7 @@ export default async function OrderInvoicePage({
           <div className="flex justify-between items-start border-b-2 border-emerald-700 pb-4 mb-6">
             <div>
               <h1 className="text-xl font-bold text-emerald-900">
-                T C Liyanage
+                {COMPANY_NAME}
               </h1>
               <p className="text-sm text-gray-500">
                 Coconut Husk Processing
@@ -67,14 +69,13 @@ export default async function OrderInvoicePage({
             </h3>
             <div className="bg-gray-50 rounded-lg p-4">
               <p className="font-bold text-gray-900">
-                {order.client.name}
                 {order.client.companyName
-                  ? ` (${order.client.companyName})`
-                  : ""}
+                  ? `${order.client.companyName} (${order.client.name})`
+                  : order.client.name}
               </p>
               {order.client.phone && (
                 <p className="text-sm text-gray-600">
-                  Phone: {order.client.phone}
+                  Phone: {formatSriLankaPhoneNumber(order.client.phone)}
                 </p>
               )}
               {order.client.email && (
@@ -140,13 +141,16 @@ export default async function OrderInvoicePage({
                     <td className="py-3">
                       {item.product.name}
                       <span className="text-gray-500 ml-1">
-                        ({item.product.unit})
+                        ({item.unit ?? item.product.unit})
                       </span>
                       {item.chipSize && (
                         <span className="ml-1 text-blue-600">
                           [{item.chipSize}]
                         </span>
                       )}
+                      <span className="ml-1 text-gray-600">
+                        · {item.preparation.charAt(0) + item.preparation.slice(1).toLowerCase()}
+                      </span>
                     </td>
                     <td className="py-3 text-center">
                       {Number(item.quantityOrdered).toLocaleString()}
@@ -196,8 +200,9 @@ export default async function OrderInvoicePage({
             </div>
           )}
 
-          {/* Payments Received */}
-          {order.payments.length > 0 && (
+          {/* Payments Received — sourced from allocations so multi-order
+              payments show their portion applied to THIS order only. */}
+          {order.paymentAllocations.length > 0 && (
             <div className="mb-6">
               <h3 className="text-xs font-bold text-gray-700 uppercase mb-2">
                 Payments Received
@@ -218,21 +223,27 @@ export default async function OrderInvoicePage({
                       Reference
                     </th>
                     <th className="text-right py-2 font-bold text-gray-700">
-                      Amount
+                      Applied
                     </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {order.payments.map((p) => (
-                    <tr key={p.id} className="border-b border-gray-200">
-                      <td className="py-2 font-mono">{p.receiptNumber}</td>
-                      <td className="py-2">
-                        {new Date(p.paymentDate).toLocaleDateString("en-LK")}
+                  {order.paymentAllocations.map((a) => (
+                    <tr key={a.id} className="border-b border-gray-200">
+                      <td className="py-2 font-mono">
+                        {a.clientPayment.receiptNumber}
                       </td>
-                      <td className="py-2">{p.paymentMethod}</td>
-                      <td className="py-2 text-gray-600">{p.reference || "—"}</td>
+                      <td className="py-2">
+                        {new Date(
+                          a.clientPayment.paymentDate
+                        ).toLocaleDateString("en-LK")}
+                      </td>
+                      <td className="py-2">{a.clientPayment.paymentMethod}</td>
+                      <td className="py-2 text-gray-600">
+                        {a.clientPayment.reference || "-"}
+                      </td>
                       <td className="py-2 text-right font-medium">
-                        {formatLKR(p.amount)}
+                        {formatLKR(Number(a.amount))}
                       </td>
                     </tr>
                   ))}
@@ -269,7 +280,7 @@ export default async function OrderInvoicePage({
               Generated: {new Date().toLocaleDateString("en-LK")} at{" "}
               {new Date().toLocaleTimeString("en-LK")}
             </span>
-            <span>CHPMS — T C Liyanage</span>
+            <span>CHPMS — {COMPANY_NAME}</span>
           </div>
         </div>
       </PrintLayout>

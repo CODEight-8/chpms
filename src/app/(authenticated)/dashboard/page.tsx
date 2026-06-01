@@ -7,6 +7,7 @@ import { formatLKR } from "@/lib/currency";
 import { getDashboardData } from "@/lib/queries/dashboard";
 import {
   getMonthlyThroughput,
+  getMonthlyCashFlow,
   getBatchProfitability,
   getSupplierAnalytics,
   getClientAnalytics,
@@ -15,8 +16,10 @@ import { PageHeader } from "@/components/shared/page-header";
 import { SummaryCard } from "@/components/shared/summary-card";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { ThroughputChart } from "@/components/dashboard/throughput-chart";
+import { CashFlowChart } from "@/components/dashboard/cash-flow-chart";
 import { ProfitabilityChart } from "@/components/dashboard/profitability-chart";
 import { DashboardExport } from "@/components/dashboard/dashboard-export";
+import { AuditLogExport } from "@/components/dashboard/audit-log-export";
 import { FinancialOverview } from "@/components/dashboard/financial-overview";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -42,14 +45,21 @@ export default async function DashboardPage() {
   const canViewRankings = isOwner || isManager;
   const canViewClients = canAccessModule(role, "clients");
 
-  const [data, throughput, profitability, supplierAnalytics, clientAnalytics] =
-    await Promise.all([
-      getDashboardData(),
-      isOwner ? getMonthlyThroughput() : Promise.resolve([]),
-      isOwner ? getBatchProfitability() : Promise.resolve([]),
-      canViewRankings ? getSupplierAnalytics() : Promise.resolve([]),
-      canViewRankings ? getClientAnalytics() : Promise.resolve([]),
-    ]);
+  const [
+    data,
+    throughput,
+    cashFlow,
+    profitability,
+    supplierAnalytics,
+    clientAnalytics,
+  ] = await Promise.all([
+    getDashboardData(),
+    isOwner ? getMonthlyThroughput() : Promise.resolve([]),
+    isOwner ? getMonthlyCashFlow() : Promise.resolve([]),
+    isOwner ? getBatchProfitability() : Promise.resolve([]),
+    canViewRankings ? getSupplierAnalytics() : Promise.resolve([]),
+    canViewRankings ? getClientAnalytics() : Promise.resolve([]),
+  ]);
 
   // Flatten for CSV exports (owner only)
   const supplierCsvData = supplierAnalytics.map((s: Record<string, unknown>) => ({
@@ -88,7 +98,11 @@ export default async function DashboardPage() {
 
   return (
     <div className="pt-6">
-      <PageHeader title="Dashboard" description="Business overview at a glance" />
+      <PageHeader
+        title="Dashboard"
+        description="Business overview at a glance"
+        action={isOwner ? <AuditLogExport /> : undefined}
+      />
 
       {/* Operational KPI Cards — visible to all roles */}
       <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -105,11 +119,13 @@ export default async function DashboardPage() {
         <SummaryCard
           title="Overdue Orders"
           value={data.kpis.overdueOrders}
+          tooltip="Orders past expected delivery and not dispatched."
           icon={AlertTriangle}
         />
         <SummaryCard
           title="Due Soon"
           value={data.kpis.closeToOverdueOrders}
+          tooltip="Orders due within the next 7 days."
           icon={AlertCircle}
         />
       </div>
@@ -209,6 +225,25 @@ export default async function DashboardPage() {
 
       {/* Financial Overview — OWNER only */}
       {isOwner && <FinancialOverview />}
+
+      {/* Cash Flow — OWNER only */}
+      {isOwner && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="text-lg">
+              Monthly Cash Flow (Last 6 Months)
+            </CardTitle>
+            <p className="text-xs text-gray-500">
+              Income (client order payments) vs outgoing (supplier payments +
+              miscellaneous expenses). Hover a bar for the net and outgoing
+              breakdown.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <CashFlowChart data={cashFlow} />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Charts — OWNER only */}
       {isOwner && (
@@ -502,7 +537,7 @@ export default async function DashboardPage() {
                       <p className="text-xs text-gray-500">
                         {batch.product.name}
                         {batch.outputQuantity
-                          ? ` \u2014 ${Number(batch.outputQuantity)} ${batch.outputUnit}`
+                          ? ` - ${Number(batch.outputQuantity)} ${batch.outputUnit}`
                           : ""}
                       </p>
                     </div>

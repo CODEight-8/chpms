@@ -22,13 +22,13 @@ export async function GET(request: NextRequest) {
     return jsonResponse(counts);
   }
 
-  const orders = await getOrdersWithDetails({
+  const { rows } = await getOrdersWithDetails({
     status: status || undefined,
     clientId,
     search,
   });
 
-  return jsonResponse(orders);
+  return jsonResponse(rows);
 }
 
 export async function POST(request: NextRequest) {
@@ -50,11 +50,12 @@ export async function POST(request: NextRequest) {
     return errorResponse("Client not found or inactive", 404);
   }
 
-  // Validate all products exist and are active
+  // Validate all products exist and are active. Also need product.unit so
+  // items that omit `unit` can default to it.
   const productIds = Array.from(new Set(items.map((item) => item.productId)));
   const products = await prisma.product.findMany({
     where: { id: { in: productIds } },
-    select: { id: true, isActive: true, name: true },
+    select: { id: true, isActive: true, name: true, unit: true },
   });
   if (products.length !== productIds.length) {
     const foundIds = new Set(products.map((p) => p.id));
@@ -67,6 +68,7 @@ export async function POST(request: NextRequest) {
       `Product "${inactiveProduct.name}" is inactive and cannot be ordered`
     );
   }
+  const unitByProduct = new Map(products.map((p) => [p.id, p.unit]));
 
   const orderNumber = await generateOrderNumber();
   const invoiceNumber = generateOrderInvoiceNumber(orderNumber);
@@ -83,6 +85,8 @@ export async function POST(request: NextRequest) {
         create: items.map((item) => ({
           productId: item.productId,
           chipSize: item.chipSize,
+          preparation: item.preparation,
+          unit: item.unit ?? unitByProduct.get(item.productId) ?? "kg",
           quantityOrdered: item.quantityOrdered,
           unitPrice: item.unitPrice,
         })),

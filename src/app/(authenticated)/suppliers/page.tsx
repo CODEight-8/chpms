@@ -5,7 +5,10 @@ import { getSuppliersWithStats } from "@/lib/queries/suppliers";
 import { hasPermission } from "@/lib/permissions";
 import { UserRole } from "@prisma/client";
 import { formatLKR } from "@/lib/currency";
+import { formatSriLankaPhoneNumber } from "@/lib/utils";
 import { PageHeader } from "@/components/shared/page-header";
+import { Pagination } from "@/components/shared/pagination";
+import { parsePagination } from "@/lib/pagination";
 import { EmptyState } from "@/components/shared/empty-state";
 import { SearchInput } from "@/components/shared/search-input";
 import { StatusFilter } from "@/components/shared/status-filter";
@@ -24,22 +27,21 @@ import { Plus, Truck } from "lucide-react";
 export default async function SuppliersPage({
   searchParams,
 }: {
-  searchParams: { search?: string; active?: string };
+  searchParams: Record<string, string | string[] | undefined>;
 }) {
   const session = await getServerSession(authOptions);
   const role = session!.user.role as UserRole;
   const canCreate = hasPermission(role, "suppliers", "create");
+  const search = pickString(searchParams.search);
+  const activeRaw = pickString(searchParams.active);
   const activeFilter =
-    searchParams.active === "all"
-      ? undefined
-      : searchParams.active === "false"
-        ? false
-        : true;
+    activeRaw === "all" ? undefined : activeRaw === "false" ? false : true;
+  const pg = parsePagination(searchParams);
 
-  const suppliers = await getSuppliersWithStats({
-    active: activeFilter,
-    search: searchParams.search,
-  });
+  const { rows: suppliers, total } = await getSuppliersWithStats(
+    { active: activeFilter, search },
+    { skip: pg.skip, take: pg.take }
+  );
 
   return (
     <div className="pt-6">
@@ -69,18 +71,18 @@ export default async function SuppliersPage({
       {suppliers.length === 0 ? (
         <EmptyState
           icon={Truck}
-          title={searchParams.search ? "No suppliers found" : "No suppliers yet"}
+          title={search ? "No suppliers found" : "No suppliers yet"}
           description={
-            searchParams.search
-              ? `No suppliers matching "${searchParams.search}"`
-              : searchParams.active === "false"
+            search
+              ? `No suppliers matching "${search}"`
+              : activeRaw === "false"
                 ? "No inactive suppliers found"
-                : searchParams.active === undefined || searchParams.active === "true"
+                : activeRaw === undefined || activeRaw === "true"
                   ? "No active suppliers found"
-              : "Add your first supplier to start receiving materials"
+                  : "Add your first supplier to start receiving materials"
           }
           action={
-            canCreate && !searchParams.search ? (
+            canCreate && !search ? (
               <Link href="/suppliers/new">
                 <Button className="bg-emerald-700 hover:bg-emerald-800">
                   Add Supplier
@@ -91,6 +93,12 @@ export default async function SuppliersPage({
         />
       ) : (
         <div className="rounded-lg border bg-white">
+          <Pagination
+            total={total}
+            page={pg.page}
+            perPage={pg.perPage}
+            pageParam={pg.pageParam}
+          />
           <Table>
             <TableHeader>
               <TableRow>
@@ -115,10 +123,10 @@ export default async function SuppliersPage({
                     </Link>
                   </TableCell>
                   <TableCell className="text-gray-600">
-                    {supplier.phone || "—"}
+                    {formatSriLankaPhoneNumber(supplier.phone) || "-"}
                   </TableCell>
                   <TableCell className="text-gray-600">
-                    {supplier.location || "—"}
+                    {supplier.location || "-"}
                   </TableCell>
                   <TableCell className="text-center">
                     {supplier.totalLots}
@@ -157,8 +165,19 @@ export default async function SuppliersPage({
               ))}
             </TableBody>
           </Table>
+          <Pagination
+            total={total}
+            page={pg.page}
+            perPage={pg.perPage}
+            pageParam={pg.pageParam}
+          />
         </div>
       )}
     </div>
   );
+}
+
+function pickString(v: string | string[] | undefined): string | undefined {
+  if (Array.isArray(v)) return v[0];
+  return v;
 }

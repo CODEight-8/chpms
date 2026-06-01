@@ -12,9 +12,22 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { ConfirmDialog } from "@/components/shared/confirm-dialog";
-import { CheckCircle, Truck } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { CheckCircle } from "lucide-react";
 import { toast } from "sonner";
+
+type OutputUnit = "kg" | "L";
+
+const UNIT_LABEL: Record<OutputUnit, string> = {
+  kg: "Kilograms (kg)",
+  L: "Liters (L)",
+};
 
 interface BatchActionsProps {
   batchId: string;
@@ -33,9 +46,12 @@ export function BatchActions({
   const [loading, setLoading] = useState(false);
   const [completeOpen, setCompleteOpen] = useState(false);
   const [outputQuantity, setOutputQuantity] = useState("");
+  const [outputUnit, setOutputUnit] = useState<OutputUnit>("kg");
   const [qualityScore, setQualityScore] = useState("");
+  const [additionalCost, setAdditionalCost] = useState("");
   const parsedOutputQuantity = Number.parseFloat(outputQuantity);
   const parsedQualityScore = Number.parseFloat(qualityScore);
+  const parsedAdditionalCost = Number.parseFloat(additionalCost);
   const hasValidOutputQuantity =
     Number.isFinite(parsedOutputQuantity) &&
     parsedOutputQuantity > 0 &&
@@ -44,9 +60,16 @@ export function BatchActions({
     Number.isFinite(parsedQualityScore) &&
     parsedQualityScore >= 0 &&
     parsedQualityScore <= 100;
+  // Optional field. Empty / blank is treated as 0 and skipped on the server.
+  // Only blocks submit when the user typed a non-empty value that is invalid.
+  const additionalCostEmpty = additionalCost.trim() === "";
+  const hasValidAdditionalCost =
+    additionalCostEmpty ||
+    (Number.isFinite(parsedAdditionalCost) && parsedAdditionalCost >= 0);
 
   async function handleComplete() {
-    if (!hasValidOutputQuantity || !hasValidQualityScore) return;
+    if (!hasValidOutputQuantity || !hasValidQualityScore || !hasValidAdditionalCost)
+      return;
     setLoading(true);
     try {
       const res = await fetch(`/api/production-batches/${batchId}/complete`, {
@@ -54,36 +77,24 @@ export function BatchActions({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           outputQuantity: parsedOutputQuantity,
+          outputUnit,
           qualityScore: parsedQualityScore,
+          ...(additionalCostEmpty
+            ? {}
+            : { additionalCost: parsedAdditionalCost }),
         }),
       });
       if (!res.ok) throw new Error((await res.json()).error);
       toast.success("Batch marked as completed");
       setCompleteOpen(false);
+      setOutputQuantity("");
+      setOutputUnit("kg");
+      setQualityScore("");
+      setAdditionalCost("");
       router.refresh();
     } catch (err) {
       toast.error(
         err instanceof Error ? err.message : "Failed to complete batch"
-      );
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleDispatch() {
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/production-batches/${batchId}/status`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "DISPATCHED" }),
-      });
-      if (!res.ok) throw new Error((await res.json()).error);
-      toast.success("Batch marked as dispatched");
-      router.refresh();
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to dispatch batch"
       );
     } finally {
       setLoading(false);
@@ -109,21 +120,39 @@ export function BatchActions({
             <DialogTitle>Complete Production Batch</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-2">
-            <div className="space-y-2">
-              <Label>Output Quantity (Kg) *</Label>
-              <Input
-                type="number"
-                min={0.01}
-                max={totalInputHusks}
-                step={0.01}
-                value={outputQuantity}
-                onChange={(e) => setOutputQuantity(e.target.value)}
-                placeholder="e.g. 450"
-              />
-              <p className="text-xs text-gray-500">
-                Maximum allowed: {totalInputHusks.toLocaleString()} kg
-              </p>
+            <div className="grid grid-cols-[1fr_140px] gap-2">
+              <div className="space-y-2">
+                <Label>Output Quantity *</Label>
+                <Input
+                  type="number"
+                  min={0.01}
+                  max={totalInputHusks}
+                  step={0.01}
+                  value={outputQuantity}
+                  onChange={(e) => setOutputQuantity(e.target.value)}
+                  placeholder="e.g. 450"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Unit *</Label>
+                <Select
+                  value={outputUnit}
+                  onValueChange={(v) => setOutputUnit(v as OutputUnit)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="kg">{UNIT_LABEL.kg}</SelectItem>
+                    <SelectItem value="L">{UNIT_LABEL.L}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
+            <p className="-mt-2 text-xs text-gray-500">
+              Maximum allowed: {totalInputHusks.toLocaleString()} {outputUnit}{" "}
+              (one unit of output per input husk).
+            </p>
             <div className="space-y-2">
               <Label>Quality Score (% correct size) *</Label>
               <Input
@@ -149,11 +178,29 @@ export function BatchActions({
                       : "Percentage of chips matching the target size"}
               </p>
             </div>
+            <div className="space-y-2">
+              <Label>Additional Cost (LKR)</Label>
+              <Input
+                type="number"
+                min={0}
+                step={0.01}
+                value={additionalCost}
+                onChange={(e) => setAdditionalCost(e.target.value)}
+                placeholder="0"
+              />
+              <p className="text-xs text-gray-500">
+                Optional — labor, electricity, fuel, packaging, etc. spent on
+                this batch. Included in cost-of-production analytics.
+              </p>
+            </div>
             <Button
               onClick={handleComplete}
               className="w-full bg-emerald-700 hover:bg-emerald-800"
               disabled={
-                loading || !hasValidOutputQuantity || !hasValidQualityScore
+                loading ||
+                !hasValidOutputQuantity ||
+                !hasValidQualityScore ||
+                !hasValidAdditionalCost
               }
             >
               {loading ? "Completing..." : "Confirm Complete"}
@@ -161,28 +208,6 @@ export function BatchActions({
           </div>
         </DialogContent>
       </Dialog>
-    );
-  }
-
-  if (currentStatus === "COMPLETED") {
-    return (
-      <ConfirmDialog
-        title="Mark as Dispatched?"
-        description="This will mark the batch as dispatched. This action cannot be undone."
-        confirmLabel="Mark Dispatched"
-        onConfirm={handleDispatch}
-        disabled={loading}
-      >
-        <Button
-          variant="outline"
-          className="gap-2"
-          disabled={loading}
-          aria-label="Mark batch as dispatched"
-        >
-          <Truck className="h-4 w-4" />
-          {loading ? "Dispatching..." : "Mark Dispatched"}
-        </Button>
-      </ConfirmDialog>
     );
   }
 

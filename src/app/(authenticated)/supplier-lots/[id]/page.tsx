@@ -40,7 +40,7 @@ export default async function SupplierLotDetailPage({
   const deleteBlockReason =
     lot.productionBatchLots.length > 0
       ? "This lot cannot be deleted because it has already been used in production."
-      : lot.payments.length > 0
+      : lot.paymentAllocations.length > 0
         ? "This lot cannot be deleted because supplier payments are linked to it."
         : null;
 
@@ -211,45 +211,40 @@ export default async function SupplierLotDetailPage({
             </CardContent>
           </Card>
 
-          {/* Payment Summary */}
-          {(() => {
-            const totalPaid = lot.payments.reduce(
-              (sum, p) => sum + Number(p.amount),
-              0
-            );
-            const outstanding = Number(lot.totalCost) - totalPaid;
-            return (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Payment Summary</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Invoice Total</span>
-                    <span className="font-medium">{formatLKR(lot.totalCost)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Total Paid</span>
-                    <span className="font-medium text-green-600">
-                      {formatLKR(totalPaid)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm border-t pt-2">
-                    <span className="font-medium">Outstanding</span>
-                    <span
-                      className={`font-bold ${
-                        outstanding > 0 ? "text-orange-600" : "text-green-600"
-                      }`}
-                    >
-                      {formatLKR(Math.max(0, outstanding))}
-                    </span>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })()}
+          {/* Payment Summary — totals come from allocations so multi-lot
+              payments are counted correctly. */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Payment Summary</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Invoice Total</span>
+                <span className="font-medium">{formatLKR(lot.totalCost)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Total Paid</span>
+                <span className="font-medium text-green-600">
+                  {formatLKR(lot.totalPaid)}
+                </span>
+              </div>
+              <div className="flex justify-between text-sm border-t pt-2">
+                <span className="font-medium">Outstanding</span>
+                <span
+                  className={`font-bold ${
+                    lot.outstandingBalance > 0
+                      ? "text-orange-600"
+                      : "text-green-600"
+                  }`}
+                >
+                  {formatLKR(Math.max(0, lot.outstandingBalance))}
+                </span>
+              </div>
+            </CardContent>
+          </Card>
 
-          {/* Payments Card */}
+          {/* Payments Card — one row per allocation, so multi-lot payments
+              show only their portion applied to this lot. */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-lg">Payments</CardTitle>
@@ -260,41 +255,45 @@ export default async function SupplierLotDetailPage({
                   supplierLotId={lot.id}
                   lotNumber={lot.lotNumber}
                   invoiceNumber={lot.invoiceNumber}
-                  outstandingBalance={
-                    Number(lot.totalCost) -
-                    lot.payments.reduce((sum, p) => sum + Number(p.amount), 0)
-                  }
+                  outstandingBalance={lot.outstandingBalance}
                 />
               )}
             </CardHeader>
             <CardContent>
-              {lot.payments.length === 0 ? (
+              {lot.paymentAllocations.length === 0 ? (
                 <p className="text-sm text-gray-500 text-center py-2">
                   No payments recorded
                 </p>
               ) : (
                 <div className="space-y-2">
-                  {lot.payments.map((p) => (
+                  {lot.paymentAllocations.map((a) => (
                     <div
-                      key={p.id}
+                      key={a.id}
                       className="flex justify-between items-center text-sm border-b pb-2"
                     >
                       <div>
                         <Link
-                          href={`/payments/supplier/${p.id}/receipt`}
+                          href={`/payments/supplier/${a.supplierPayment.id}/receipt`}
                           className="font-mono text-xs text-emerald-700 hover:underline"
                         >
-                          {p.receiptNumber}
+                          {a.supplierPayment.receiptNumber}
                         </Link>
                         <p className="text-xs text-gray-500">
-                          {new Date(p.paymentDate).toLocaleDateString("en-LK")}
+                          {new Date(
+                            a.supplierPayment.paymentDate
+                          ).toLocaleDateString("en-LK")}
                           {" · "}
                           <span className="text-gray-400">
-                            Against {lot.invoiceNumber}
+                            {a.supplierPayment.paymentMethod}
+                            {Number(a.amount) !==
+                              Number(a.supplierPayment.amount) &&
+                              ` · ${formatLKR(Number(a.supplierPayment.amount))} total payment`}
                           </span>
                         </p>
                       </div>
-                      <span className="font-medium">{formatLKR(p.amount)}</span>
+                      <span className="font-medium">
+                        {formatLKR(Number(a.amount))}
+                      </span>
                     </div>
                   ))}
                 </div>

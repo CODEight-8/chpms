@@ -7,7 +7,15 @@ interface OrderFilters {
   search?: string;
 }
 
-export async function getOrdersWithDetails(filters?: OrderFilters) {
+interface PageOpts {
+  skip?: number;
+  take?: number;
+}
+
+export async function getOrdersWithDetails(
+  filters?: OrderFilters,
+  page?: PageOpts
+) {
   const where: Prisma.OrderWhereInput = {};
 
   if (filters?.status) {
@@ -29,27 +37,59 @@ export async function getOrdersWithDetails(filters?: OrderFilters) {
     ];
   }
 
-  const orders = await prisma.order.findMany({
-    where,
-    include: {
-      client: { select: { id: true, name: true, companyName: true } },
-      items: {
-        include: {
-          product: { select: { name: true, unit: true } },
+  const [orders, total] = await Promise.all([
+    prisma.order.findMany({
+      where,
+      include: {
+        client: { select: { id: true, name: true, companyName: true } },
+        items: {
+          include: {
+            product: { select: { name: true, unit: true } },
+          },
         },
+        paymentAllocations: { select: { amount: true } },
       },
-    },
-    orderBy: { createdAt: "desc" },
-  });
+      orderBy: { createdAt: "desc" },
+      skip: page?.skip,
+      take: page?.take,
+    }),
+    prisma.order.count({ where }),
+  ]);
 
-  return orders.map((order) => ({
-    ...order,
-    totalValue: order.items.reduce(
-      (sum, i) => sum + Number(i.quantityOrdered) * Number(i.unitPrice),
-      0
-    ),
-    itemCount: order.items.length,
-  }));
+  return {
+    rows: orders.map((order) => {
+      const totalValue = order.items.reduce(
+        (sum, i) => sum + Number(i.quantityOrdered) * Number(i.unitPrice),
+        0
+      );
+      const totalPaid = order.paymentAllocations.reduce(
+        (sum, a) => sum + Number(a.amount),
+        0
+      );
+      const paymentStatus = derivePaymentStatus(totalValue, totalPaid);
+      return {
+        ...order,
+        totalValue,
+        totalPaid,
+        paymentStatus,
+        itemCount: order.items.length,
+      };
+    }),
+    total,
+  };
+}
+
+export type PaymentStatus = "PAID" | "PARTIAL" | "UNPAID";
+
+function derivePaymentStatus(
+  totalValue: number,
+  totalPaid: number
+): PaymentStatus {
+  // 1-cent tolerance to absorb LKR floating-point rounding when allocations
+  // sum to ~totalValue but not exactly.
+  if (totalPaid + 0.01 >= totalValue && totalValue > 0) return "PAID";
+  if (totalPaid > 0) return "PARTIAL";
+  return "UNPAID";
 }
 
 export async function getOrderDetail(id: string) {
@@ -68,6 +108,7 @@ export async function getOrderDetail(id: string) {
                   batchNumber: true,
                   status: true,
                   totalRawCost: true,
+                  additionalCost: true,
                   outputQuantity: true,
                   product: { select: { name: true } },
                 },
@@ -76,8 +117,23 @@ export async function getOrderDetail(id: string) {
           },
         },
       },
-      payments: {
-        orderBy: { paymentDate: "desc" },
+      // Allocations are the source of truth for "money received against this
+      // order". Each links back to its parent ClientPayment for the
+      // payment-history table on the order detail page.
+      paymentAllocations: {
+        include: {
+          clientPayment: {
+            select: {
+              id: true,
+              receiptNumber: true,
+              paymentDate: true,
+              paymentMethod: true,
+              reference: true,
+              amount: true,
+            },
+          },
+        },
+        orderBy: { clientPayment: { paymentDate: "desc" } },
       },
     },
   });
@@ -88,8 +144,8 @@ export async function getOrderDetail(id: string) {
     (sum, i) => sum + Number(i.quantityOrdered) * Number(i.unitPrice),
     0
   );
-  const totalPaid = order.payments.reduce(
-    (sum, p) => sum + Number(p.amount),
+  const totalPaid = order.paymentAllocations.reduce(
+    (sum, a) => sum + Number(a.amount),
     0
   );
 
@@ -99,10 +155,14 @@ export async function getOrderDetail(id: string) {
       item.fulfillments.reduce((fSum, f) => {
         const output = Number(f.productionBatch.outputQuantity);
         if (!output || output <= 0) return fSum;
+        // True production cost = raw husks + operating extras captured at
+        // completion (labor, electricity, fuel, packaging).
+        const batchTotal =
+          Number(f.productionBatch.totalRawCost) +
+          Number(f.productionBatch.additionalCost ?? 0);
         return (
           fSum +
-          (Number(f.quantityFulfilled) / output) *
-            Number(f.productionBatch.totalRawCost)
+          (Number(f.quantityFulfilled) / output) * batchTotal
         );
       }, 0),
     0

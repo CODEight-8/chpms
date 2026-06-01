@@ -1,7 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { supplierSchema } from "@/lib/validators";
+import { supplierSchema, normalizeSriLankaPhoneNumber } from "@/lib/validators";
 import { requireAuth, errorResponse, jsonResponse } from "@/lib/api-helpers";
 import { getSupplierWithStats } from "@/lib/queries/suppliers";
 import { logAuditEvent } from "@/lib/audit-log";
@@ -57,8 +57,11 @@ export async function PUT(
       bankName,
       branchName,
       accountNumber,
+      phone,
       ...supplierData
     } = parsed.data;
+
+    const normalizedPhone = phone ? normalizeSriLankaPhoneNumber(phone) : undefined;
 
     if (supplierData.name.trim() !== existing.name.trim()) {
       return errorResponse("Supplier name cannot be changed after creation.", 400);
@@ -93,6 +96,7 @@ export async function PUT(
       where: { id: params.id },
       data: {
         ...supplierData,
+        phone: normalizedPhone,
         ...bankData,
       },
     });

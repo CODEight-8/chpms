@@ -18,7 +18,7 @@ export async function getMonthlyThroughput() {
     prisma.productionBatch.findMany({
       where: {
         completedAt: { not: null, gte: sixMonthsAgo },
-        status: { in: ["COMPLETED", "DISPATCHED"] },
+        status: "COMPLETED",
       },
       select: { completedAt: true, outputQuantity: true },
     }),
@@ -59,11 +59,98 @@ export async function getMonthlyThroughput() {
 }
 
 /**
- * Profitability per completed/dispatched batch
+ * Monthly cash flow: income (client order payments + miscellaneous in) vs
+ * outgoing (supplier payments + miscellaneous out). Returns last 6 months
+ * for the dashboard cash-flow chart.
+ *
+ * Income is split into two stacked segments on the chart: client payments
+ * (operational revenue) and miscellaneous in (owner capital injections,
+ * refunds, etc.) so the breakdown is visible at a glance.
+ */
+export async function getMonthlyCashFlow() {
+  const sixMonthsAgo = new Date();
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+  sixMonthsAgo.setDate(1);
+  sixMonthsAgo.setHours(0, 0, 0, 0);
+
+  const [clientPayments, supplierPayments, miscIn, miscOut] = await Promise.all([
+    prisma.clientPayment.findMany({
+      where: { paymentDate: { gte: sixMonthsAgo } },
+      select: { paymentDate: true, amount: true },
+    }),
+    prisma.supplierPayment.findMany({
+      where: { paymentDate: { gte: sixMonthsAgo } },
+      select: { paymentDate: true, amount: true },
+    }),
+    prisma.miscTransaction.findMany({
+      where: { direction: "IN", transactionDate: { gte: sixMonthsAgo } },
+      select: { transactionDate: true, amount: true },
+    }),
+    prisma.miscTransaction.findMany({
+      where: { direction: "OUT", transactionDate: { gte: sixMonthsAgo } },
+      select: { transactionDate: true, amount: true },
+    }),
+  ]);
+
+  const months: Record<
+    string,
+    { clientIn: number; miscIn: number; supplierOut: number; miscOut: number }
+  > = {};
+
+  // Pre-seed every month in the window so empty months still render a bar.
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date();
+    d.setMonth(d.getMonth() - i);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    months[key] = { clientIn: 0, miscIn: 0, supplierOut: 0, miscOut: 0 };
+  }
+
+  const keyFor = (date: Date) =>
+    `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+
+  for (const p of clientPayments) {
+    const key = keyFor(new Date(p.paymentDate));
+    if (months[key]) months[key].clientIn += Number(p.amount);
+  }
+  for (const p of supplierPayments) {
+    const key = keyFor(new Date(p.paymentDate));
+    if (months[key]) months[key].supplierOut += Number(p.amount);
+  }
+  for (const m of miscIn) {
+    const key = keyFor(new Date(m.transactionDate));
+    if (months[key]) months[key].miscIn += Number(m.amount);
+  }
+  for (const m of miscOut) {
+    const key = keyFor(new Date(m.transactionDate));
+    if (months[key]) months[key].miscOut += Number(m.amount);
+  }
+
+  return Object.entries(months).map(([month, data]) => {
+    const income = data.clientIn + data.miscIn;
+    const outgoing = data.supplierOut + data.miscOut;
+    return {
+      month,
+      label: new Date(month + "-01").toLocaleDateString("en-LK", {
+        month: "short",
+        year: "2-digit",
+      }),
+      income,
+      outgoing,
+      clientIn: data.clientIn,
+      miscIn: data.miscIn,
+      supplierOut: data.supplierOut,
+      miscOut: data.miscOut,
+      net: income - outgoing,
+    };
+  });
+}
+
+/**
+ * Profitability per completed batch
  */
 export async function getBatchProfitability() {
   const batches = await prisma.productionBatch.findMany({
-    where: { status: { in: ["COMPLETED", "DISPATCHED"] } },
+    where: { status: "COMPLETED" },
     include: {
       product: { select: { name: true } },
       fulfillments: {
@@ -78,6 +165,10 @@ export async function getBatchProfitability() {
 
   return batches.map((batch) => {
     const rawMaterialCost = Number(batch.totalRawCost);
+    const additionalCost = Number(batch.additionalCost ?? 0);
+    // True total production cost includes operating extras captured at
+    // batch completion (labor, electricity, fuel, packaging, etc.).
+    const totalCost = rawMaterialCost + additionalCost;
 
     const revenue = batch.fulfillments.reduce(
       (sum: number, f: { quantityFulfilled: unknown; orderItem: { unitPrice: unknown } }) =>
@@ -92,9 +183,11 @@ export async function getBatchProfitability() {
       outputQuantity: Number(batch.outputQuantity || 0),
       outputUnit: batch.outputUnit || "kg",
       rawMaterialCost,
+      additionalCost,
+      totalCost,
       revenue,
-      profit: revenue - rawMaterialCost,
-      margin: revenue > 0 ? ((revenue - rawMaterialCost) / revenue) * 100 : 0,
+      profit: revenue - totalCost,
+      margin: revenue > 0 ? ((revenue - totalCost) / revenue) * 100 : 0,
     };
   });
 }
@@ -133,13 +226,15 @@ export async function getSupplierAnalytics() {
       const avgRate =
         s.lots.reduce((sum, l) => sum + Number(l.perHuskRate), 0) / totalLots;
       const totalPaid = s.payments.reduce((sum, p) => sum + Number(p.amount), 0);
+      const rawRejectionRate = (rejections / totalLots) * 100;
+      const rejectionRate = Math.min(Math.max(rawRejectionRate, 0), 100);
 
       return {
         id: s.id,
         name: s.name,
         totalLots,
         totalHusks,
-        rejectionRate: (rejections / totalLots) * 100,
+        rejectionRate,
         gradeA,
         gradeB,
         gradeC,
@@ -152,6 +247,44 @@ export async function getSupplierAnalytics() {
     })
     .filter(Boolean)
     .sort((a, b) => b!.totalHusks - a!.totalHusks) as NonNullable<ReturnType<typeof Object.create>>[];
+}
+
+/**
+ * Audit function to find problematic payments (overpayments, data anomalies)
+ * Returns clients with overpayments >5% for manual review
+ */
+export async function getAbnormalPaymentAlerts() {
+  const clientAnalytics = await getClientAnalytics();
+
+  return clientAnalytics
+    .filter((c) => c.isOverpaid)
+    .map((c) => ({
+      clientId: c.id,
+      clientName: c.name,
+      totalRevenue: c.totalRevenue,
+      totalPaid: c.totalPaid,
+      overpaymentAmount: c.totalPaid - c.totalRevenue,
+      // Null when there is no revenue to compare against (any payment to a
+      // client with zero revenue is by definition fully overpaid; expressing
+      // it as a percentage is meaningless).
+      percentageOverpaid:
+        c.totalRevenue > 0
+          ? ((c.totalPaid - c.totalRevenue) / c.totalRevenue) * 100
+          : null,
+      severity:
+        c.totalRevenue === 0
+          ? "CRITICAL"
+          : c.totalPaid > c.totalRevenue * 1.5
+            ? "CRITICAL"
+            : c.totalPaid > c.totalRevenue * 1.2
+              ? "HIGH"
+              : "MEDIUM",
+    }))
+    .sort(
+      (a, b) =>
+        (b.percentageOverpaid ?? Number.POSITIVE_INFINITY) -
+        (a.percentageOverpaid ?? Number.POSITIVE_INFINITY)
+    );
 }
 
 /**
@@ -189,8 +322,10 @@ export async function getClientAnalytics() {
       );
       const totalPaid = c.payments.reduce((sum, p) => sum + Number(p.amount), 0);
       const outstanding = totalRevenue - totalPaid;
-      const paymentReliability =
-        totalRevenue > 0 ? (totalPaid / totalRevenue) * 100 : 0;
+      const isOverpaid = totalPaid > totalRevenue * 1.05; // Flag if overpaid by >5%
+      const paymentReliability = totalRevenue > 0
+        ? Math.min((totalPaid / totalRevenue) * 100, 100) // Cap at 100%
+        : 0;
 
       // Calculate order frequency (orders per month since first order)
       const orderDates = c.orders.map((o) => new Date(o.orderDate).getTime());
@@ -210,6 +345,7 @@ export async function getClientAnalytics() {
         outstanding,
         paymentReliability,
         orderFrequency,
+        isOverpaid, // Flag for investigation
       };
     })
     .filter(Boolean)

@@ -20,6 +20,7 @@ interface FulfillFormProps {
   orderItemId: string;
   productName: string;
   chipSize?: string | null;
+  preparation: "RAW" | "DRY" | "WASHED";
   remaining: number;
   unit: string;
 }
@@ -28,9 +29,12 @@ interface CompletedBatch {
   id: string;
   batchNumber: string;
   chipSize: string | null;
+  preparation: "RAW" | "DRY" | "WASHED";
   outputQuantity: string;
+  availableOutput: string | null;
   outputUnit: string;
   totalRawCost: string;
+  additionalCost: string | null;
 }
 
 interface BatchAllocation {
@@ -38,11 +42,16 @@ interface BatchAllocation {
   quantity: number;
 }
 
+function batchAvailable(b: CompletedBatch): number {
+  return Number(b.availableOutput ?? b.outputQuantity ?? 0);
+}
+
 export function FulfillForm({
   orderId,
   orderItemId,
   productName,
   chipSize,
+  preparation,
   remaining,
   unit,
 }: FulfillFormProps) {
@@ -56,18 +65,29 @@ export function FulfillForm({
     if (!open) return;
     const params = new URLSearchParams({ status: "COMPLETED" });
     if (chipSize) params.set("chipSize", chipSize);
+    if (preparation) params.set("preparation", preparation);
 
     fetch(`/api/production-batches?${params}`)
       .then((r) => r.json())
-      .then((data) => {
-        setBatches(data);
+      .then((data: CompletedBatch[]) => {
+        // Hide batches with nothing left to allocate, and batches whose
+        // outputUnit doesn't match this order item's unit (a kg line cannot
+        // be fulfilled from an L batch — the server rejects it anyway, this
+        // just keeps the picker from showing batches that won't work). The
+        // preparation filter is applied server-side via the query param.
+        setBatches(
+          data.filter(
+            (b) =>
+              batchAvailable(b) > 0 && (b.outputUnit ?? "kg") === unit
+          )
+        );
         setAllocations([]);
       })
       .catch(() => toast.error("Failed to load batches"));
-  }, [open, chipSize]);
+  }, [open, chipSize, preparation, unit]);
 
   const totalAvailable = useMemo(
-    () => batches.reduce((sum, b) => sum + Number(b.outputQuantity), 0),
+    () => batches.reduce((sum, b) => sum + batchAvailable(b), 0),
     [batches]
   );
 
@@ -83,7 +103,11 @@ export function FulfillForm({
         if (!batch) return sum;
         const output = Number(batch.outputQuantity);
         if (!output || output <= 0) return sum;
-        return sum + (a.quantity / output) * Number(batch.totalRawCost);
+        // Total production cost = raw material + operating extras (labor,
+        // electricity, fuel, packaging, etc.) captured at batch completion.
+        const batchTotal =
+          Number(batch.totalRawCost) + Number(batch.additionalCost ?? 0);
+        return sum + (a.quantity / output) * batchTotal;
       }, 0),
     [allocations, batches]
   );
@@ -96,9 +120,9 @@ export function FulfillForm({
     const batch = batches.find((b) => b.id === batchId);
     if (!batch) return;
 
-    const batchAvailable = Number(batch.outputQuantity);
+    const available = batchAvailable(batch);
     const stillNeeded = remaining - totalAllocated;
-    const qty = Math.min(batchAvailable, Math.max(stillNeeded, 0));
+    const qty = Math.min(available, Math.max(stillNeeded, 0));
 
     setAllocations((prev) => [...prev, { batchId, quantity: qty }]);
   }
@@ -122,7 +146,7 @@ export function FulfillForm({
 
     const invalidAlloc = allocations.find((a) => {
       const batch = getBatch(a.batchId);
-      return !batch || a.quantity <= 0 || a.quantity > Number(batch.outputQuantity);
+      return !batch || a.quantity <= 0 || a.quantity > batchAvailable(batch);
     });
     if (invalidAlloc) {
       toast.error("Invalid quantity for one or more batches");
@@ -191,6 +215,9 @@ export function FulfillForm({
                   ({chipSize} chips)
                 </span>
               )}
+              <span className="ml-1 font-medium text-gray-700">
+                · {preparation.charAt(0) + preparation.slice(1).toLowerCase()}
+              </span>
             </p>
           </div>
 
@@ -226,7 +253,9 @@ export function FulfillForm({
                     if (!batch) return null;
                     const output = Number(batch.outputQuantity);
                     const allocCost = output > 0
-                      ? (alloc.quantity / output) * Number(batch.totalRawCost)
+                      ? (alloc.quantity / output) *
+                        (Number(batch.totalRawCost) +
+                          Number(batch.additionalCost ?? 0))
                       : 0;
                     return (
                       <div
@@ -243,7 +272,7 @@ export function FulfillForm({
                             )}
                           </p>
                           <p className="text-xs text-gray-500">
-                            {Number(batch.outputQuantity).toLocaleString()}{" "}
+                            {batchAvailable(batch).toLocaleString()}{" "}
                             {batch.outputUnit} available
                             <span className="ml-2 text-orange-600 font-medium">
                               Cost: {formatLKR(allocCost)}
@@ -254,7 +283,7 @@ export function FulfillForm({
                           <Input
                             type="number"
                             min={0.01}
-                            max={Number(batch.outputQuantity)}
+                            max={batchAvailable(batch)}
                             step={0.01}
                             value={alloc.quantity || ""}
                             onChange={(e) =>
@@ -324,7 +353,9 @@ export function FulfillForm({
                     {availableBatches.map((b) => {
                       const costPerUnit =
                         Number(b.outputQuantity) > 0
-                          ? Number(b.totalRawCost) / Number(b.outputQuantity)
+                          ? (Number(b.totalRawCost) +
+                              Number(b.additionalCost ?? 0)) /
+                            Number(b.outputQuantity)
                           : 0;
                       return (
                         <button
@@ -348,7 +379,7 @@ export function FulfillForm({
                               {formatLKR(costPerUnit)}/{b.outputUnit}
                             </span>
                             <span className="text-xs text-gray-500">
-                              {Number(b.outputQuantity).toLocaleString()}{" "}
+                              {batchAvailable(b).toLocaleString()}{" "}
                               {b.outputUnit}
                             </span>
                             <Plus className="h-3.5 w-3.5 text-emerald-600" />

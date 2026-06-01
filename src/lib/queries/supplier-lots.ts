@@ -8,7 +8,15 @@ interface LotFilters {
   search?: string;
 }
 
-export async function getLotsWithAging(filters?: LotFilters) {
+interface PageOpts {
+  skip?: number;
+  take?: number;
+}
+
+export async function getLotsWithAging(
+  filters?: LotFilters,
+  page?: PageOpts
+) {
   const where: Prisma.SupplierLotWhereInput = {};
 
   if (filters?.status) {
@@ -31,20 +39,28 @@ export async function getLotsWithAging(filters?: LotFilters) {
     ];
   }
 
-  const lots = await prisma.supplierLot.findMany({
-    where,
-    include: {
-      supplier: {
-        select: { id: true, name: true },
+  const [lots, total] = await Promise.all([
+    prisma.supplierLot.findMany({
+      where,
+      include: {
+        supplier: {
+          select: { id: true, name: true },
+        },
       },
-    },
-    orderBy: { createdAt: "desc" },
-  });
+      orderBy: { createdAt: "desc" },
+      skip: page?.skip,
+      take: page?.take,
+    }),
+    prisma.supplierLot.count({ where }),
+  ]);
 
-  return lots.map((lot) => ({
-    ...lot,
-    batchAging: calculateBatchAging(lot.harvestDate),
-  }));
+  return {
+    rows: lots.map((lot) => ({
+      ...lot,
+      batchAging: calculateBatchAging(lot.harvestDate),
+    })),
+    total,
+  };
 }
 
 export async function getLotDetail(id: string) {
@@ -64,17 +80,40 @@ export async function getLotDetail(id: string) {
           },
         },
       },
-      payments: {
-        orderBy: { paymentDate: "desc" },
+      // Allocations are the source of truth for "money paid against this lot".
+      // Each allocation links back to its parent SupplierPayment so we can
+      // surface the full payment context (receipt #, method, date, etc.) in
+      // the lot's payment-history table.
+      paymentAllocations: {
+        include: {
+          supplierPayment: {
+            select: {
+              id: true,
+              receiptNumber: true,
+              paymentDate: true,
+              paymentMethod: true,
+              reference: true,
+              amount: true,
+            },
+          },
+        },
+        orderBy: { supplierPayment: { paymentDate: "desc" } },
       },
     },
   });
 
   if (!lot) return null;
 
+  const totalPaid = lot.paymentAllocations.reduce(
+    (sum, a) => sum + Number(a.amount),
+    0
+  );
+
   return {
     ...lot,
     batchAging: calculateBatchAging(lot.harvestDate),
+    totalPaid,
+    outstandingBalance: Number(lot.totalCost) - totalPaid,
   };
 }
 

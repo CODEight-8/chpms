@@ -5,12 +5,19 @@ import { hasPermission } from "@/lib/permissions";
 import { UserRole, BatchStatus } from "@prisma/client";
 import { formatLKR } from "@/lib/currency";
 import {
+  getBatchOutputSummary,
   getBatchesWithDetails,
   getBatchStatusCounts,
 } from "@/lib/queries/production-batches";
 import { PageHeader } from "@/components/shared/page-header";
 import { SummaryCard } from "@/components/shared/summary-card";
+import { Pagination } from "@/components/shared/pagination";
+import { parsePagination } from "@/lib/pagination";
 import { EmptyState } from "@/components/shared/empty-state";
+import {
+  PREPARATION_BADGE,
+  PREPARATION_LABEL,
+} from "@/components/shared/preparation";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { BatchStatusTabs } from "@/components/production/batch-status-tabs";
 import { SearchInput } from "@/components/shared/search-input";
@@ -24,22 +31,45 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Factory, CheckCircle, Truck } from "lucide-react";
+import { Plus, Factory, CheckCircle, Package, PackageCheck } from "lucide-react";
 
 export default async function ProductionPage({
   searchParams,
 }: {
-  searchParams: { status?: string; search?: string };
+  searchParams: Record<string, string | string[] | undefined>;
 }) {
   const session = await getServerSession(authOptions);
   const role = session!.user.role as UserRole;
   const canCreate = hasPermission(role, "production", "create");
 
-  const statusFilter = searchParams.status as BatchStatus | undefined;
-  const [batches, counts] = await Promise.all([
-    getBatchesWithDetails({ status: statusFilter, search: searchParams.search }),
+  const statusParam = pickString(searchParams.status);
+  const statusFilter =
+    statusParam &&
+    Object.values(BatchStatus).includes(statusParam as BatchStatus)
+      ? (statusParam as BatchStatus)
+      : undefined;
+  const search = pickString(searchParams.search);
+  const pg = parsePagination(searchParams);
+  const [batchesResult, counts, outputSummary] = await Promise.all([
+    getBatchesWithDetails(
+      { status: statusFilter, search },
+      { skip: pg.skip, take: pg.take }
+    ),
     getBatchStatusCounts(),
+    getBatchOutputSummary(),
   ]);
+  const { rows: batches, total } = batchesResult;
+
+  // Always render at least one Total/Available pair so the layout stays
+  // consistent even when there are no completed batches yet. Suppress L cards
+  // unless there is liter output to avoid empty noise on kg-only setups.
+  const unitsWithData = Object.entries(outputSummary.byUnit).filter(
+    ([, t]) => t.totalOutput > 0 || t.availableOutput > 0
+  );
+  const summaryUnits =
+    unitsWithData.length > 0
+      ? unitsWithData
+      : [["kg", { totalOutput: 0, availableOutput: 0 }] as const];
 
   return (
     <div className="pt-6">
@@ -59,7 +89,7 @@ export default async function ProductionPage({
       />
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 lg:grid-cols-4 mb-6">
         <SummaryCard
           title="In Progress"
           value={counts.IN_PROGRESS}
@@ -70,11 +100,32 @@ export default async function ProductionPage({
           value={counts.COMPLETED}
           icon={CheckCircle}
         />
-        <SummaryCard
-          title="Dispatched"
-          value={counts.DISPATCHED}
-          icon={Truck}
-        />
+        {summaryUnits.map(([unit, totals]) => (
+          <SummaryCard
+            key={`total-${unit}`}
+            title={
+              summaryUnits.length > 1
+                ? `Total Output (${unit})`
+                : "Total Output"
+            }
+            value={`${totals.totalOutput.toLocaleString()} ${unit}`}
+            tooltip={`Total ${unit} output produced by completed batches.`}
+            icon={Package}
+          />
+        ))}
+        {summaryUnits.map(([unit, totals]) => (
+          <SummaryCard
+            key={`avail-${unit}`}
+            title={
+              summaryUnits.length > 1
+                ? `Available Output (${unit})`
+                : "Available Output"
+            }
+            value={`${totals.availableOutput.toLocaleString()} ${unit}`}
+            tooltip={`Completed ${unit} output still available for orders.`}
+            icon={PackageCheck}
+          />
+        ))}
       </div>
 
       {/* Search + Status Tabs */}
@@ -108,11 +159,18 @@ export default async function ProductionPage({
         />
       ) : (
         <div className="rounded-lg border bg-white">
+          <Pagination
+            total={total}
+            page={pg.page}
+            perPage={pg.perPage}
+            pageParam={pg.pageParam}
+          />
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Batch #</TableHead>
                 <TableHead>Chip Size</TableHead>
+                <TableHead>Prep</TableHead>
                 <TableHead className="text-center">Input Husks</TableHead>
                 <TableHead className="text-right">Output</TableHead>
                 <TableHead>Quality</TableHead>
@@ -133,7 +191,15 @@ export default async function ProductionPage({
                     </Link>
                   </TableCell>
                   <TableCell className="text-gray-600">
-                    {batch.chipSize || "—"}
+                    {batch.chipSize || "-"}
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant="outline"
+                      className={PREPARATION_BADGE[batch.preparation]}
+                    >
+                      {PREPARATION_LABEL[batch.preparation]}
+                    </Badge>
                   </TableCell>
                   <TableCell className="text-center">
                     {batch.totalInputHusks.toLocaleString()}
@@ -141,7 +207,7 @@ export default async function ProductionPage({
                   <TableCell className="text-right">
                     {batch.outputQuantity
                       ? `${Number(batch.outputQuantity).toLocaleString()} ${batch.outputUnit || ""}`
-                      : "—"}
+                      : "-"}
                   </TableCell>
                   <TableCell>
                     {batch.qualityGrade ? (
@@ -158,7 +224,7 @@ export default async function ProductionPage({
                         {batch.qualityGrade}
                       </Badge>
                     ) : (
-                      "—"
+                      "-"
                     )}
                   </TableCell>
                   <TableCell className="text-right font-medium">
@@ -174,8 +240,19 @@ export default async function ProductionPage({
               ))}
             </TableBody>
           </Table>
+          <Pagination
+            total={total}
+            page={pg.page}
+            perPage={pg.perPage}
+            pageParam={pg.pageParam}
+          />
         </div>
       )}
     </div>
   );
+}
+
+function pickString(v: string | string[] | undefined): string | undefined {
+  if (Array.isArray(v)) return v[0];
+  return v;
 }

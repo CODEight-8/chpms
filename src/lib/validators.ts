@@ -7,15 +7,32 @@ import { CLIENT_PAYMENT_METHODS, CLIENT_PAYMENT_TERMS } from "@/lib/client-payme
 
 export const PHONE_ALLOWED_REGEX = /^\+?[\d\s()-]+$/;
 
-//REUSABLE MOBILE NUMBER VALIDATOR
-export const validateMobileNumber = (phone: string): boolean => {
+export const normalizeSriLankaPhoneNumber = (phone: string): string | undefined => {
   const trimmed = phone.trim();
   if (!trimmed || !PHONE_ALLOWED_REGEX.test(trimmed)) {
-    return false;
+    return undefined;
   }
 
-  const digitsOnly = trimmed.replace(/\D/g, "");
-  return digitsOnly.length >= 10 && digitsOnly.length <= 15;
+  const cleaned = trimmed.replace(/[\s()-]/g, "");
+
+  if (cleaned.startsWith("+")) {
+    return /^\+94\d{9}$/.test(cleaned) ? cleaned : undefined;
+  }
+
+  if (/^0\d{9}$/.test(cleaned)) {
+    return "+94" + cleaned.slice(1);
+  }
+
+  if (/^94\d{9}$/.test(cleaned)) {
+    return "+" + cleaned;
+  }
+
+  return undefined;
+};
+
+//REUSABLE MOBILE NUMBER VALIDATOR
+export const validateMobileNumber = (phone: string): boolean => {
+  return Boolean(normalizeSriLankaPhoneNumber(phone));
 };
 
 export const phoneSchema = z
@@ -134,9 +151,24 @@ export const supplierLotUpdateSchema = z.object({
   notes: z.string().max(2000).optional(),
 });
 
+// Chip size pattern: a positive integer followed by either "s" or "c"
+// (e.g. "5c", "3s", "10c"). Suffix is the chip type — "c" is the default.
+const chipSizeSchema = z
+  .string()
+  .regex(
+    /^\d+[sc]$/,
+    "Chip size must be a positive number followed by 's' or 'c' (e.g. 5c, 3s)"
+  )
+  .max(10);
+
+const preparationSchema = z.enum(["RAW", "DRY", "WASHED"], {
+  message: "Preparation must be RAW, DRY, or WASHED",
+});
+
 export const productionBatchSchema = z.object({
   productId: z.string().uuid("Invalid product"),
-  chipSize: z.string().min(1, "Chip size is required").max(50),
+  chipSize: chipSizeSchema,
+  preparation: preparationSchema.default("RAW"),
   lots: z
     .array(
       z.object({
@@ -152,7 +184,19 @@ export const productionBatchSchema = z.object({
 
 export const completeBatchSchema = z.object({
   outputQuantity: z.number().positive("Output quantity must be positive").max(1000000),
+  // Per-batch unit chosen at completion time. Some output is solid chips (kg),
+  // others are pressed/liquid by-products measured in liters.
+  outputUnit: z.enum(["kg", "L"], {
+    message: "Output unit must be 'kg' or 'L'",
+  }),
   qualityScore: z.number().min(0, "Quality score must be 0-100").max(100, "Quality score must be 0-100"),
+  // Optional operating cost for this batch (labor, electricity, fuel, etc).
+  // When > 0 the API auto-creates a linked Misc Out transaction.
+  additionalCost: z
+    .number()
+    .nonnegative("Additional cost cannot be negative")
+    .max(100000000, "Additional cost cannot exceed 100,000,000 LKR")
+    .optional(),
 });
 
 export const clientSchema = z.object({
@@ -197,7 +241,10 @@ export const orderSchema = z.object({
     .array(
       z.object({
         productId: z.string().uuid(),
-        chipSize: z.string().min(1, "Chip size is required").max(50),
+        chipSize: chipSizeSchema,
+        preparation: preparationSchema.default("RAW"),
+        // Per-item unit. When omitted the order POST falls back to product.unit.
+        unit: z.enum(["kg", "L"]).optional(),
         quantityOrdered: z.number().positive(),
         unitPrice: z.number().positive(),
       })
@@ -219,21 +266,63 @@ export const fulfillmentSchema = z.object({
 });
 
 export const paymentSchema = z.object({
-  amount: z.number().positive("Amount must be positive").max(100000000),
+  amount: z.number().positive("Amount must be positive").max(100000000, "Amount cannot exceed 100,000,000 LKR"),
   paymentDate: z.string().min(1, "Payment date is required"),
   paymentMethod: z.enum(["CASH", "BANK", "CHEQUE"]),
   reference: z.string().max(200).optional(),
   notes: z.string().max(2000).optional(),
 });
 
+// Schema for a single line in a multi-invoice payment.
+export const supplierPaymentAllocationSchema = z.object({
+  supplierLotId: z.string().uuid("Invalid lot in allocation"),
+  amount: z
+    .number()
+    .positive("Allocation amount must be positive")
+    .max(100000000, "Allocation amount cannot exceed 100,000,000 LKR"),
+});
+
+export const clientPaymentAllocationSchema = z.object({
+  orderId: z.string().uuid("Invalid order in allocation"),
+  amount: z
+    .number()
+    .positive("Allocation amount must be positive")
+    .max(100000000, "Allocation amount cannot exceed 100,000,000 LKR"),
+});
+
+// New writes provide `allocations`. Legacy single-FK `supplierLotId` is still
+// accepted and translated into a one-row allocation server-side. At least one
+// of the two must be present — general (unallocated) payments are not allowed.
 export const supplierPaymentSchema = paymentSchema.extend({
   supplierId: z.string().uuid("Invalid supplier"),
   supplierLotId: z.string().uuid().optional(),
+  allocations: z.array(supplierPaymentAllocationSchema).optional(),
 });
 
 export const clientPaymentSchema = paymentSchema.extend({
   clientId: z.string().uuid("Invalid client"),
   orderId: z.string().uuid().optional(),
+  allocations: z.array(clientPaymentAllocationSchema).optional(),
+});
+
+export const miscTransactionSchema = z.object({
+  direction: z.enum(["IN", "OUT"]),
+  category: z
+    .string()
+    .min(1, "Category is required")
+    .max(100, "Category is too long"),
+  amount: z
+    .number()
+    .positive("Amount must be positive")
+    .max(100000000, "Amount cannot exceed 100,000,000 LKR"),
+  paymentMethod: z.enum(["CASH", "BANK", "CHEQUE"]),
+  transactionDate: z.string().min(1, "Date is required"),
+  description: z
+    .string()
+    .min(1, "Description is required")
+    .max(500, "Description is too long"),
+  reference: z.string().max(200).optional(),
+  notes: z.string().max(2000).optional(),
 });
 
 export const userSchema = z.object({

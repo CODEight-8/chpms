@@ -211,9 +211,12 @@ export default async function SupplierDetailPage({
           {/* Lot Payment Status Breakdown */}
           {supplier.lots.length > 0 && (() => {
             const lotPaymentData = supplier.lots.map((lot) => {
-              const paid = supplier.payments
-                .filter((p) => p.supplierLotId === lot.id)
-                .reduce((sum, p) => sum + Number(p.amount), 0);
+              // Source of truth: per-lot allocations. Counts multi-lot
+              // payments (legacy supplierLotId null) correctly.
+              const paid = lot.paymentAllocations.reduce(
+                (sum, a) => sum + Number(a.amount),
+                0
+              );
               const total = Number(lot.totalCost);
               const outstanding = total - paid;
               return { ...lot, paid, total, outstanding };
@@ -325,9 +328,10 @@ export default async function SupplierDetailPage({
                   supplierName={supplier.name}
                   lots={supplier.lots
                     .map((lot) => {
-                      const paid = supplier.payments
-                        .filter((p) => p.supplierLotId === lot.id)
-                        .reduce((sum, p) => sum + Number(p.amount), 0);
+                      const paid = lot.paymentAllocations.reduce(
+                        (sum, a) => sum + Number(a.amount),
+                        0
+                      );
                       return {
                         id: lot.id,
                         lotNumber: lot.lotNumber,
@@ -372,14 +376,35 @@ export default async function SupplierDetailPage({
                           )}
                         </TableCell>
                         <TableCell className="font-mono text-xs text-gray-500">
-                          {payment.supplierLotId
-                            ? (() => {
-                                const lot = supplier.lots.find((l) => l.id === payment.supplierLotId);
-                                return lot
-                                  ? `${lot.lotNumber} / ${lot.invoiceNumber}`
-                                  : "—";
-                              })()
-                            : "General"}
+                          {payment.allocations.length > 0 ? (
+                            payment.allocations.length === 1 ? (
+                              <Link
+                                href={`/supplier-lots/${payment.allocations[0].supplierLot.id}`}
+                                className="hover:underline"
+                              >
+                                {payment.allocations[0].supplierLot.lotNumber} /{" "}
+                                {payment.allocations[0].supplierLot.invoiceNumber}
+                              </Link>
+                            ) : (
+                              <div className="flex flex-col gap-0.5">
+                                {payment.allocations.map((a) => (
+                                  <Link
+                                    key={a.id}
+                                    href={`/supplier-lots/${a.supplierLot.id}`}
+                                    className="text-[11px] hover:underline"
+                                  >
+                                    {a.supplierLot.lotNumber} /{" "}
+                                    {a.supplierLot.invoiceNumber}{" "}
+                                    <span className="text-gray-400">
+                                      ({formatLKR(Number(a.amount))})
+                                    </span>
+                                  </Link>
+                                ))}
+                              </div>
+                            )
+                          ) : (
+                            <span className="text-gray-400">-</span>
+                          )}
                         </TableCell>
                         <TableCell>{payment.paymentMethod}</TableCell>
                         <TableCell className="text-right font-medium">
