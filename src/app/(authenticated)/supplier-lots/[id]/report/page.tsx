@@ -3,6 +3,7 @@ import { getLotDetail } from "@/lib/queries/supplier-lots";
 import { formatLKR } from "@/lib/currency";
 import { formatSriLankaPhoneNumber } from "@/lib/utils";
 import { PrintLayout } from "@/components/shared/print-layout";
+import { COMPANY_NAME } from "@/lib/branding";
 
 export default async function AuditReportPage({
   params,
@@ -26,7 +27,7 @@ export default async function AuditReportPage({
           {/* Header */}
           <div className="text-center border-b-2 border-emerald-700 pb-4 mb-6">
             <h1 className="text-xl font-bold text-emerald-900">
-              T C Liyanage
+              {COMPANY_NAME}
             </h1>
             <p className="text-sm text-gray-500">
               Coconut Husk Processing Management System
@@ -156,7 +157,7 @@ export default async function AuditReportPage({
               Generated: {new Date().toLocaleDateString("en-LK")} at{" "}
               {new Date().toLocaleTimeString("en-LK")}
             </span>
-            <span>CHPMS — T C Liyanage</span>
+            <span>CHPMS — {COMPANY_NAME}</span>
           </div>
         </div>
       </PrintLayout>
