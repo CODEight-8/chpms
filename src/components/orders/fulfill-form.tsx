@@ -20,6 +20,7 @@ interface FulfillFormProps {
   orderItemId: string;
   productName: string;
   chipSize?: string | null;
+  preparation: "RAW" | "DRY" | "WASHED";
   remaining: number;
   unit: string;
 }
@@ -28,6 +29,7 @@ interface CompletedBatch {
   id: string;
   batchNumber: string;
   chipSize: string | null;
+  preparation: "RAW" | "DRY" | "WASHED";
   outputQuantity: string;
   availableOutput: string | null;
   outputUnit: string;
@@ -49,6 +51,7 @@ export function FulfillForm({
   orderItemId,
   productName,
   chipSize,
+  preparation,
   remaining,
   unit,
 }: FulfillFormProps) {
@@ -62,6 +65,7 @@ export function FulfillForm({
     if (!open) return;
     const params = new URLSearchParams({ status: "COMPLETED" });
     if (chipSize) params.set("chipSize", chipSize);
+    if (preparation) params.set("preparation", preparation);
 
     fetch(`/api/production-batches?${params}`)
       .then((r) => r.json())
@@ -69,7 +73,8 @@ export function FulfillForm({
         // Hide batches with nothing left to allocate, and batches whose
         // outputUnit doesn't match this order item's unit (a kg line cannot
         // be fulfilled from an L batch — the server rejects it anyway, this
-        // just keeps the picker from showing batches that won't work).
+        // just keeps the picker from showing batches that won't work). The
+        // preparation filter is applied server-side via the query param.
         setBatches(
           data.filter(
             (b) =>
@@ -79,7 +84,7 @@ export function FulfillForm({
         setAllocations([]);
       })
       .catch(() => toast.error("Failed to load batches"));
-  }, [open, chipSize, unit]);
+  }, [open, chipSize, preparation, unit]);
 
   const totalAvailable = useMemo(
     () => batches.reduce((sum, b) => sum + batchAvailable(b), 0),
@@ -210,6 +215,9 @@ export function FulfillForm({
                   ({chipSize} chips)
                 </span>
               )}
+              <span className="ml-1 font-medium text-gray-700">
+                · {preparation.charAt(0) + preparation.slice(1).toLowerCase()}
+              </span>
             </p>
           </div>
 

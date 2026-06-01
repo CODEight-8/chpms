@@ -15,6 +15,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ChipSizeInput } from "@/components/shared/chip-size-input";
+import {
+  PreparationSelect,
+  type Preparation,
+} from "@/components/shared/preparation-select";
 import { toast } from "sonner";
 import { Plus, Trash2 } from "lucide-react";
 
@@ -36,12 +41,11 @@ type OrderUnit = "kg" | "L";
 interface LineItem {
   productId: string;
   chipSize: string;
+  preparation: Preparation;
   unit: OrderUnit;
   quantity: number;
   unitPrice: number;
 }
-
-const CHIP_SIZES = ["5mm", "10mm", "15mm", "20mm", "25mm"];
 
 function defaultUnit(product?: Product): OrderUnit {
   return product?.unit === "L" ? "L" : "kg";
@@ -72,7 +76,8 @@ export function OrderForm() {
           setItems([
             {
               productId: prods[0].id,
-              chipSize: "5mm",
+              chipSize: "",
+              preparation: "RAW",
               unit: defaultUnit(prods[0]),
               quantity: 0,
               unitPrice: Number(prods[0].defaultPrice) || 0,
@@ -123,7 +128,8 @@ export function OrderForm() {
       ...prev,
       {
         productId: nextProduct.id,
-        chipSize: "5mm",
+        chipSize: "",
+        preparation: "RAW",
         unit: defaultUnit(nextProduct),
         quantity: 0,
         unitPrice: Number(nextProduct.defaultPrice) || 0,
@@ -166,6 +172,7 @@ export function OrderForm() {
       items: validItems.map((i) => ({
         productId: i.productId,
         chipSize: i.chipSize,
+        preparation: i.preparation,
         unit: i.unit,
         quantityOrdered: i.quantity,
         unitPrice: i.unitPrice,
@@ -330,24 +337,23 @@ export function OrderForm() {
                   </div>
                 )}
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label>Chip Size *</Label>
-                    <Select
+                    <ChipSizeInput
                       value={item.chipSize}
-                      onValueChange={(v) => updateItem(index, "chipSize", v)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select chip size" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {CHIP_SIZES.map((size) => (
-                          <SelectItem key={size} value={size}>
-                            {size}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      onChange={(v) => updateItem(index, "chipSize", v)}
+                    />
+                    <p className="text-xs text-gray-500">
+                      Number + type, e.g. 5c, 3s.
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Preparation *</Label>
+                    <PreparationSelect
+                      value={item.preparation}
+                      onChange={(v) => updateItem(index, "preparation", v)}
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label>Unit *</Label>

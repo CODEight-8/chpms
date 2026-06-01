@@ -59,13 +59,13 @@ export async function getMonthlyThroughput() {
 }
 
 /**
- * Monthly cash flow: income (client order payments) vs outgoing
- * (supplier payments + miscellaneous out). Returns last 6 months for the
- * dashboard cash-flow chart.
+ * Monthly cash flow: income (client order payments + miscellaneous in) vs
+ * outgoing (supplier payments + miscellaneous out). Returns last 6 months
+ * for the dashboard cash-flow chart.
  *
- * "Income" here is operational revenue only — client payments collected
- * against orders. Owner capital and other Misc In are intentionally
- * excluded so the chart reflects business performance, not equity flow.
+ * Income is split into two stacked segments on the chart: client payments
+ * (operational revenue) and miscellaneous in (owner capital injections,
+ * refunds, etc.) so the breakdown is visible at a glance.
  */
 export async function getMonthlyCashFlow() {
   const sixMonthsAgo = new Date();
@@ -73,7 +73,7 @@ export async function getMonthlyCashFlow() {
   sixMonthsAgo.setDate(1);
   sixMonthsAgo.setHours(0, 0, 0, 0);
 
-  const [clientPayments, supplierPayments, miscOut] = await Promise.all([
+  const [clientPayments, supplierPayments, miscIn, miscOut] = await Promise.all([
     prisma.clientPayment.findMany({
       where: { paymentDate: { gte: sixMonthsAgo } },
       select: { paymentDate: true, amount: true },
@@ -83,6 +83,10 @@ export async function getMonthlyCashFlow() {
       select: { paymentDate: true, amount: true },
     }),
     prisma.miscTransaction.findMany({
+      where: { direction: "IN", transactionDate: { gte: sixMonthsAgo } },
+      select: { transactionDate: true, amount: true },
+    }),
+    prisma.miscTransaction.findMany({
       where: { direction: "OUT", transactionDate: { gte: sixMonthsAgo } },
       select: { transactionDate: true, amount: true },
     }),
@@ -90,7 +94,7 @@ export async function getMonthlyCashFlow() {
 
   const months: Record<
     string,
-    { income: number; supplierOut: number; miscOut: number }
+    { clientIn: number; miscIn: number; supplierOut: number; miscOut: number }
   > = {};
 
   // Pre-seed every month in the window so empty months still render a bar.
@@ -98,7 +102,7 @@ export async function getMonthlyCashFlow() {
     const d = new Date();
     d.setMonth(d.getMonth() - i);
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    months[key] = { income: 0, supplierOut: 0, miscOut: 0 };
+    months[key] = { clientIn: 0, miscIn: 0, supplierOut: 0, miscOut: 0 };
   }
 
   const keyFor = (date: Date) =>
@@ -106,11 +110,15 @@ export async function getMonthlyCashFlow() {
 
   for (const p of clientPayments) {
     const key = keyFor(new Date(p.paymentDate));
-    if (months[key]) months[key].income += Number(p.amount);
+    if (months[key]) months[key].clientIn += Number(p.amount);
   }
   for (const p of supplierPayments) {
     const key = keyFor(new Date(p.paymentDate));
     if (months[key]) months[key].supplierOut += Number(p.amount);
+  }
+  for (const m of miscIn) {
+    const key = keyFor(new Date(m.transactionDate));
+    if (months[key]) months[key].miscIn += Number(m.amount);
   }
   for (const m of miscOut) {
     const key = keyFor(new Date(m.transactionDate));
@@ -118,6 +126,7 @@ export async function getMonthlyCashFlow() {
   }
 
   return Object.entries(months).map(([month, data]) => {
+    const income = data.clientIn + data.miscIn;
     const outgoing = data.supplierOut + data.miscOut;
     return {
       month,
@@ -125,11 +134,13 @@ export async function getMonthlyCashFlow() {
         month: "short",
         year: "2-digit",
       }),
-      income: data.income,
+      income,
       outgoing,
+      clientIn: data.clientIn,
+      miscIn: data.miscIn,
       supplierOut: data.supplierOut,
       miscOut: data.miscOut,
-      net: data.income - outgoing,
+      net: income - outgoing,
     };
   });
 }

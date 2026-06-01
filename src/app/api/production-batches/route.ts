@@ -19,6 +19,13 @@ export async function GET(request: NextRequest) {
       : null;
   const search = searchParams.get("search") || undefined;
   const chipSize = searchParams.get("chipSize") || undefined;
+  const preparationParam = searchParams.get("preparation");
+  const preparation =
+    preparationParam === "RAW" ||
+    preparationParam === "DRY" ||
+    preparationParam === "WASHED"
+      ? preparationParam
+      : undefined;
   const countsOnly = searchParams.get("counts") === "true";
 
   if (statusParam && !status) {
@@ -34,6 +41,7 @@ export async function GET(request: NextRequest) {
     status: status || undefined,
     search,
     chipSize,
+    preparation,
   });
 
   return jsonResponse(rows);
@@ -50,7 +58,7 @@ export async function POST(request: NextRequest) {
     return errorResponse(parsed.error.issues[0].message);
   }
 
-  const { productId, chipSize, lots, notes, remarks } = parsed.data;
+  const { productId, chipSize, preparation, lots, notes, remarks } = parsed.data;
 
   // Verify product exists (safe outside transaction — products are not mutated)
   const product = await prisma.product.findUnique({
@@ -101,6 +109,7 @@ export async function POST(request: NextRequest) {
           batchNumber,
           productId,
           chipSize,
+          preparation,
           totalRawCost,
           notes: notes || null,
           remarks: remarks || null,

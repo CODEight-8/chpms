@@ -1,10 +1,11 @@
 import { prisma } from "@/lib/prisma";
-import { BatchStatus, Prisma } from "@prisma/client";
+import { BatchStatus, Preparation, Prisma } from "@prisma/client";
 
 interface BatchFilters {
   status?: BatchStatus;
   search?: string;
   chipSize?: string;
+  preparation?: Preparation | string;
 }
 
 interface PageOpts {
@@ -24,6 +25,10 @@ export async function getBatchesWithDetails(
 
   if (filters?.chipSize) {
     where.chipSize = filters.chipSize;
+  }
+
+  if (filters?.preparation) {
+    where.preparation = filters.preparation as Preparation;
   }
 
   if (filters?.search) {

@@ -203,6 +203,34 @@ Promise.resolve()
   });
 "
 
+# Idempotent backfill: convert legacy chip sizes like "5mm" / "10mm" into the
+# new "<n><s|c>" format. The default suffix is "c" matching the new UI default.
+# The Preparation column gets its default (RAW) automatically from the schema,
+# so no separate backfill is required there.
+echo "Backfilling legacy chip sizes (e.g. 5mm -> 5c) if needed..."
+node -e "
+const { PrismaClient } = require('@prisma/client');
+const p = new PrismaClient();
+Promise.resolve()
+  .then(() =>
+    p.\$executeRawUnsafe(
+      \"UPDATE production_batches SET chip_size = REGEXP_REPLACE(chip_size, '^(\\\\d+)\\\\s*mm\$', '\\\\1c') WHERE chip_size ~ '^\\\\d+\\\\s*mm\$'\"
+    )
+  )
+  .then((n) => console.log('Production batch chip_size rows backfilled:', n))
+  .then(() =>
+    p.\$executeRawUnsafe(
+      \"UPDATE order_items SET chip_size = REGEXP_REPLACE(chip_size, '^(\\\\d+)\\\\s*mm\$', '\\\\1c') WHERE chip_size ~ '^\\\\d+\\\\s*mm\$'\"
+    )
+  )
+  .then((n) => console.log('Order item chip_size rows backfilled:', n))
+  .then(() => p.\$disconnect())
+  .catch((e) => {
+    console.error('chip_size backfill failed:', e.message);
+    process.exit(1);
+  });
+"
+
 # Idempotent backfill: initialize available_output for COMPLETED batches that
 # predate this column, accounting for any fulfillments already recorded.
 echo "Backfilling production_batches.available_output if needed..."

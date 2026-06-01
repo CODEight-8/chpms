@@ -44,13 +44,15 @@ export async function POST(
           throw new Error(`Order item ${f.orderItemId} not found`);
         }
 
-        // Static fields (status/chipSize/productId/batchNumber) for validation + error text.
+        // Static fields (status/chipSize/preparation/productId/batchNumber) for
+        // validation + error text.
         const batch = await tx.productionBatch.findUnique({
           where: { id: f.productionBatchId },
           select: {
             batchNumber: true,
             status: true,
             chipSize: true,
+            preparation: true,
             outputUnit: true,
             productId: true,
           },
@@ -68,6 +70,15 @@ export async function POST(
         if (item.chipSize && batch.chipSize && item.chipSize !== batch.chipSize) {
           throw new Error(
             `Chip size mismatch: order requires ${item.chipSize} but batch ${batch.batchNumber} is ${batch.chipSize}`
+          );
+        }
+
+        // Preparation must match — a Dry batch cannot fulfill a Raw order line
+        // (or vice versa). Defaults to RAW for legacy rows on both sides so
+        // pre-feature data still fulfills as expected.
+        if (item.preparation !== batch.preparation) {
+          throw new Error(
+            `Preparation mismatch: order requires ${item.preparation} but batch ${batch.batchNumber} is ${batch.preparation}`
           );
         }
 

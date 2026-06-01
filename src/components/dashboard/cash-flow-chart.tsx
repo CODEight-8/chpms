@@ -15,6 +15,8 @@ interface CashFlowMonth {
   label: string;
   income: number;
   outgoing: number;
+  clientIn: number;
+  miscIn: number;
   supplierOut: number;
   miscOut: number;
   net: number;
@@ -48,10 +50,18 @@ function CustomTooltip({
       <p className="font-medium text-gray-900 mb-2">{label}</p>
       <div className="space-y-1">
         <div className="flex justify-between gap-6">
-          <span className="text-emerald-700">Income (client payments)</span>
-          <span className="font-medium">LKR {formatLKR(row.income)}</span>
+          <span className="text-emerald-700">Client payments</span>
+          <span className="font-medium">LKR {formatLKR(row.clientIn)}</span>
         </div>
         <div className="flex justify-between gap-6">
+          <span className="text-sky-600">Miscellaneous in</span>
+          <span className="font-medium">LKR {formatLKR(row.miscIn)}</span>
+        </div>
+        <div className="flex justify-between gap-6 border-t pt-1 mt-1 text-gray-600">
+          <span>Total income</span>
+          <span className="font-medium">LKR {formatLKR(row.income)}</span>
+        </div>
+        <div className="flex justify-between gap-6 pt-2">
           <span className="text-amber-700">Supplier payments</span>
           <span className="font-medium">LKR {formatLKR(row.supplierOut)}</span>
         </div>
@@ -99,17 +109,21 @@ export function CashFlowChart({ data }: CashFlowChartProps) {
         <Tooltip content={<CustomTooltip />} cursor={{ fill: "#f9fafb" }} />
         <Legend
           formatter={(value: string) =>
-            value === "income"
-              ? "Income (Client Payments)"
-              : value === "supplierOut"
-                ? "Supplier Payments"
-                : "Miscellaneous Out"
+            value === "clientIn"
+              ? "Client Payments"
+              : value === "miscIn"
+                ? "Miscellaneous In"
+                : value === "supplierOut"
+                  ? "Supplier Payments"
+                  : "Miscellaneous Out"
           }
         />
-        {/* Income: one solid bar per month */}
-        <Bar dataKey="income" fill="#059669" radius={[4, 4, 0, 0]} />
-        {/* Outgoing: stacked into two segments so both colors are visible
-            at a glance — supplier payments (amber) and misc out (rose). */}
+        {/* Income: stacked client payments (emerald) + misc in (sky blue)
+            so both inflow types are clearly distinguishable. Sky vs emerald
+            has higher contrast than the previous teal/emerald pairing. */}
+        <Bar dataKey="clientIn" stackId="in" fill="#059669" />
+        <Bar dataKey="miscIn" stackId="in" fill="#0ea5e9" radius={[4, 4, 0, 0]} />
+        {/* Outgoing: stacked supplier payments (amber) + misc out (rose). */}
         <Bar dataKey="supplierOut" stackId="out" fill="#d97706" />
         <Bar dataKey="miscOut" stackId="out" fill="#e11d48" radius={[4, 4, 0, 0]} />
       </BarChart>

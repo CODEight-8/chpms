@@ -190,8 +190,7 @@ export function BatchActions({
               />
               <p className="text-xs text-gray-500">
                 Optional — labor, electricity, fuel, packaging, etc. spent on
-                this batch. Will be recorded as a Miscellaneous Out
-                transaction.
+                this batch. Included in cost-of-production analytics.
               </p>
             </div>
             <Button

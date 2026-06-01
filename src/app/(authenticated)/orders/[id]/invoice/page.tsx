@@ -3,6 +3,7 @@ import { getOrderDetail } from "@/lib/queries/orders";
 import { formatLKR } from "@/lib/currency";
 import { formatSriLankaPhoneNumber } from "@/lib/utils";
 import { PrintLayout } from "@/components/shared/print-layout";
+import { COMPANY_NAME } from "@/lib/branding";
 
 export default async function OrderInvoicePage({
   params,
@@ -20,7 +21,7 @@ export default async function OrderInvoicePage({
           <div className="flex justify-between items-start border-b-2 border-emerald-700 pb-4 mb-6">
             <div>
               <h1 className="text-xl font-bold text-emerald-900">
-                T C Liyanage
+                {COMPANY_NAME}
               </h1>
               <p className="text-sm text-gray-500">
                 Coconut Husk Processing
@@ -147,6 +148,9 @@ export default async function OrderInvoicePage({
                           [{item.chipSize}]
                         </span>
                       )}
+                      <span className="ml-1 text-gray-600">
+                        · {item.preparation.charAt(0) + item.preparation.slice(1).toLowerCase()}
+                      </span>
                     </td>
                     <td className="py-3 text-center">
                       {Number(item.quantityOrdered).toLocaleString()}
@@ -276,7 +280,7 @@ export default async function OrderInvoicePage({
               Generated: {new Date().toLocaleDateString("en-LK")} at{" "}
               {new Date().toLocaleTimeString("en-LK")}
             </span>
-            <span>CHPMS — T C Liyanage</span>
+            <span>CHPMS — {COMPANY_NAME}</span>
           </div>
         </div>
       </PrintLayout>
