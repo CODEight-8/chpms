@@ -26,7 +26,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   PREPARATION_BADGE,
   PREPARATION_LABEL,
-} from "@/components/shared/preparation-select";
+} from "@/components/shared/preparation";
 import { FileText } from "lucide-react";
 
 export default async function ProductionBatchDetailPage({

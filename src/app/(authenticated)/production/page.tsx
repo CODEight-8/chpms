@@ -17,7 +17,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import {
   PREPARATION_BADGE,
   PREPARATION_LABEL,
-} from "@/components/shared/preparation-select";
+} from "@/components/shared/preparation";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { BatchStatusTabs } from "@/components/production/batch-status-tabs";
 import { SearchInput } from "@/components/shared/search-input";

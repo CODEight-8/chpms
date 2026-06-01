@@ -17,7 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   PREPARATION_BADGE,
   PREPARATION_LABEL,
-} from "@/components/shared/preparation-select";
+} from "@/components/shared/preparation";
 import { Receipt, TrendingUp } from "lucide-react";
 import {
   Table,
