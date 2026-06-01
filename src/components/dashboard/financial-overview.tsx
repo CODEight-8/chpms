@@ -88,7 +88,7 @@ const CARD_DEFS: CardDef[] = [
     icon: TrendingUp,
     value: (d) => formatLKR(d.netProfit),
     subtitle: (d) =>
-      `After ${formatLKR(d.totalMiscOut + d.totalAdditionalCost)} operating expenses`,
+      `Revenue − Procurement − ${formatLKR(d.totalMiscOut)} Misc Out`,
   },
 ];
 

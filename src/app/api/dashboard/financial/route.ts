@@ -84,11 +84,12 @@ export async function GET(req: NextRequest) {
   const totalAdditionalCost = Number(batchExtraAgg._sum.additionalCost || 0);
 
   const grossProfit = totalReceived - totalPaidSuppliers;
-  // Net Profit folds in operating expenses beyond raw procurement: misc-out
-  // (electricity, fuel, etc.) and per-batch additional cost captured at
-  // completion. Misc-In is excluded — owner capital injections are equity,
-  // not operating revenue.
-  const netProfit = grossProfit - totalMiscOut - totalAdditionalCost;
+  // Net Profit on an accrual basis: ordered revenue minus all procured raw
+  // material cost minus operating misc-out. Misc-In is excluded (equity, not
+  // operating revenue). Per-batch additional cost is intentionally NOT
+  // subtracted — it would double-count operating spend that's already
+  // captured separately in the cost-of-production analytics.
+  const netProfit = totalRevenue - totalProcurement - totalMiscOut;
 
   return jsonResponse({
     totalProcurement,
