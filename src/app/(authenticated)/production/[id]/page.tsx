@@ -23,6 +23,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import {
+  PREPARATION_BADGE,
+  PREPARATION_LABEL,
+} from "@/components/shared/preparation-select";
 import { FileText } from "lucide-react";
 
 export default async function ProductionBatchDetailPage({
@@ -80,6 +84,17 @@ export default async function ProductionBatchDetailPage({
                 <InfoField
                   label="Target Chip Size"
                   value={batch.chipSize || "-"}
+                />
+                <InfoField
+                  label="Preparation"
+                  value={
+                    <Badge
+                      variant="outline"
+                      className={PREPARATION_BADGE[batch.preparation]}
+                    >
+                      {PREPARATION_LABEL[batch.preparation]}
+                    </Badge>
+                  }
                 />
                 <InfoField
                   label="Started"

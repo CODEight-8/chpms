@@ -151,9 +151,24 @@ export const supplierLotUpdateSchema = z.object({
   notes: z.string().max(2000).optional(),
 });
 
+// Chip size pattern: a positive integer followed by either "s" or "c"
+// (e.g. "5c", "3s", "10c"). Suffix is the chip type — "c" is the default.
+const chipSizeSchema = z
+  .string()
+  .regex(
+    /^\d+[sc]$/,
+    "Chip size must be a positive number followed by 's' or 'c' (e.g. 5c, 3s)"
+  )
+  .max(10);
+
+const preparationSchema = z.enum(["RAW", "DRY", "WASHED"], {
+  message: "Preparation must be RAW, DRY, or WASHED",
+});
+
 export const productionBatchSchema = z.object({
   productId: z.string().uuid("Invalid product"),
-  chipSize: z.string().min(1, "Chip size is required").max(50),
+  chipSize: chipSizeSchema,
+  preparation: preparationSchema.default("RAW"),
   lots: z
     .array(
       z.object({
@@ -226,7 +241,8 @@ export const orderSchema = z.object({
     .array(
       z.object({
         productId: z.string().uuid(),
-        chipSize: z.string().min(1, "Chip size is required").max(50),
+        chipSize: chipSizeSchema,
+        preparation: preparationSchema.default("RAW"),
         // Per-item unit. When omitted the order POST falls back to product.unit.
         unit: z.enum(["kg", "L"]).optional(),
         quantityOrdered: z.number().positive(),

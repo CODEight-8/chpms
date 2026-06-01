@@ -13,6 +13,11 @@ import { FulfillForm } from "@/components/orders/fulfill-form";
 import { RecordOrderPayment } from "@/components/accounts/record-order-payment";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  PREPARATION_BADGE,
+  PREPARATION_LABEL,
+} from "@/components/shared/preparation-select";
 import { Receipt, TrendingUp } from "lucide-react";
 import {
   Table,
@@ -168,15 +173,23 @@ export default async function OrderDetailPage({
                     return (
                       <TableRow key={item.id}>
                         <TableCell className="font-medium">
-                          {item.product.name}
-                          <span className="text-gray-500 ml-1 text-xs">
-                            ({itemUnit})
-                          </span>
-                          {item.chipSize && (
-                            <span className="ml-1 text-xs font-medium text-blue-600">
-                              [{item.chipSize}]
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span>{item.product.name}</span>
+                            <span className="text-gray-500 text-xs">
+                              ({itemUnit})
                             </span>
-                          )}
+                            {item.chipSize && (
+                              <span className="text-xs font-medium text-blue-600">
+                                [{item.chipSize}]
+                              </span>
+                            )}
+                            <Badge
+                              variant="outline"
+                              className={`text-[10px] py-0 px-1.5 ${PREPARATION_BADGE[item.preparation]}`}
+                            >
+                              {PREPARATION_LABEL[item.preparation]}
+                            </Badge>
+                          </div>
                         </TableCell>
                         <TableCell className="text-center">
                           {Number(item.quantityOrdered).toLocaleString()}
@@ -212,6 +225,7 @@ export default async function OrderDetailPage({
                                 orderItemId={item.id}
                                 productName={item.product.name}
                                 chipSize={item.chipSize}
+                                preparation={item.preparation}
                                 remaining={remaining}
                                 unit={itemUnit}
                               />

@@ -62,6 +62,12 @@ enum MiscDirection {
   OUT
 }
 
+enum Preparation {
+  RAW
+  DRY
+  WASHED
+}
+
 // ──────────────────────────────────────
 // Models
 // ──────────────────────────────────────
@@ -143,10 +149,13 @@ model Product {
 }
 
 model ProductionBatch {
-  id             String      @id @default(uuid())
-  batchNumber    String      @unique @map("batch_number")
-  productId      String      @map("product_id")
-  chipSize       String?     @map("chip_size")
+  id             String       @id @default(uuid())
+  batchNumber    String       @unique @map("batch_number")
+  productId      String       @map("product_id")
+  chipSize       String?      @map("chip_size")
+  // Material preparation type — must match the order item's preparation for
+  // fulfillment. Defaults to RAW for legacy/unspecified rows.
+  preparation    Preparation  @default(RAW)
   remarks        String?
   startedAt      DateTime    @default(now()) @map("started_at")
   completedAt    DateTime?   @map("completed_at")
@@ -230,18 +239,21 @@ model Order {
 }
 
 model OrderItem {
-  id                String  @id @default(uuid())
-  orderId           String  @map("order_id")
-  productId         String  @map("product_id")
-  chipSize          String? @map("chip_size")
+  id                String       @id @default(uuid())
+  orderId           String       @map("order_id")
+  productId         String       @map("product_id")
+  chipSize          String?      @map("chip_size")
+  // Material preparation type — must match the production batch's preparation
+  // at fulfillment. Defaults to RAW for legacy rows.
+  preparation       Preparation  @default(RAW)
   // Per-item override of the product's default unit. Lets one product (e.g.
   // Coconut Husk Chips, default kg) be ordered in either kg or L without
   // creating duplicate products. Falls back to product.unit when null (legacy
   // rows + orders created before per-item units were introduced).
-  unit              String? @map("unit")
-  quantityOrdered   Decimal @map("quantity_ordered") @db.Decimal(10, 2)
-  unitPrice         Decimal @map("unit_price") @db.Decimal(10, 2)
-  quantityFulfilled Decimal @default(0) @map("quantity_fulfilled") @db.Decimal(10, 2)
+  unit              String?      @map("unit")
+  quantityOrdered   Decimal      @map("quantity_ordered") @db.Decimal(10, 2)
+  unitPrice         Decimal      @map("unit_price") @db.Decimal(10, 2)
+  quantityFulfilled Decimal      @default(0) @map("quantity_fulfilled") @db.Decimal(10, 2)
 
   order        Order              @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product      Product            @relation(fields: [productId], references: [id])

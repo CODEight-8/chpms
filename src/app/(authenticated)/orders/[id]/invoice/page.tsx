@@ -147,6 +147,9 @@ export default async function OrderInvoicePage({
                           [{item.chipSize}]
                         </span>
                       )}
+                      <span className="ml-1 text-gray-600">
+                        · {item.preparation.charAt(0) + item.preparation.slice(1).toLowerCase()}
+                      </span>
                     </td>
                     <td className="py-3 text-center">
                       {Number(item.quantityOrdered).toLocaleString()}

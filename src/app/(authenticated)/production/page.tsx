@@ -14,6 +14,10 @@ import { SummaryCard } from "@/components/shared/summary-card";
 import { Pagination } from "@/components/shared/pagination";
 import { parsePagination } from "@/lib/pagination";
 import { EmptyState } from "@/components/shared/empty-state";
+import {
+  PREPARATION_BADGE,
+  PREPARATION_LABEL,
+} from "@/components/shared/preparation-select";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { BatchStatusTabs } from "@/components/production/batch-status-tabs";
 import { SearchInput } from "@/components/shared/search-input";
@@ -166,6 +170,7 @@ export default async function ProductionPage({
               <TableRow>
                 <TableHead>Batch #</TableHead>
                 <TableHead>Chip Size</TableHead>
+                <TableHead>Prep</TableHead>
                 <TableHead className="text-center">Input Husks</TableHead>
                 <TableHead className="text-right">Output</TableHead>
                 <TableHead>Quality</TableHead>
@@ -187,6 +192,14 @@ export default async function ProductionPage({
                   </TableCell>
                   <TableCell className="text-gray-600">
                     {batch.chipSize || "-"}
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant="outline"
+                      className={PREPARATION_BADGE[batch.preparation]}
+                    >
+                      {PREPARATION_LABEL[batch.preparation]}
+                    </Badge>
                   </TableCell>
                   <TableCell className="text-center">
                     {batch.totalInputHusks.toLocaleString()}
