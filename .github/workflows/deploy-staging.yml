@@ -61,6 +61,10 @@ jobs:
         shell: bash
         run: sudo docker compose config --quiet
 
+      - name: Stop and remove existing deployment
+        shell: bash
+        run: sudo docker compose down -v --remove-orphans
+
       - name: Clear Docker
         shell: bash
         run: sudo docker system prune -a -f --volumes
