@@ -30,28 +30,48 @@ export async function GET(req: NextRequest) {
   const supplierPayWhere = hasDateFilter ? { paymentDate: dateFilter } : {};
   const clientPayWhere = hasDateFilter ? { paymentDate: dateFilter } : {};
   const orderDateWhere = hasDateFilter ? { orderDate: dateFilter } : {};
+  const miscOutWhere = hasDateFilter
+    ? { direction: "OUT" as const, transactionDate: dateFilter }
+    : { direction: "OUT" as const };
+  const batchCompletedWhere = hasDateFilter
+    ? { status: "COMPLETED" as const, completedAt: dateFilter }
+    : { status: "COMPLETED" as const };
 
-  const [lotCostAgg, supplierPaidAgg, clientPaidAgg, orderItems] =
-    await Promise.all([
-      prisma.supplierLot.aggregate({
-        _sum: { totalCost: true },
-        where: lotDateWhere,
-      }),
-      prisma.supplierPayment.aggregate({
-        _sum: { amount: true },
-        where: supplierPayWhere,
-      }),
-      prisma.clientPayment.aggregate({
-        _sum: { amount: true },
-        where: clientPayWhere,
-      }),
-      prisma.orderItem.findMany({
-        where: {
-          order: { status: { not: "CANCELLED" }, ...orderDateWhere },
-        },
-        select: { quantityOrdered: true, unitPrice: true },
-      }),
-    ]);
+  const [
+    lotCostAgg,
+    supplierPaidAgg,
+    clientPaidAgg,
+    orderItems,
+    miscOutAgg,
+    batchExtraAgg,
+  ] = await Promise.all([
+    prisma.supplierLot.aggregate({
+      _sum: { totalCost: true },
+      where: lotDateWhere,
+    }),
+    prisma.supplierPayment.aggregate({
+      _sum: { amount: true },
+      where: supplierPayWhere,
+    }),
+    prisma.clientPayment.aggregate({
+      _sum: { amount: true },
+      where: clientPayWhere,
+    }),
+    prisma.orderItem.findMany({
+      where: {
+        order: { status: { not: "CANCELLED" }, ...orderDateWhere },
+      },
+      select: { quantityOrdered: true, unitPrice: true },
+    }),
+    prisma.miscTransaction.aggregate({
+      _sum: { amount: true },
+      where: miscOutWhere,
+    }),
+    prisma.productionBatch.aggregate({
+      _sum: { additionalCost: true },
+      where: batchCompletedWhere,
+    }),
+  ]);
 
   const totalProcurement = Number(lotCostAgg._sum.totalCost || 0);
   const totalPaidSuppliers = Number(supplierPaidAgg._sum.amount || 0);
@@ -60,6 +80,15 @@ export async function GET(req: NextRequest) {
     (sum, i) => sum + Number(i.quantityOrdered) * Number(i.unitPrice),
     0
   );
+  const totalMiscOut = Number(miscOutAgg._sum.amount || 0);
+  const totalAdditionalCost = Number(batchExtraAgg._sum.additionalCost || 0);
+
+  const grossProfit = totalReceived - totalPaidSuppliers;
+  // Net Profit folds in operating expenses beyond raw procurement: misc-out
+  // (electricity, fuel, etc.) and per-batch additional cost captured at
+  // completion. Misc-In is excluded — owner capital injections are equity,
+  // not operating revenue.
+  const netProfit = grossProfit - totalMiscOut - totalAdditionalCost;
 
   return jsonResponse({
     totalProcurement,
@@ -68,6 +97,9 @@ export async function GET(req: NextRequest) {
     totalRevenue,
     totalReceived,
     outstandingReceivable: totalRevenue - totalReceived,
-    grossProfit: totalReceived - totalPaidSuppliers,
+    grossProfit,
+    netProfit,
+    totalMiscOut,
+    totalAdditionalCost,
   });
 }

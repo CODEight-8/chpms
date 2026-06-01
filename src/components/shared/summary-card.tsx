@@ -27,7 +27,7 @@ export function SummaryCard({
             <p className="text-sm font-medium text-muted-foreground break-words">
               {title}
             </p>
-            <p className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold mt-1 whitespace-nowrap tabular-nums">
+            <p className="text-lg sm:text-xl md:text-2xl font-bold mt-1 whitespace-nowrap tabular-nums overflow-x-auto">
               {value}
             </p>
             {subtitle && (
